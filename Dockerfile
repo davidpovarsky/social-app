@@ -73,7 +73,8 @@ WORKDIR /usr/src/social-app
 
 ENV GODEBUG="netdns=go"
 ENV GOOS="linux"
-ENV GOARCH="amd64"
+# Intentionally do not force GOARCH. The build stage follows the Docker target
+# architecture, so this image works on both amd64 VPSes and Oracle A1 arm64.
 ENV CGO_ENABLED=1
 ENV GOEXPERIMENT="loopvar"
 
@@ -112,10 +113,10 @@ ENTRYPOINT ["dumb-init", "--"]
 WORKDIR /bskyweb
 COPY --from=go-build /bskyweb /usr/bin/bskyweb
 
-CMD ["/usr/bin/bskyweb"]
+CMD ["/usr/bin/bskyweb", "serve"]
 
-LABEL org.opencontainers.image.source=https://github.com/bluesky-social/social-app
-LABEL org.opencontainers.image.description="bsky.app Web App"
+LABEL org.opencontainers.image.source=https://github.com/davidpovarsky/social-app
+LABEL org.opencontainers.image.description="Torah Social Web App"
 LABEL org.opencontainers.image.licenses=MIT
 
 # NOOP
