@@ -64,6 +64,10 @@ RUN echo "Using bundle identifier: $EXPO_PUBLIC_BUNDLE_IDENTIFIER" && \
   echo "EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=$EXPO_PUBLIC_TORAH_ISOLATED_NETWORK" >> .env && \
   echo "EXPO_PUBLIC_SENTRY_DSN=$EXPO_PUBLIC_SENTRY_DSN" >> .env
 
+# pnpm install must run before the isolation patch because this base image
+# downloads the Node runtime through pnpm according to package.json.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
 # The upstream client contains public Bluesky AppView/Discover constants that
 # are compile-time values. For an isolated Torah deployment they must be
 # rewritten before Metro builds the static JS bundle; changing bskyweb's
@@ -71,8 +75,6 @@ RUN echo "Using bundle identifier: $EXPO_PUBLIC_BUNDLE_IDENTIFIER" && \
 RUN if [ "$EXPO_PUBLIC_TORAH_ISOLATED_NETWORK" = "true" ]; then \
       node ./scripts/torah-isolate-client.mjs; \
     fi
-
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 RUN pnpm intl:build 2>&1 | tee i18n.log && \
   if grep -q "invalid syntax" "i18n.log"; then echo "\n\nFound compilation errors!\n\n" && exit 1; else echo "\n\nNo compile errors!\n\n"; fi
