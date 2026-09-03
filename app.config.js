@@ -22,16 +22,13 @@ module.exports = function (_config) {
   const IS_PRODUCTION = process.env.EXPO_PUBLIC_ENV === 'production'
   const IS_DEV = !IS_TESTFLIGHT && !IS_PRODUCTION
 
-  const ASSOCIATED_DOMAINS = [
-    'applinks:bsky.app',
-    'applinks:staging.bsky.app',
-    'appclips:bsky.app',
-    'appclips:go.bsky.app', // Allows App Clip to work when scanning QR codes
-    // When testing local services, enter an ngrok (et al) domain here. It must use a standard HTTP/HTTPS port.
-    ...(IS_DEV || IS_TESTFLIGHT ? [] : []),
-  ]
+  // Keep production domains empty until the project has a permanent domain.
+  // Localhost stays available for web development.
+  const ASSOCIATED_DOMAINS = []
 
-  const UPDATES_ENABLED = IS_TESTFLIGHT || IS_PRODUCTION
+  // The fork must never consume Bluesky's signed OTA update channel.
+  // We can re-enable Expo Updates later with our own EAS project/certificate.
+  const UPDATES_ENABLED = false
 
   const USE_SENTRY = Boolean(process.env.SENTRY_AUTH_TOKEN)
 
@@ -45,10 +42,9 @@ module.exports = function (_config) {
   return {
     expo: {
       version: VERSION,
-      name: 'Bluesky',
-      slug: 'bluesky',
-      scheme: 'bluesky',
-      owner: 'blueskysocial',
+      name: 'Torah Social',
+      slug: 'torah-social',
+      scheme: 'torahsocial',
       runtimeVersion: {
         policy: 'appVersion',
       },
@@ -56,8 +52,8 @@ module.exports = function (_config) {
       userInterfaceStyle: 'automatic',
       primaryColor: '#006AFF',
       ios: {
-        supportsTablet: false,
-        bundleIdentifier: 'xyz.blueskyweb.app',
+        supportsTablet: true,
+        bundleIdentifier: 'com.davidpovarsky.torahsocial',
         appleTeamId: process.env.EXPO_APPLE_TEAM_ID,
         config: {
           usesNonExemptEncryption: false,
@@ -75,9 +71,10 @@ module.exports = function (_config) {
             'Used to save images to your library.',
           NSPhotoLibraryUsageDescription:
             'Used for profile pictures, posts, and other kinds of content',
-          CFBundleSpokenName: 'Blue Sky',
+          CFBundleSpokenName: 'Torah Social',
           CFBundleLocalizations: [
             'en',
+            'he',
             'an',
             'ast',
             'ca',
@@ -124,7 +121,8 @@ module.exports = function (_config) {
         entitlements: {
           'com.apple.developer.kernel.increased-memory-limit': true,
           'com.apple.developer.kernel.extended-virtual-addressing': true,
-          'com.apple.security.application-groups': 'group.app.bsky',
+          'com.apple.security.application-groups':
+            'group.com.davidpovarsky.torahsocial',
           'com.apple.developer.usernotifications.communication': true,
           // 'com.apple.developer.device-information.user-assigned-device-name': true,
           'com.apple.developer.declared-age-range': true,
@@ -192,16 +190,12 @@ module.exports = function (_config) {
           backgroundColor: '#006AFF',
         },
         googleServicesFile: './google-services.json',
-        package: 'xyz.blueskyweb.app',
+        package: 'com.davidpovarsky.torahsocial',
         intentFilters: [
           {
             action: 'VIEW',
-            autoVerify: true,
+            autoVerify: false,
             data: [
-              {
-                scheme: 'https',
-                host: 'bsky.app',
-              },
               ...(IS_DEV
                 ? [
                     {
@@ -219,18 +213,8 @@ module.exports = function (_config) {
         favicon: './assets/favicon.png',
       },
       updates: {
-        url: 'https://updates.bsky.app/manifest',
         enabled: UPDATES_ENABLED,
         fallbackToCacheTimeout: 30000,
-        codeSigningCertificate: UPDATES_ENABLED
-          ? './code-signing/certificate.pem'
-          : undefined,
-        codeSigningMetadata: UPDATES_ENABLED
-          ? {
-              keyid: 'main',
-              alg: 'rsa-v1_5-sha256',
-            }
-          : undefined,
         checkAutomatically: 'NEVER',
       },
       plugins: [
@@ -418,7 +402,7 @@ module.exports = function (_config) {
           'expo-contacts',
           {
             contactsPermission:
-              'I agree to allow Bluesky to use my contacts for friend discovery until I opt out.',
+              'I agree to allow Torah Social to use my contacts for friend discovery until I opt out.',
           },
         ],
       ],
@@ -430,31 +414,32 @@ module.exports = function (_config) {
                 appExtensions: [
                   {
                     targetName: 'Share-with-Bluesky',
-                    bundleIdentifier: 'xyz.blueskyweb.app.Share-with-Bluesky',
+                    bundleIdentifier:
+                      'com.davidpovarsky.torahsocial.Share-with-Bluesky',
                     entitlements: {
                       'com.apple.security.application-groups': [
-                        'group.app.bsky',
+                        'group.com.davidpovarsky.torahsocial',
                       ],
                     },
                   },
                   {
                     targetName: 'BlueskyNSE',
-                    bundleIdentifier: 'xyz.blueskyweb.app.BlueskyNSE',
+                    bundleIdentifier:
+                      'com.davidpovarsky.torahsocial.BlueskyNSE',
                     entitlements: {
                       'com.apple.security.application-groups': [
-                        'group.app.bsky',
+                        'group.com.davidpovarsky.torahsocial',
                       ],
                     },
                   },
                   {
                     targetName: 'BlueskyClip',
-                    bundleIdentifier: 'xyz.blueskyweb.app.AppClip',
+                    bundleIdentifier: 'com.davidpovarsky.torahsocial.AppClip',
                   },
                 ],
               },
             },
           },
-          projectId: '55bd077a-d905-4184-9c7f-94789ba0f302',
         },
       },
     },
