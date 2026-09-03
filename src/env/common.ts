@@ -17,6 +17,14 @@ export const ENV: string = process.env.EXPO_PUBLIC_ENV as
   'production' | 'testflight' | 'development' | 'e2e' | (string & {})
 
 /**
+ * Default PDS used by Torah Social for signup/login. Keeping this configurable
+ * lets the same client build target an experimental VM today and a permanent
+ * Torah Social domain later without changing application code.
+ */
+export const TORAH_PDS_HOST: string =
+  process.env.EXPO_PUBLIC_TORAH_PDS_HOST || 'https://bsky.social'
+
+/**
  * Indicates whether the app is running in TestFlight
  */
 export const IS_TESTFLIGHT = ENV === 'testflight'
