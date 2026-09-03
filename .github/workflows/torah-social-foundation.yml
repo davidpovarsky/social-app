@@ -1,0 +1,87 @@
+name: Torah Social Foundation
+
+on:
+  push:
+    branches:
+      - codex/torah-social-foundation
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: torah-social-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck:web
+      - run: pnpm build-web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: torah-social-web
+          path: web-build
+          if-no-files-found: error
+          retention-days: 7
+
+  ios:
+    name: iOS and iPad simulator build
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Generate native iOS project
+        run: pnpm prebuild --platform ios
+      - name: Install CocoaPods dependencies
+        run: bundle exec pod install --project-directory=ios
+      - name: Build unsigned simulator app
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          if [ -z "$WORKSPACE" ]; then
+            echo 'No Xcode workspace generated.' >&2
+            exit 1
+          fi
+          SCHEME="$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Package simulator app
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -path '*iphonesimulator*' -name '*.app' -print -quit)"
+          if [ -z "$APP" ]; then
+            echo 'No simulator .app produced.' >&2
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/TorahSocial-iOS-Simulator.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: torah-social-ios-simulator
+          path: ${{ runner.temp }}/TorahSocial-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 7
