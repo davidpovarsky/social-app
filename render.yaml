@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: torah-social-preview
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: codex/torah-social-foundation
+    dockerfilePath: ./Dockerfile
+    dockerCommand: /usr/bin/bskyweb serve
+    autoDeployTrigger: commit
+    healthCheckPath: /
+    envVars:
+      - key: ATP_APPVIEW_HOST
+        value: https://public.api.bsky.app
+      - key: HTTP_ADDRESS
+        value: :10000
+      - key: ROBOTS_DISALLOW_ALL
+        value: "true"
+      - key: EXPO_PUBLIC_ENV
+        value: development
+      - key: EXPO_PUBLIC_LOG_LEVEL
+        value: info
