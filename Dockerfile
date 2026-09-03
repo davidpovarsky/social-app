@@ -1,21 +1,20 @@
 #
-# Stage 1: build the web bundle with pnpm.
+# Stage 1: build the web bundle with Node + pnpm.
 #
-# Uses the official pnpm image. Node is auto-downloaded by pnpm using the
-# `devEngines.runtime` field in package.json (onFail: "download").
+# The standalone ghcr.io/pnpm/pnpm image can run pnpm without exposing a
+# `node` binary in PATH. Torah's isolation patch is a Node script, so use a
+# real Node 24 image and install the exact pnpm version required by this repo.
 #
-FROM ghcr.io/pnpm/pnpm:11 AS web-build
+FROM node:24-bookworm AS web-build
 
 WORKDIR /app
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-#
-# pnpm config
-#
 ENV CI=1
-# use the pnpm version specified in package.json
-ENV pnpm_config_pm_on_fail=download
+
+RUN npm install --global pnpm@11.21.0 && \
+  node --version && \
+  pnpm --version
 
 # The latest git hash of the preview branch on render.com
 # https://render.com/docs/docker-secrets#environment-variables-in-docker-builds
@@ -64,8 +63,6 @@ RUN echo "Using bundle identifier: $EXPO_PUBLIC_BUNDLE_IDENTIFIER" && \
   echo "EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=$EXPO_PUBLIC_TORAH_ISOLATED_NETWORK" >> .env && \
   echo "EXPO_PUBLIC_SENTRY_DSN=$EXPO_PUBLIC_SENTRY_DSN" >> .env
 
-# pnpm install must run before the isolation patch because this base image
-# downloads the Node runtime through pnpm according to package.json.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # The upstream client contains public Bluesky AppView/Discover constants that
@@ -87,25 +84,17 @@ RUN SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN \
 #
 # Stage 2: build the bskyweb Go binary, embedding the assets from stage 1.
 #
-# post-web-build.js (run by `pnpm build-web`) writes the bundled JS/CSS/media
-# into bskyweb/static/* and regenerates bskyweb/templates/scripts.html, so
-# copying the bskyweb/ tree from stage 1 is enough for go:embed to find
-# everything.
-#
 FROM golang:1.26-bookworm AS go-build
 
 WORKDIR /usr/src/social-app
 
 ENV GODEBUG="netdns=go"
 ENV GOOS="linux"
-# Intentionally do not force GOARCH. The build stage follows the Docker target
-# architecture, so this image works on both amd64 VPSes and Oracle A1 arm64.
 ENV CGO_ENABLED=1
 ENV GOEXPERIMENT="loopvar"
 
 COPY --from=web-build /app/bskyweb ./bskyweb
 
-# DEBUG
 RUN find ./bskyweb/static
 
 RUN cd bskyweb/ && \
@@ -114,7 +103,7 @@ RUN cd bskyweb/ && \
 
 RUN cd bskyweb/ && \
   go build \
-    -v  \
+    -v \
     -trimpath \
     -tags timetzdata \
     -o /bskyweb \
