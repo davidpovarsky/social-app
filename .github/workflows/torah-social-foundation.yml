@@ -68,12 +68,23 @@ jobs:
             echo 'No Xcode workspace generated.' >&2
             exit 1
           fi
-          SCHEME="$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["workspace"]["schemes"][0])')"
+
+          APP_SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          SCHEMES_JSON="$(xcodebuild -workspace "$WORKSPACE" -list -json)"
+          SCHEME="$(printf '%s' "$SCHEMES_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); wanted=sys.argv[1]; schemes=d["workspace"]["schemes"]; print(wanted if wanted in schemes else "")' "$APP_SCHEME")"
+          if [ -z "$SCHEME" ]; then
+            echo "Expected app scheme '$APP_SCHEME' was not found in $WORKSPACE." >&2
+            printf '%s\n' "$SCHEMES_JSON" >&2
+            exit 1
+          fi
+
+          echo "Building app scheme: $SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Debug \
             -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             build
@@ -84,8 +95,11 @@ jobs:
           APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -path '*iphonesimulator*' -name '*.app' -print -quit)"
           if [ -z "$APP" ]; then
             echo 'No simulator .app produced.' >&2
+            echo 'Products found:' >&2
+            find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 4 -print >&2 || true
             exit 1
           fi
+          echo "Packaging simulator app: $APP"
           ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/TorahSocial-iOS-Simulator.zip"
       - uses: actions/upload-artifact@v4
         with:
