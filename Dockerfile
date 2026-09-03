@@ -33,6 +33,14 @@ ARG EXPO_PUBLIC_BUNDLE_IDENTIFIER
 ENV EXPO_PUBLIC_BUNDLE_IDENTIFIER=${EXPO_PUBLIC_BUNDLE_IDENTIFIER:-$RENDER_GIT_COMMIT}
 ARG EXPO_PUBLIC_TORAH_PDS_HOST
 ENV EXPO_PUBLIC_TORAH_PDS_HOST=${EXPO_PUBLIC_TORAH_PDS_HOST:-https://bsky.social}
+ARG EXPO_PUBLIC_TORAH_PDS_DID
+ENV EXPO_PUBLIC_TORAH_PDS_DID=${EXPO_PUBLIC_TORAH_PDS_DID:-did:web:bsky.social}
+ARG EXPO_PUBLIC_TORAH_APPVIEW_HOST
+ENV EXPO_PUBLIC_TORAH_APPVIEW_HOST=${EXPO_PUBLIC_TORAH_APPVIEW_HOST:-https://api.bsky.app}
+ARG EXPO_PUBLIC_BLUESKY_PROXY_DID
+ENV EXPO_PUBLIC_BLUESKY_PROXY_DID=${EXPO_PUBLIC_BLUESKY_PROXY_DID:-did:web:api.bsky.app}
+ARG EXPO_PUBLIC_TORAH_ISOLATED_NETWORK
+ENV EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=${EXPO_PUBLIC_TORAH_ISOLATED_NETWORK:-false}
 
 #
 # Sentry
@@ -50,7 +58,19 @@ RUN echo "Using bundle identifier: $EXPO_PUBLIC_BUNDLE_IDENTIFIER" && \
   echo "EXPO_PUBLIC_BUNDLE_IDENTIFIER=$EXPO_PUBLIC_BUNDLE_IDENTIFIER" >> .env && \
   echo "EXPO_PUBLIC_BUNDLE_DATE=$(date -u +"%y%m%d%H")" >> .env && \
   echo "EXPO_PUBLIC_TORAH_PDS_HOST=$EXPO_PUBLIC_TORAH_PDS_HOST" >> .env && \
+  echo "EXPO_PUBLIC_TORAH_PDS_DID=$EXPO_PUBLIC_TORAH_PDS_DID" >> .env && \
+  echo "EXPO_PUBLIC_TORAH_APPVIEW_HOST=$EXPO_PUBLIC_TORAH_APPVIEW_HOST" >> .env && \
+  echo "EXPO_PUBLIC_BLUESKY_PROXY_DID=$EXPO_PUBLIC_BLUESKY_PROXY_DID" >> .env && \
+  echo "EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=$EXPO_PUBLIC_TORAH_ISOLATED_NETWORK" >> .env && \
   echo "EXPO_PUBLIC_SENTRY_DSN=$EXPO_PUBLIC_SENTRY_DSN" >> .env
+
+# The upstream client contains public Bluesky AppView/Discover constants that
+# are compile-time values. For an isolated Torah deployment they must be
+# rewritten before Metro builds the static JS bundle; changing bskyweb's
+# runtime ATP_APPVIEW_HOST alone is not enough.
+RUN if [ "$EXPO_PUBLIC_TORAH_ISOLATED_NETWORK" = "true" ]; then \
+      node ./scripts/torah-isolate-client.mjs; \
+    fi
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
