@@ -31,6 +31,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Compile locale catalogs
         run: pnpm intl:compile
+      - name: Apply isolated Torah network build config
+        env:
+          EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview.torah.invalid
+          EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shTorahSocialCiAppView
+          EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds.torah.invalid
+        run: node scripts/torah-isolate-client.mjs
       - run: pnpm typecheck:web
       - run: pnpm build-web
       - uses: actions/upload-artifact@v4
