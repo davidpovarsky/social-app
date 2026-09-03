@@ -2,13 +2,18 @@ import {type Insets, Platform} from 'react-native'
 import {type Service} from '@atproto/lex'
 import {api} from '@bsky/sdk'
 
-import {BLUESKY_PROXY_DID, CHAT_PROXY_DID, IS_DEV} from '#/env'
+import {
+  BLUESKY_PROXY_DID,
+  CHAT_PROXY_DID,
+  IS_DEV,
+  TORAH_PDS_HOST,
+} from '#/env'
 import {type app} from '#/lexicons'
 
 export const LOCAL_DEV_SERVICE =
   Platform.OS === 'android' ? 'http://10.0.2.2:2583' : 'http://localhost:2583'
 export const STAGING_SERVICE = 'https://staging.bsky.dev'
-export const BSKY_SERVICE = 'https://bsky.social'
+export const BSKY_SERVICE = TORAH_PDS_HOST
 export const BSKY_SERVICE_DID = 'did:web:bsky.social'
 export const PUBLIC_BSKY_SERVICE = 'https://public.api.bsky.app'
 export const DEFAULT_SERVICE = BSKY_SERVICE
@@ -35,7 +40,7 @@ export const DISCOVER_DEBUG_DIDS: Record<string, true> = {
   'did:plc:p2cp5gopk7mgjegy6wadk3ep': true, // samuel.bsky.team
   'did:plc:ragtjsm2j2vknwkz3zp4oxrd': true, // pfrazee.com
   'did:plc:vpkhqolt662uhesyj6nxm7ys': true, // why.bsky.team
-  'did:plc:3jpt2mvvsumj2r7eqk4gzzjz': true, // esb.lol
+  'did:plc:q6gjnaw2blty4crticxkmujt': true, // haileyok.com
   'did:plc:vjug55kidv6sye7ykr5faxxn': true, // emilyliu.me
   'did:plc:tgqseeot47ymot4zro244fj3': true, // iwsmith.bsky.social
   'did:plc:2dzyut5lxna5ljiaasgeuffz': true, // darrin.bsky.team
@@ -258,31 +263,3 @@ export const BLUESKY_PROXY_HEADER = {
  * target can be retargeted per environment.
  */
 export const CHAT_PROXY_SERVICE: Service = `${CHAT_PROXY_DID}#bsky_chat`
-
-/**
- * Bluesky's own moderation service, in the `did#service_id` form a lex client's
- * per-call `service` option takes. Passing it emits `atproto-proxy: <this
- * value>` on that one request, routing a `com.atproto.moderation.*` call to
- * Bluesky's labeler.
- *
- * Reports and appeals aimed at a DIFFERENT labeler build their own value from
- * that labeler's creator did instead, so this is a per-call option rather than a
- * client-level one like {@link CHAT_PROXY_SERVICE}.
- */
-export const MOD_PROXY_SERVICE: Service = `${api.moderation.did}#atproto_labeler`
-
-/**
- * The notification service's proxy target, in the `did#service_id` form a lex
- * client's per-call `service` option takes. Passing it emits `atproto-proxy:
- * <this value>` on that one request, which is what routes push registration to
- * the notification service (replaces the old
- * `BLUESKY_NOTIF_SERVICE_HEADERS`).
- */
-export const NOTIF_SERVICE: Service = `${BLUESKY_PROXY_DID}#bsky_notif`
-
-export const webLinks = {
-  tos: `https://bsky.social/about/support/tos`,
-  privacy: `https://bsky.social/about/support/privacy-policy`,
-  community: `https://bsky.social/about/support/community-guidelines`,
-  communityDeprecated: `https://bsky.social/about/support/community-guidelines-deprecated`,
-}
