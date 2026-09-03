@@ -29,6 +29,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Compile locale catalogs
+        run: pnpm intl:compile
       - run: pnpm typecheck:web
       - run: pnpm build-web
       - uses: actions/upload-artifact@v4
@@ -53,10 +55,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Generate native iOS project
+      - name: Compile locale catalogs
+        run: pnpm intl:compile
+      - name: Generate native iOS project and install pods
         run: pnpm prebuild --platform ios
-      - name: Install CocoaPods dependencies
-        run: bundle exec pod install --project-directory=ios
       - name: Build unsigned simulator app
         shell: bash
         run: |
