@@ -1,43 +1,31 @@
-import {useCallback} from 'react'
 import {View} from 'react-native'
-import {useQueryClient} from '@tanstack/react-query'
 
-import {precacheResolveLinkQuery} from '#/state/queries/resolve-link'
 import {atoms as a} from '#/alf'
-import {refFromSefariaUri} from '../sources/url'
 import {DetectedTorahSources} from './DetectedTorahSources'
-import {TorahComposerSourceButton} from './TorahComposerSourceButton'
+import {useTorahSourceSelection} from './useTorahSourceSelection'
 
+/**
+ * Inline Sefaria-reference suggestions shown above the composer toolbar.
+ * The actual manual source-picker control lives in the toolbar itself.
+ */
 export function TorahComposerExtensions({
   text,
+  disabled,
   onSelectUri,
 }: {
   text: string
+  disabled?: boolean
   onSelectUri: (uri: string) => void
 }) {
-  const queryClient = useQueryClient()
-
-  const selectSource = useCallback(
-    (uri: string) => {
-      const ref = refFromSefariaUri(uri)
-      precacheResolveLinkQuery(queryClient, uri, {
-        type: 'external',
-        uri,
-        title: ref || 'Sefaria',
-        description: 'מקור תורני ב־Sefaria',
-        thumb: undefined,
-      })
-      onSelectUri(uri)
-    },
-    [onSelectUri, queryClient],
-  )
+  const selectSource = useTorahSourceSelection(onSelectUri)
 
   return (
-    <View style={[a.mt_xs, a.gap_xs]}>
-      <View style={[a.flex_row, a.justify_end]}>
-        <TorahComposerSourceButton onSelectUri={selectSource} />
-      </View>
-      <DetectedTorahSources text={text} onSelectUri={selectSource} />
+    <View style={[a.px_sm]}>
+      <DetectedTorahSources
+        text={text}
+        disabled={disabled}
+        onSelectUri={selectSource}
+      />
     </View>
   )
 }
