@@ -36,16 +36,19 @@ constants = replaceRequired(
   `export const PROD_DEFAULT_FEED = (rkey: string) =>\n  \`at://${appviewDid}/app.bsky.feed.generator/\${rkey}\``,
   'PROD_DEFAULT_FEED',
 )
+// Keep these as literal strings rather than calling PROD_DEFAULT_FEED(). Several
+// upstream feed descriptors rely on TypeScript retaining the `feedgen|${string}`
+// template-literal type instead of widening the URI to plain `string`.
 constants = replaceRequired(
   constants,
   "export const DISCOVER_FEED_URI =\n  'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot'",
-  "export const DISCOVER_FEED_URI = PROD_DEFAULT_FEED('whats-hot')",
+  `export const DISCOVER_FEED_URI =\n  'at://${appviewDid}/app.bsky.feed.generator/whats-hot'`,
   'DISCOVER_FEED_URI',
 )
 constants = replaceRequired(
   constants,
   "export const VIDEO_FEED_URI =\n  'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/thevids'",
-  "export const VIDEO_FEED_URI = PROD_DEFAULT_FEED('thevids')",
+  `export const VIDEO_FEED_URI =\n  'at://${appviewDid}/app.bsky.feed.generator/thevids'`,
   'VIDEO_FEED_URI',
 )
 constants = replaceRequired(
