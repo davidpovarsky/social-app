@@ -13,6 +13,8 @@ import {
 } from '#/lib/strings/embed-player'
 import {toNiceDomain} from '#/lib/strings/url-helpers'
 import {useExternalEmbedsPrefs} from '#/state/preferences'
+import {TorahSourceCard} from '#/torah-social/sources/SourceCard'
+import {isSefariaSourceUri} from '#/torah-social/sources/url'
 import {atoms as a, useTheme} from '#/alf'
 import {Divider} from '#/components/Divider'
 import {Earth_Stroke2_Corner0_Rounded as Globe} from '#/components/icons/Globe'
@@ -66,6 +68,18 @@ export const ExternalEmbed = ({
         }
       }
     : undefined
+
+  if (isSefariaSourceUri(link.uri)) {
+    return (
+      <TorahSourceCard
+        uri={link.uri}
+        fallbackTitle={link.title}
+        fallbackDescription={link.description}
+        onOpen={onOpen}
+        style={style}
+      />
+    )
+  }
 
   if (
     embedPlayerParams?.source === 'tenor' ||
