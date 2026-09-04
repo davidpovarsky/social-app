@@ -1,10 +1,14 @@
-import {Pressable} from 'react-native'
-
-import {atoms as a, useTheme} from '#/alf'
+import {atoms as a} from '#/alf'
+import {Button, ButtonText} from '#/components/Button'
 import * as Dialog from '#/components/Dialog'
-import {Text} from '#/components/Typography'
+import {PageText_Stroke2_Corner0_Rounded as SourceIcon} from '#/components/icons/PageText'
 import {SourcePickerDialog} from '../sources/SourcePickerDialog'
+import {useTorahSourceSelection} from './useTorahSourceSelection'
 
+/**
+ * Torah Social's source picker button. It is intentionally self-contained so
+ * the upstream composer only needs to render one component in its toolbar.
+ */
 export function TorahComposerSourceButton({
   disabled,
   onSelectUri,
@@ -12,26 +16,23 @@ export function TorahComposerSourceButton({
   disabled?: boolean
   onSelectUri: (uri: string) => void
 }) {
-  const t = useTheme()
   const picker = Dialog.useDialogControl()
+  const selectSource = useTorahSourceSelection(onSelectUri)
 
   return (
     <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="הוסף מקור תורני"
+      <Button
+        label="הוסף מקור תורני"
         disabled={disabled}
         onPress={() => picker.open()}
-        style={({pressed}) => [
-          a.p_sm,
-          a.rounded_sm,
-          {
-            opacity: disabled ? 0.35 : pressed ? 0.6 : 1,
-          },
-        ]}>
-        <Text style={[a.text_sm, a.font_semi_bold, t.atoms.text]}>＋ מקור</Text>
-      </Pressable>
-      <SourcePickerDialog control={picker} onSelect={onSelectUri} />
+        style={[a.p_sm, a.gap_xs]}
+        variant="ghost"
+        shape="default"
+        color="primary">
+        <SourceIcon size="lg" />
+        <ButtonText style={a.text_sm}>מקור</ButtonText>
+      </Button>
+      <SourcePickerDialog control={picker} onSelect={selectSource} />
     </>
   )
 }
