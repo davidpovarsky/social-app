@@ -6,7 +6,6 @@ services:
     region: frankfurt
     branch: codex/torah-social-foundation
     dockerfilePath: ./Dockerfile
-    dockerContext: .
     dockerCommand: /usr/bin/bskyweb serve
     autoDeployTrigger: commit
     healthCheckPath: /
@@ -21,13 +20,3 @@ services:
         value: development
       - key: EXPO_PUBLIC_LOG_LEVEL
         value: info
-      - key: EXPO_PUBLIC_TORAH_PDS_HOST
-        value: https://bsky.social
-      - key: EXPO_PUBLIC_TORAH_PDS_DID
-        value: did:web:bsky.social
-      - key: EXPO_PUBLIC_TORAH_APPVIEW_HOST
-        value: https://api.bsky.app
-      - key: EXPO_PUBLIC_BLUESKY_PROXY_DID
-        value: did:web:api.bsky.app
-      - key: EXPO_PUBLIC_TORAH_ISOLATED_NETWORK
-        value: "false"
