@@ -20,7 +20,6 @@ import {downloadAndResize} from '#/lib/media/manip'
 import {isUriImage} from '#/lib/media/util'
 import {getMentionAt, insertMentionAt} from '#/lib/strings/mention-manip'
 import {useTheme} from '#/lib/ThemeContext'
-import {TorahComposerExtensions} from '#/torah-social/composer/TorahComposerExtensions'
 import {
   type LinkFacetMatch,
   suggestLinkCardUri,
@@ -247,7 +246,6 @@ export function TextInput({
         prefix={autocompletePrefix}
         onSelect={onSelectAutocompleteItem}
       />
-      <TorahComposerExtensions text={richtext.text} onSelectUri={onNewLink} />
     </View>
   )
 }
