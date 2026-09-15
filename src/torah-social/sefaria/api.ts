@@ -1,5 +1,6 @@
 import type {
   SefariaCompletion,
+  SefariaManuscript,
   SefariaTextResponse,
   SefariaVersion,
   TorahSource,
@@ -7,11 +8,20 @@ import type {
 
 const SEFARIA_ORIGIN = 'https://www.sefaria.org'
 
-function apiUrl(path: string, params?: Record<string, string | number>) {
+function apiUrl(
+  path: string,
+  params?: Record<string, string | number | Array<string | number>>,
+) {
   const url = new URL(path, SEFARIA_ORIGIN)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
-      url.searchParams.set(key, String(value))
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          url.searchParams.append(key, String(item))
+        }
+      } else {
+        url.searchParams.set(key, String(value))
+      }
     }
   }
   return url.toString()
@@ -94,10 +104,15 @@ export async function validateRef(
   type RefResponse = {
     is_ref?: boolean
     ref?: string
+    normalized?: string
+    url_ref?: string
+    urlRef?: string
     he_ref?: string
     heRef?: string
+    hebrew?: string
     primary_category?: string
     primaryCategory?: string
+    index_title?: string
   }
 
   const value = input.trim()
@@ -108,14 +123,52 @@ export async function validateRef(
     signal,
   )
 
-  if (data.is_ref === false || !data.ref) {
+  const resolvedRef = data.normalized || data.ref || data.url_ref
+  if (data.is_ref === false || !resolvedRef) {
     throw new Error('המקור לא זוהה בספריית Sefaria')
   }
 
   return {
-    ref: data.ref,
-    heRef: data.he_ref || data.heRef || data.ref,
-    category: data.primary_category || data.primaryCategory,
+    ref: resolvedRef,
+    heRef: data.hebrew || data.he_ref || data.heRef || resolvedRef,
+    category: data.primary_category || data.primaryCategory || data.index_title,
+  }
+}
+
+export function getTorahSourceImageUrl(
+  ref: string,
+  options?: {
+    lang?: 'he' | 'en'
+    platform?: 'twitter' | 'facebook'
+    vhe?: string
+    ven?: string
+  },
+): string {
+  const params: Record<string, string> = {
+    lang: options?.lang || 'he',
+  }
+  if (options?.platform) params.platform = options.platform
+  if (options?.vhe) params.vhe = options.vhe
+  if (options?.ven) params.ven = options.ven
+
+  return apiUrl(
+    `/api/img-gen/${encodeURIComponent(ref.replaceAll(' ', '_'))}`,
+    params,
+  )
+}
+
+export async function getManuscripts(
+  ref: string,
+  signal?: AbortSignal,
+): Promise<SefariaManuscript[]> {
+  try {
+    const data = await getJson<SefariaManuscript[]>(
+      apiUrl(`/api/manuscripts/${encodeURIComponent(ref)}`),
+      signal,
+    )
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
   }
 }
 
@@ -125,7 +178,7 @@ export async function getText(
 ): Promise<SefariaTextResponse> {
   return getJson<SefariaTextResponse>(
     apiUrl(`/api/v3/texts/${encodeURIComponent(ref)}`, {
-      version: 'primary',
+      version: ['hebrew', 'english'],
       return_format: 'text_only',
     }),
     signal,
@@ -148,6 +201,7 @@ export async function resolveTorahSource(
 
   const version = selectPrimaryVersion(text?.versions)
   const preview = flattenText(version?.text).slice(0, 2).join(' ').trim()
+  const imageUrl = getTorahSourceImageUrl(normalized.ref)
 
   return {
     ref: normalized.ref,
@@ -157,7 +211,9 @@ export async function resolveTorahSource(
     preview: preview || undefined,
     versionTitle: version?.versionTitle,
     license: version?.license,
+    imageUrl,
   }
 }
 
 export {SEFARIA_ORIGIN}
+

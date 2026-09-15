@@ -19,6 +19,24 @@ export type SefariaTextResponse = {
   warnings?: unknown[]
 }
 
+export type SefariaManuscript = {
+  manuscript_slug: string
+  page_id: string
+  image_url: string
+  thumbnail_url: string
+  description?: string
+  anchorRef?: string
+  anchorRefExpanded?: string[]
+  manuscript?: {
+    slug?: string
+    title?: string
+    he_title?: string
+    source?: string
+    description?: string
+    he_description?: string
+  }
+}
+
 export type TorahSource = {
   ref: string
   heRef: string
@@ -27,6 +45,8 @@ export type TorahSource = {
   preview?: string
   versionTitle?: string
   license?: string
+  imageUrl?: string
+  hasManuscripts?: boolean
 }
 
 export type DetectedTorahSource = TorahSource & {
@@ -35,3 +55,4 @@ export type DetectedTorahSource = TorahSource & {
   endChar: number
   ambiguous: boolean
 }
+

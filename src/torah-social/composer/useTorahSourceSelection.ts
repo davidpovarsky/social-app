@@ -2,6 +2,7 @@ import {useCallback} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 
 import {precacheResolveLinkQuery} from '#/state/queries/resolve-link'
+import {getTorahSourceImageUrl} from '../sefaria/api'
 import {refFromSefariaUri} from '../sources/url'
 
 /**
@@ -18,12 +19,15 @@ export function useTorahSourceSelection(
   return useCallback(
     (uri: string) => {
       const ref = refFromSefariaUri(uri)
+      const thumb = ref
+        ? getTorahSourceImageUrl(ref, {lang: 'he', platform: 'twitter'})
+        : undefined
       precacheResolveLinkQuery(queryClient, uri, {
         type: 'external',
         uri,
         title: ref || 'Sefaria',
         description: 'מקור תורני ב־Sefaria',
-        thumb: undefined,
+        thumb,
       })
       onSelectUri(uri)
     },

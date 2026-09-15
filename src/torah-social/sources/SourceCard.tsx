@@ -5,6 +5,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import {Image} from 'expo-image'
 
 import {atoms as a, useTheme} from '#/alf'
 import * as Dialog from '#/components/Dialog'
@@ -31,6 +32,7 @@ export function TorahSourceCard({
   const reader = Dialog.useDialogControl()
   const sourceRef = refFromSefariaUri(uri)
   const [source, setSource] = useState<TorahSource>()
+  const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
     if (!sourceRef) return
@@ -45,6 +47,7 @@ export function TorahSourceCard({
 
   const title = source?.heRef || fallbackTitle || sourceRef
   const preview = source?.preview || fallbackDescription
+  const showImage = Boolean(source?.imageUrl && !imageError)
 
   return (
     <>
@@ -57,15 +60,30 @@ export function TorahSourceCard({
         }}
         style={({pressed}) => [
           a.mt_sm,
-          a.p_md,
           a.rounded_md,
           a.border,
+          a.overflow_hidden,
           t.atoms.border_contrast_low,
           t.atoms.bg,
           {opacity: pressed ? 0.72 : 1},
           style,
         ]}>
-        <View style={[a.gap_xs]}>
+        {showImage && source?.imageUrl ? (
+          <View
+            style={[
+              a.w_full,
+              {aspectRatio: 16 / 9, backgroundColor: t.palette.contrast_50},
+            ]}>
+            <Image
+              source={{uri: source.imageUrl}}
+              style={[a.w_full, a.h_full]}
+              contentFit="cover"
+              accessibilityLabel={`תמונת מקור: ${title}`}
+              onError={() => setImageError(true)}
+            />
+          </View>
+        ) : null}
+        <View style={[a.p_md, a.gap_xs]}>
           <View style={[a.flex_row, a.align_center, a.justify_between, a.gap_md]}>
             <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>מקור תורני</Text>
             <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>Sefaria</Text>
@@ -85,7 +103,7 @@ export function TorahSourceCard({
           ) : null}
           {preview ? (
             <Text
-              numberOfLines={4}
+              numberOfLines={showImage ? 2 : 4}
               style={[
                 a.text_md,
                 {textAlign: 'right', writingDirection: 'rtl'},
