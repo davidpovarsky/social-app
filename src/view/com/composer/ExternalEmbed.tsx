@@ -35,7 +35,7 @@ export const ExternalEmbedGif = ({
         title: data.title ?? data.uri,
         uri: data.uri as UriString,
         description: data.description ?? '',
-        thumb: data.thumb?.source.path as UriString | undefined,
+        thumb: data.thumb?.source?.path as UriString | undefined,
       },
     [data],
   )
@@ -101,7 +101,7 @@ export const ExternalEmbedLink = ({
                 description:
                   data.view?.external?.description || data.description,
                 // prefer opengraph data to atproto record-derived image
-                thumb: (data.thumb?.source.path ||
+                thumb: (data.thumb?.source?.path ||
                   data.view?.external?.thumb) as UriString | undefined,
               }}
             />
@@ -113,7 +113,8 @@ export const ExternalEmbedLink = ({
               title: data.title || uri,
               uri,
               description: data.description,
-              thumb: data.thumb?.source.path as UriString | undefined,
+              thumb: (data.thumb?.source?.path ||
+                data.view?.external?.thumb) as UriString | undefined,
             }}
             hideAlt
           />

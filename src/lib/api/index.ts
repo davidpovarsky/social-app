@@ -456,7 +456,7 @@ async function resolveMedia(
     )
     if (resolvedLink.type === 'external') {
       let blob: app.bsky.embed.external.External['thumb']
-      if (resolvedLink.thumb) {
+      if (resolvedLink.thumb?.source) {
         onStateChange?.(t`Uploading link thumbnail...`)
         const {path, mime} = resolvedLink.thumb.source
         const response = await uploadBlob(pdsClient, path, mime)

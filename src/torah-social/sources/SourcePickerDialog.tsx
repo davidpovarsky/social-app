@@ -2,13 +2,13 @@ import {useEffect, useState} from 'react'
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
-  TextInput,
   View,
 } from 'react-native'
 
-import {atoms as a, useTheme} from '#/alf'
+import {atoms as a, useTheme, web} from '#/alf'
+import {Button, ButtonText} from '#/components/Button'
 import * as Dialog from '#/components/Dialog'
+import * as TextField from '#/components/forms/TextField'
 import {Text} from '#/components/Typography'
 import {autocompleteRefs, resolveTorahSource} from '../sefaria/api'
 import type {SefariaCompletion} from '../sefaria/types'
@@ -60,7 +60,7 @@ export function SourcePickerDialog({
   }, [query])
 
   const choose = async (value: string) => {
-    if (isResolving) return
+    if (isResolving || !value.trim()) return
     setIsResolving(true)
     setError(undefined)
     try {
@@ -78,89 +78,106 @@ export function SourcePickerDialog({
   }
 
   return (
-    <Dialog.Outer control={control} nativeOptions={{fullHeight: true}}>
-      <View style={[a.flex_1, t.atoms.bg]}>
-        <View
-          style={[
-            a.p_lg,
-            a.gap_md,
-            a.border_b,
-            t.atoms.border_contrast_low,
-          ]}>
+    <Dialog.Outer
+      control={control}
+      nativeOptions={{fullHeight: true}}>
+      <Dialog.Handle />
+      <Dialog.ScrollableInner
+        label="הוסף מקור תורני"
+        style={web({maxWidth: 600})}>
+        <View style={[a.gap_md, a.w_full]}>
           <View style={[a.flex_row, a.align_center, a.justify_between]}>
-            <Text style={[a.text_xl, a.font_semi_bold]}>הוסף מקור</Text>
-            <Pressable onPress={() => control.close()} style={a.p_sm}>
+            <Text style={[a.text_xl, a.font_semi_bold]}>הוסף מקור תורני</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="סגור"
+              onPress={() => control.close()}
+              style={a.p_xs}>
               <Text style={[a.text_md, a.font_semi_bold]}>סגור</Text>
             </Pressable>
           </View>
+
           <Text style={[a.text_sm, t.atoms.text_contrast_medium]}>
-            חפש פסוק, דף, הלכה, משנה, פירוש או כל Ref שקיים ב־Sefaria
+            חפש פסוק, דף גמרא, הלכה, משנה, פירוש או כל מקור הקיים ב־Sefaria
           </Text>
-          <TextInput
-            autoFocus
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={() => void choose(query)}
-            placeholder="לדוגמה: ברכות ב ע״א"
-            placeholderTextColor={t.atoms.text_contrast_low.color}
-            style={[
-              a.text_lg,
-              a.p_md,
-              a.rounded_md,
-              a.border,
-              t.atoms.border_contrast_low,
-              t.atoms.text,
-              {textAlign: 'right', writingDirection: 'rtl'},
-            ]}
-          />
-          <Pressable
-            accessibilityRole="button"
+
+          <TextField.Root>
+            <Dialog.Input
+              autoFocus
+              value={query}
+              onChangeText={setQuery}
+              onSubmitEditing={() => void choose(query)}
+              placeholder="לדוגמה: ברכות ב ע״א או Genesis 1:1"
+              style={[{textAlign: 'right', writingDirection: 'rtl'}]}
+            />
+          </TextField.Root>
+
+          <Button
+            label="הצמד מקור"
             disabled={!query.trim() || isResolving}
             onPress={() => void choose(query)}
-            style={({pressed}) => [
-              a.p_md,
-              a.rounded_md,
-              a.border,
-              t.atoms.border_contrast_low,
-              {opacity: !query.trim() || isResolving ? 0.45 : pressed ? 0.7 : 1},
-            ]}>
-            <Text style={[a.text_md, a.font_semi_bold, a.text_center]}>
+            variant="solid"
+            color="primary"
+            size="large">
+            <ButtonText>
               {isResolving ? 'מאמת מקור…' : 'הצמד מקור'}
-            </Text>
-          </Pressable>
-          {error ? (
-            <Text style={[a.text_sm, {textAlign: 'right'}]}>{error}</Text>
-          ) : null}
-        </View>
+            </ButtonText>
+          </Button>
 
-        <ScrollView contentContainerStyle={[a.p_lg, a.gap_xs]}>
-          {isSearching ? <ActivityIndicator /> : null}
-          {suggestions.map(item => (
-            <Pressable
-              key={`${item.key}-${item.title}`}
-              onPress={() => void choose(item.key)}
-              style={({pressed}) => [
-                a.p_md,
-                a.rounded_sm,
-                {opacity: pressed ? 0.65 : 1},
-              ]}>
-              <Text
-                style={[
-                  a.text_md,
-                  a.font_semi_bold,
-                  {textAlign: 'right', writingDirection: 'rtl'},
-                ]}>
-                {item.title}
+          {error ? (
+            <Text style={[a.text_sm, {color: t.palette.negative_400, textAlign: 'right'}]}>
+              {error}
+            </Text>
+          ) : null}
+
+          {isSearching && (
+            <View style={[a.py_sm, a.align_center]}>
+              <ActivityIndicator />
+            </View>
+          )}
+
+          {suggestions.length > 0 && (
+            <View style={[a.gap_xs, a.pt_xs]}>
+              <Text style={[a.text_xs, t.atoms.text_contrast_medium, {textAlign: 'right'}]}>
+                הצעות התאמה:
               </Text>
-              {item.key !== item.title ? (
-                <Text style={[a.text_sm, t.atoms.text_contrast_medium]}>
-                  {item.key}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
+              {suggestions.map(item => (
+                <Pressable
+                  key={`${item.key}-${item.title}`}
+                  accessibilityRole="button"
+                  onPress={() => void choose(item.key)}
+                  style={({pressed}) => [
+                    a.p_md,
+                    a.rounded_sm,
+                    a.border,
+                    t.atoms.border_contrast_low,
+                    {opacity: pressed ? 0.65 : 1},
+                  ]}>
+                  <Text
+                    style={[
+                      a.text_md,
+                      a.font_semi_bold,
+                      {textAlign: 'right', writingDirection: 'rtl'},
+                    ]}>
+                    {item.title}
+                  </Text>
+                  {item.key !== item.title ? (
+                    <Text
+                      style={[
+                        a.text_sm,
+                        t.atoms.text_contrast_medium,
+                        {textAlign: 'right'},
+                      ]}>
+                      {item.key}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      </Dialog.ScrollableInner>
     </Dialog.Outer>
   )
 }
+

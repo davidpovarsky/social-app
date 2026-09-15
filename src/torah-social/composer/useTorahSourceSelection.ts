@@ -1,6 +1,7 @@
 import {useCallback} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 
+import {type ResolvedLink, imageToThumb} from '#/lib/api/resolve'
 import {precacheResolveLinkQuery} from '#/state/queries/resolve-link'
 import {getTorahSourceImageUrl} from '../sefaria/api'
 import {refFromSefariaUri} from '../sources/url'
@@ -19,18 +20,46 @@ export function useTorahSourceSelection(
   return useCallback(
     (uri: string) => {
       const ref = refFromSefariaUri(uri)
-      const thumb = ref
+      const imageUrl = ref
         ? getTorahSourceImageUrl(ref, {lang: 'he', platform: 'twitter'})
         : undefined
-      precacheResolveLinkQuery(queryClient, uri, {
+
+      const initialResolved: ResolvedLink = {
         type: 'external',
         uri,
         title: ref || 'Sefaria',
         description: 'מקור תורני ב־Sefaria',
-        thumb,
-      })
+        thumb: undefined,
+        view: imageUrl
+          ? {
+              $type: 'app.bsky.embed.external#view',
+              external: {
+                uri,
+                title: ref || 'Sefaria',
+                description: 'מקור תורני ב־Sefaria',
+                thumb: imageUrl,
+              },
+            }
+          : undefined,
+      }
+
+      precacheResolveLinkQuery(queryClient, uri, initialResolved)
       onSelectUri(uri)
+
+      if (imageUrl) {
+        void imageToThumb(imageUrl)
+          .then(composerImage => {
+            if (composerImage) {
+              precacheResolveLinkQuery(queryClient, uri, {
+                ...initialResolved,
+                thumb: composerImage,
+              })
+            }
+          })
+          .catch(() => {})
+      }
     },
     [onSelectUri, queryClient],
   )
 }
+

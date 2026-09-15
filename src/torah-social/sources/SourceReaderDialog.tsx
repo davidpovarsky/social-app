@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState} from 'react'
 import {ActivityIndicator, Pressable, ScrollView, View} from 'react-native'
 import {Image} from 'expo-image'
 
-import {atoms as a, useTheme} from '#/alf'
+import {atoms as a, useTheme, web} from '#/alf'
 import * as Dialog from '#/components/Dialog'
 import {Text} from '#/components/Typography'
 import {getManuscripts, getText, resolveTorahSource} from '../sefaria/api'
@@ -87,8 +87,12 @@ export function SourceReaderDialog({
 
   return (
     <Dialog.Outer control={control} nativeOptions={{fullHeight: true}}>
-      <View style={[a.flex_1, t.atoms.bg]}>
-        <View
+      <Dialog.Handle />
+      <Dialog.ScrollableInner
+        label={source?.heRef || sourceRef}
+        style={web({maxWidth: 700})}>
+        <View style={[a.w_full, t.atoms.bg]}>
+          <View
           style={[
             a.flex_row,
             a.align_center,
@@ -321,7 +325,8 @@ export function SourceReaderDialog({
             </Text>
           ) : null}
         </ScrollView>
-      </View>
+        </View>
+      </Dialog.ScrollableInner>
     </Dialog.Outer>
   )
 }
