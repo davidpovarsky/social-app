@@ -305,6 +305,22 @@ export function TextInput({
     }
   }, [onEmojiInserted, isActive])
 
+  const onTextInserted = useCallback(
+    (textToInsert: string) => {
+      editor?.chain().focus().insertContent(textToInsert).run()
+    },
+    [editor],
+  )
+  useEffect(() => {
+    if (!isActive) {
+      return
+    }
+    textInputWebEmitter.addListener('insert-text', onTextInserted)
+    return () => {
+      textInputWebEmitter.removeListener('insert-text', onTextInserted)
+    }
+  }, [onTextInserted, isActive])
+
   useImperativeHandle(ref, () => ({
     focus: () => {
       editor?.chain().focus()

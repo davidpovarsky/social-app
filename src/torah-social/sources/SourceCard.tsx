@@ -13,7 +13,7 @@ import {Text} from '#/components/Typography'
 import {resolveTorahSource} from '../sefaria/api'
 import type {TorahSource} from '../sefaria/types'
 import {SourceReaderDialog} from './SourceReaderDialog'
-import {refFromSefariaUri} from './url'
+import {hasNoImageParam, refFromSefariaUri} from './url'
 
 export function TorahSourceCard({
   uri,
@@ -47,7 +47,8 @@ export function TorahSourceCard({
 
   const title = source?.heRef || fallbackTitle || sourceRef
   const preview = source?.preview || fallbackDescription
-  const showImage = Boolean(source?.imageUrl && !imageError)
+  const allowImage = !hasNoImageParam(uri)
+  const showImage = Boolean(allowImage && source?.imageUrl && !imageError)
 
   return (
     <>

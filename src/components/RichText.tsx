@@ -13,6 +13,10 @@ import {Text, type TextProps} from '#/components/Typography'
 import {IS_NATIVE} from '#/env'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
+import {hasTorahQuoteBlock} from '#/torah-social/sources/quoteBlock'
+import {TorahInlineLink} from '#/torah-social/sources/TorahInlineLink'
+import {TorahRichTextBlocks} from '#/torah-social/sources/TorahRichTextBlocks'
+import {isSefariaSourceUri} from '#/torah-social/sources/url'
 
 const WORD_WRAP = {wordWrap: 1}
 // lifted from facet detection in `RichText` impl, _without_ `gm` flags
@@ -55,25 +59,26 @@ export type RichTextProps = TextStyleProp &
     disableMentionFacetValidation?: true
   }
 
-export function RichText({
-  testID,
-  value,
-  style,
-  numberOfLines,
-  disableLinks,
-  selectable,
-  enableTags = false,
-  authorHandle,
-  onLinkPress,
-  interactiveStyle,
-  emojiMultiplier = 1.85,
-  onLayout,
-  onTextLayout,
-  shouldProxyLinks,
-  suffix,
-  suffixOffset = 0,
-  disableMentionFacetValidation,
-}: RichTextProps) {
+export function RichText(props: RichTextProps) {
+  const {
+    testID,
+    value,
+    style,
+    numberOfLines,
+    disableLinks,
+    selectable,
+    enableTags = false,
+    authorHandle,
+    onLinkPress,
+    interactiveStyle,
+    emojiMultiplier = 1.85,
+    onLayout,
+    onTextLayout,
+    shouldProxyLinks,
+    suffix,
+    suffixOffset = 0,
+    disableMentionFacetValidation,
+  } = props
   const richText = useMemo(() => {
     if (value instanceof RichTextAPI) {
       return value
@@ -85,6 +90,17 @@ export function RichText({
   }, [value])
 
   const {text, facets} = richText
+
+  if (hasTorahQuoteBlock(text)) {
+    return (
+      <TorahRichTextBlocks
+        text={text}
+        renderText={content => (
+          <RichText {...props} value={content} />
+        )}
+      />
+    )
+  }
   const plainStyles: StyleProp<TextStyle> = [
     style,
     IS_NATIVE && isRTLText(text) ? {textAlign: 'right'} : null,
@@ -164,6 +180,16 @@ export function RichText({
       const isValidLink = URL_REGEX.test(link.uri)
       if (!isValidLink || disableLinks) {
         els.push(toShortUrl(segment.text))
+      } else if (isSefariaSourceUri(link.uri)) {
+        els.push(
+          <TorahInlineLink
+            key={key}
+            uri={link.uri}
+            text={toShortUrl(segment.text)}
+            style={interactiveStyles}
+            selectable={selectable}
+          />,
+        )
       } else {
         els.push(
           <InlineLinkText

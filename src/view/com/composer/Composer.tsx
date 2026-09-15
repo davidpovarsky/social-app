@@ -120,6 +120,9 @@ import {SubtitleDialogBtn} from '#/view/com/composer/videos/SubtitleDialog'
 import {VideoPreview} from '#/view/com/composer/videos/VideoPreview'
 import {VideoTranscodeProgress} from '#/view/com/composer/videos/VideoTranscodeProgress'
 import {UserAvatar} from '#/view/com/util/UserAvatar'
+import {TorahComposerSourceButton} from '#/torah-social/composer/TorahComposerSourceButton'
+import {TorahPostHeaderEmbed} from '#/torah-social/composer/TorahPostHeaderEmbed'
+import {isSefariaSourceUri} from '#/torah-social/sources/url'
 import {atoms as a, native, useBreakpoints, useTheme, web} from '#/alf'
 import {Admonition} from '#/components/Admonition'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
@@ -1690,6 +1693,10 @@ let ComposerPost = memo(function ComposerPost({
         !isActive && styles.inactivePost,
         isTextOnly && isLastPost && IS_NATIVE && a.flex_grow,
       ]}>
+      <TorahPostHeaderEmbed
+        embed={post.embed}
+        onRemove={() => dispatchPost({type: 'embed_remove_link'})}
+      />
       <View style={[a.flex_row, IS_NATIVE && a.flex_1]}>
         <UserAvatar
           avatar={currentProfile?.avatar}
@@ -1968,7 +1975,7 @@ function ComposerEmbeds({
         </View>
       )}
 
-      {!embed.media && embed.link && (
+      {!embed.media && embed.link && !isSefariaSourceUri(embed.link.uri) && (
         <View style={[a.relative, a.mt_lg]} key={embed.link.uri}>
           <ExternalEmbedLink
             uri={embed.link.uri}
@@ -2268,6 +2275,12 @@ function ComposerFooter({
                 onAdd={onImageAdd}
               />
               <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />
+              <TorahComposerSourceButton
+                disabled={Boolean(media || post.embed.link)}
+                onSelectUri={uri =>
+                  dispatch({type: 'embed_add_uri', uri: uri as UriString})
+                }
+              />
               {IS_WEB && gtPhone ? (
                 <EmojiPicker.Root nextFocusRef={textInputRef}>
                   <EmojiPicker.Trigger label={l`Open emoji picker`}>

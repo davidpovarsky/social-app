@@ -42,6 +42,7 @@ import {PostHider} from '#/components/moderation/PostHider'
 import * as ReportDialogMetadataContext from '#/components/moderation/ReportDialog/ReportDialogMetadataContext'
 import {type AppModerationCause} from '#/components/Pills'
 import {Embed, PostEmbedViewContext} from '#/components/Post/Embed'
+import {isSefariaEmbed} from '#/torah-social/sources/url'
 import {ShowMoreTextButton} from '#/components/Post/ShowMoreTextButton'
 import {TranslatedPost} from '#/components/Post/Translated'
 import {PostControls, PostControlsSkeleton} from '#/components/PostControls'
@@ -322,6 +323,24 @@ const ThreadItemPostInner = memo(function ThreadItemPostInner({
                 style={[a.pb_2xs]}
                 additionalCauses={additionalPostAlerts}
               />
+              {post.embed && isSefariaEmbed(post.embed) ? (
+                <View
+                  style={[
+                    maybeApplyGalleryOffsetStyles('embed', {
+                      post,
+                      modui: moderation.ui('contentList'),
+                      additionalCauses: additionalPostAlerts,
+                    }),
+                    a.pb_xs,
+                  ]}>
+                  <Embed
+                    embed={post.embed}
+                    moderation={moderation}
+                    viewContext={PostEmbedViewContext.Feed}
+                    post={post}
+                  />
+                </View>
+              ) : null}
               {richText?.text ? (
                 <View style={[a.mb_2xs]}>
                   <RichText
@@ -355,7 +374,7 @@ const ThreadItemPostInner = memo(function ThreadItemPostInner({
                 <ThreadItemPostNumber inline={false} value={postNumbering} />
               )}
               <TranslatedPost hideTranslateLink post={post} />
-              {post.embed && (
+              {post.embed && !isSefariaEmbed(post.embed) && (
                 <View
                   style={[
                     maybeApplyGalleryOffsetStyles('embed', {

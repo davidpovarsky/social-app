@@ -28,6 +28,7 @@ import {ContentHider} from '#/components/moderation/ContentHider'
 import {PostAlerts} from '#/components/moderation/PostAlerts'
 import * as ReportDialogMetadataContext from '#/components/moderation/ReportDialog/ReportDialogMetadataContext'
 import {Embed, PostEmbedViewContext} from '#/components/Post/Embed'
+import {isSefariaEmbed} from '#/torah-social/sources/url'
 import {PostRepliedTo} from '#/components/Post/PostRepliedTo'
 import {ShowMoreTextButton} from '#/components/Post/ShowMoreTextButton'
 import {TranslatedPost} from '#/components/Post/Translated'
@@ -220,6 +221,21 @@ function PostInner({
                 modui={moderation.ui('contentView')}
                 style={[a.pb_xs]}
               />
+              {post.embed && isSefariaEmbed(post.embed) ? (
+                <View
+                  style={maybeApplyGalleryOffsetStyles('embed', {
+                    post,
+                    modui: moderation.ui('contentList'),
+                    additionalCauses: [],
+                  })}>
+                  <Embed
+                    embed={post.embed}
+                    moderation={moderation}
+                    viewContext={PostEmbedViewContext.Feed}
+                    post={post}
+                  />
+                </View>
+              ) : null}
               {richText.text ? (
                 <View style={[a.mb_2xs]}>
                   <RichText
@@ -240,7 +256,7 @@ function PostInner({
                 </View>
               ) : undefined}
               <TranslatedPost hideTranslateLink post={post} />
-              {post.embed ? (
+              {post.embed && !isSefariaEmbed(post.embed) ? (
                 <View
                   style={maybeApplyGalleryOffsetStyles('embed', {
                     post,

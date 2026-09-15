@@ -47,6 +47,7 @@ import {PostAlerts} from '#/components/moderation/PostAlerts'
 import * as ReportDialogMetadataContext from '#/components/moderation/ReportDialog/ReportDialogMetadataContext'
 import {type AppModerationCause} from '#/components/Pills'
 import {Embed, PostEmbedViewContext} from '#/components/Post/Embed'
+import {isSefariaEmbed} from '#/torah-social/sources/url'
 import {KnownLikers} from '#/components/Post/KnownLikers'
 import {TranslatedPost} from '#/components/Post/Translated'
 import {PostControls, PostControlsSkeleton} from '#/components/PostControls'
@@ -401,6 +402,18 @@ const ThreadItemAnchorInner = memo(function ThreadItemAnchorInner({
                 style={[a.pb_sm]}
                 additionalCauses={additionalPostAlerts}
               />
+              {post.embed && isSefariaEmbed(post.embed) && (
+                <View style={[a.py_xs]}>
+                  <Embed
+                    embed={post.embed}
+                    moderation={moderation}
+                    viewContext={PostEmbedViewContext.ThreadHighlighted}
+                    onOpen={onOpenEmbed}
+                    post={post}
+                    feedDescriptor={feedFeedback.feedDescriptor}
+                  />
+                </View>
+              )}
               {richText?.text ? (
                 <RichText
                   enableTags
@@ -420,7 +433,7 @@ const ThreadItemAnchorInner = memo(function ThreadItemAnchorInner({
                 <ThreadItemPostNumber inline={false} value={postNumbering} />
               )}
               <TranslatedPost post={post} postTextStyle={[a.text_lg]} />
-              {post.embed && (
+              {post.embed && !isSefariaEmbed(post.embed) && (
                 <View style={[richText?.text ? a.py_xs : []]}>
                   <Embed
                     embed={post.embed}

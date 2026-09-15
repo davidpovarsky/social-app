@@ -43,6 +43,7 @@ import {PostAlerts} from '#/components/moderation/PostAlerts'
 import * as ReportDialogMetadataContext from '#/components/moderation/ReportDialog/ReportDialogMetadataContext'
 import {type AppModerationCause} from '#/components/Pills'
 import {Embed} from '#/components/Post/Embed'
+import {isSefariaEmbed} from '#/torah-social/sources/url'
 import {PostEmbedViewContext} from '#/components/Post/Embed/types'
 import {KnownLikers} from '#/components/Post/KnownLikers'
 import {PostRepliedTo} from '#/components/Post/PostRepliedTo'
@@ -520,6 +521,26 @@ let PostContent = ({
         style={[a.pb_xs]}
         additionalCauses={additionalPostAlerts}
       />
+      {postEmbed && isSefariaEmbed(postEmbed) ? (
+        <View
+          style={[
+            a.pb_xs,
+            maybeApplyGalleryOffsetStyles('embed', {
+              post,
+              modui: moderation.ui('contentList'),
+              additionalCauses: additionalPostAlerts,
+            }),
+          ]}>
+          <Embed
+            embed={postEmbed}
+            moderation={moderation}
+            onOpen={onOpenEmbed}
+            viewContext={PostEmbedViewContext.Feed}
+            post={post}
+            feedDescriptor={feedDescriptor}
+          />
+        </View>
+      ) : null}
       {richText.text ? (
         <View style={[a.mb_2xs]}>
           <RichText
@@ -551,7 +572,7 @@ let PostContent = ({
         <ThreadItemPostNumber inline={false} value={postNumbering} />
       )}
       {record && <TranslatedPost hideTranslateLink post={post} />}
-      {postEmbed ? (
+      {postEmbed && !isSefariaEmbed(postEmbed) ? (
         <View
           style={[
             a.pb_xs,

@@ -4,7 +4,11 @@ import {useQueryClient} from '@tanstack/react-query'
 import {type ResolvedLink, imageToThumb} from '#/lib/api/resolve'
 import {precacheResolveLinkQuery} from '#/state/queries/resolve-link'
 import {getTorahSourceImageUrl} from '../sefaria/api'
-import {refFromSefariaUri} from '../sources/url'
+import {buildSefariaSourceUri, hasNoImageParam, refFromSefariaUri} from '../sources/url'
+
+export type TorahSourceSelectionOptions = {
+  includeImage?: boolean
+}
 
 /**
  * Keeps all Sefaria-specific link metadata outside the upstream composer.
@@ -18,15 +22,17 @@ export function useTorahSourceSelection(
   const queryClient = useQueryClient()
 
   return useCallback(
-    (uri: string) => {
-      const ref = refFromSefariaUri(uri)
-      const imageUrl = ref
+    (rawUri: string, options?: TorahSourceSelectionOptions) => {
+      const includeImage = options?.includeImage ?? !hasNoImageParam(rawUri)
+      const targetUri = buildSefariaSourceUri(rawUri, includeImage)
+      const ref = refFromSefariaUri(targetUri)
+      const imageUrl = (includeImage && ref)
         ? getTorahSourceImageUrl(ref, {lang: 'he', platform: 'twitter'})
         : undefined
 
       const initialResolved: ResolvedLink = {
         type: 'external',
-        uri,
+        uri: targetUri,
         title: ref || 'Sefaria',
         description: 'מקור תורני ב־Sefaria',
         thumb: undefined,
@@ -34,7 +40,7 @@ export function useTorahSourceSelection(
           ? {
               $type: 'app.bsky.embed.external#view',
               external: {
-                uri,
+                uri: targetUri,
                 title: ref || 'Sefaria',
                 description: 'מקור תורני ב־Sefaria',
                 thumb: imageUrl,
@@ -43,14 +49,14 @@ export function useTorahSourceSelection(
           : undefined,
       }
 
-      precacheResolveLinkQuery(queryClient, uri, initialResolved)
-      onSelectUri(uri)
+      precacheResolveLinkQuery(queryClient, targetUri, initialResolved)
+      onSelectUri(targetUri)
 
       if (imageUrl) {
         void imageToThumb(imageUrl)
           .then(composerImage => {
             if (composerImage) {
-              precacheResolveLinkQuery(queryClient, uri, {
+              precacheResolveLinkQuery(queryClient, targetUri, {
                 ...initialResolved,
                 thumb: composerImage,
               })

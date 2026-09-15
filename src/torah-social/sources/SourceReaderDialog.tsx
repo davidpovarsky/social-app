@@ -1,9 +1,10 @@
 import {useEffect, useMemo, useState} from 'react'
-import {ActivityIndicator, Pressable, ScrollView, View} from 'react-native'
+import {ActivityIndicator, Linking, Pressable, ScrollView, View} from 'react-native'
 import {Image} from 'expo-image'
 
 import {atoms as a, useTheme, web} from '#/alf'
 import * as Dialog from '#/components/Dialog'
+import {SquareArrowTopRight_Stroke2_Corner0_Rounded as ExternalLinkIcon} from '#/components/icons/SquareArrowTopRight'
 import {Text} from '#/components/Typography'
 import {getManuscripts, getText, resolveTorahSource} from '../sefaria/api'
 import type {
@@ -114,13 +115,37 @@ export function SourceReaderDialog({
               </Text>
             ) : null}
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="סגור"
-            onPress={() => control.close()}
-            style={[a.p_sm]}>
-            <Text style={[a.text_md, a.font_semi_bold]}>סגור</Text>
-          </Pressable>
+          <View style={[a.flex_row, a.align_center, a.gap_xs]}>
+            {source?.uri ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="פתח באתר Sefaria"
+                onPress={() => void Linking.openURL(source.uri)}
+                style={({pressed}) => [
+                  a.p_xs,
+                  a.px_sm,
+                  a.rounded_sm,
+                  a.border,
+                  t.atoms.border_contrast_low,
+                  a.flex_row,
+                  a.align_center,
+                  a.gap_2xs,
+                  {opacity: pressed ? 0.6 : 0.88},
+                ]}>
+                <Text style={[a.text_xs, a.font_semi_bold, t.atoms.text_contrast_medium]}>
+                  Sefaria
+                </Text>
+                <ExternalLinkIcon size="xs" style={t.atoms.text_contrast_medium} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="סגור"
+              onPress={() => control.close()}
+              style={[a.p_sm]}>
+              <Text style={[a.text_md, a.font_semi_bold]}>סגור</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Tab Navigation */}

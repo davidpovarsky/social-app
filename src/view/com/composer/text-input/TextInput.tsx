@@ -29,6 +29,7 @@ import {normalizeTextStyles} from '#/alf/typography'
 import {IS_ANDROID} from '#/env'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
+import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {Autocomplete} from './mobile/Autocomplete'
 import {type TextInputProps} from './TextInput.types'
 
@@ -64,6 +65,24 @@ export function TextInput({
     getCursorPosition: () => undefined, // Not implemented on native
     maybeClosePopup: () => false, // Not needed on native
   }))
+
+  useEffect(() => {
+    if (!props.isActive) return
+    const onInsertText = (inserted: string) => {
+      const sel = textInputSelection.current
+      const currentText = richtext.text
+      const start = sel ? Math.min(sel.start, currentText.length) : currentText.length
+      const end = sel ? Math.min(sel.end, currentText.length) : currentText.length
+      const nextText = currentText.slice(0, start) + inserted + currentText.slice(end)
+      const newRt = new RichText({text: nextText})
+      newRt.detectFacetsWithoutResolution()
+      setRichText(newRt)
+    }
+    textInputWebEmitter.addListener('insert-text', onInsertText)
+    return () => {
+      textInputWebEmitter.removeListener('insert-text', onInsertText)
+    }
+  }, [props.isActive, richtext.text, setRichText])
 
   const pastSuggestedUris = useRef(new Set<string>())
   const prevDetectedUris = useRef(new Map<string, LinkFacetMatch>())
