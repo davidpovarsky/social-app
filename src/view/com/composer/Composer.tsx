@@ -120,6 +120,7 @@ import {SubtitleDialogBtn} from '#/view/com/composer/videos/SubtitleDialog'
 import {VideoPreview} from '#/view/com/composer/videos/VideoPreview'
 import {VideoTranscodeProgress} from '#/view/com/composer/videos/VideoTranscodeProgress'
 import {UserAvatar} from '#/view/com/util/UserAvatar'
+import {TorahComposerExtensions} from '#/torah-social/composer/TorahComposerExtensions'
 import {TorahComposerSourceButton} from '#/torah-social/composer/TorahComposerSourceButton'
 import {TorahPostHeaderEmbed} from '#/torah-social/composer/TorahPostHeaderEmbed'
 import {isSefariaSourceUri} from '#/torah-social/sources/url'
@@ -1396,6 +1397,13 @@ export const ComposePost = ({
         thread={composerState.thread}
         dispatch={composerDispatch}
         bottomBarAnimatedStyle={bottomBarAnimatedStyle}
+      />
+      <TorahComposerExtensions
+        text={activePost.richtext.text}
+        disabled={!!activePost.embed.link || !!activePost.embed.media}
+        onSelectUri={uri =>
+          dispatch({type: 'embed_add_uri', uri: uri as UriString})
+        }
       />
       <ComposerFooter
         post={activePost}

@@ -9,14 +9,21 @@ for (const [name, value] of Object.entries({appviewHost, appviewDid, pdsDid})) {
 }
 
 function replaceRequired(source, before, after, label) {
-  if (!source.includes(before)) {
+  const normSource = source.replace(/\r\n/g, '\n')
+  const normBefore = before.replace(/\r\n/g, '\n')
+  const normAfter = after.replace(/\r\n/g, '\n')
+
+  if (normSource.includes(normAfter)) {
+    return normSource
+  }
+  if (!normSource.includes(normBefore)) {
     throw new Error(`Torah isolation patch could not find: ${label}`)
   }
-  return source.replace(before, after)
+  return normSource.replace(normBefore, normAfter)
 }
 
 const constantsPath = 'src/lib/constants.ts'
-let constants = fs.readFileSync(constantsPath, 'utf8')
+let constants = fs.readFileSync(constantsPath, 'utf8').replace(/\r\n/g, '\n')
 
 constants = replaceRequired(
   constants,
@@ -67,7 +74,7 @@ constants = replaceRequired(
 fs.writeFileSync(constantsPath, constants)
 
 const reactQueryPath = 'src/lib/react-query.tsx'
-let reactQuery = fs.readFileSync(reactQueryPath, 'utf8')
+let reactQuery = fs.readFileSync(reactQueryPath, 'utf8').replace(/\r\n/g, '\n')
 reactQuery = replaceRequired(
   reactQuery,
   "fetch('https://public.api.bsky.app/xrpc/_health', {",
@@ -77,31 +84,36 @@ reactQuery = replaceRequired(
 fs.writeFileSync(reactQueryPath, reactQuery)
 
 // Keep the Torah-specific composer UI out of the upstream Composer.tsx source.
-// The isolated build injects two deliberately tiny hooks at stable anchors:
-// one visible source picker in the media toolbar and one area for automatic
-// Sefaria reference suggestions immediately above that toolbar. If upstream
-// moves either anchor, fail the build rather than silently shipping without the
-// Torah controls.
+// If not already present in the codebase, inject the hooks.
 const composerPath = 'src/view/com/composer/Composer.tsx'
-let composer = fs.readFileSync(composerPath, 'utf8')
-composer = replaceRequired(
-  composer,
-  "import {TextInput} from '#/view/com/composer/text-input/TextInput'",
-  "import {TorahComposerExtensions} from '#/torah-social/composer/TorahComposerExtensions'\nimport {TorahComposerSourceButton} from '#/torah-social/composer/TorahComposerSourceButton'\nimport {TextInput} from '#/view/com/composer/text-input/TextInput'",
-  'Torah composer imports',
-)
-composer = replaceRequired(
-  composer,
-  "      <ComposerFooter\n        post={activePost}",
-  "      <TorahComposerExtensions\n        text={activePost.richtext.text}\n        disabled={!!activePost.embed.link || !!activePost.embed.media}\n        onSelectUri={uri =>\n          dispatch({type: 'embed_add_uri', uri: uri as UriString})\n        }\n      />\n      <ComposerFooter\n        post={activePost}",
-  'Torah detected-source suggestions',
-)
-composer = replaceRequired(
-  composer,
-  "              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              {IS_WEB && gtPhone ? (",
-  "              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              <TorahComposerSourceButton\n                disabled={!!media || !!post.embed.link}\n                onSelectUri={uri =>\n                  dispatch({type: 'embed_add_uri', uri: uri as UriString})\n                }\n              />\n              {IS_WEB && gtPhone ? (",
-  'Torah source toolbar button',
-)
+let composer = fs.readFileSync(composerPath, 'utf8').replace(/\r\n/g, '\n')
+
+if (!composer.includes('TorahComposerExtensions')) {
+  composer = replaceRequired(
+    composer,
+    "      <ComposerFooter\n        post={activePost}",
+    "      <TorahComposerExtensions\n        text={activePost.richtext.text}\n        disabled={!!activePost.embed.link || !!activePost.embed.media}\n        onSelectUri={uri =>\n          dispatch({type: 'embed_add_uri', uri: uri as UriString})\n        }\n      />\n      <ComposerFooter\n        post={activePost}",
+    'Torah detected-source suggestions',
+  )
+}
+
+if (!composer.includes('TorahComposerSourceButton')) {
+  composer = replaceRequired(
+    composer,
+    "              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              {IS_WEB && gtPhone ? (",
+    "              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              <TorahComposerSourceButton\n                disabled={!!media || !!post.embed.link}\n                onSelectUri={uri =>\n                  dispatch({type: 'embed_add_uri', uri: uri as UriString})\n                }\n              />\n              {IS_WEB && gtPhone ? (",
+    'Torah source toolbar button',
+  )
+}
+
+if (!composer.includes('import {TorahComposerExtensions}') && !composer.includes('TorahComposerExtensions')) {
+  composer = replaceRequired(
+    composer,
+    "import {TextInput} from '#/view/com/composer/text-input/TextInput'",
+    "import {TorahComposerExtensions} from '#/torah-social/composer/TorahComposerExtensions'\nimport {TorahComposerSourceButton} from '#/torah-social/composer/TorahComposerSourceButton'\nimport {TextInput} from '#/view/com/composer/text-input/TextInput'",
+    'Torah composer imports',
+  )
+}
 fs.writeFileSync(composerPath, composer)
 
 // Fail the isolated build if the main application source still has a direct
@@ -116,4 +128,4 @@ for (const file of [constantsPath, reactQueryPath]) {
 }
 
 console.log(`Torah client isolation applied: ${appviewHost} (${appviewDid})`)
-console.log('Torah composer hooks applied: Sefaria toolbar + detected references')
+console.log('Torah composer hooks verified: Sefaria toolbar + detected references')
