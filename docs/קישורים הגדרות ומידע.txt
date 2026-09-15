@@ -1,0 +1,499 @@
+﻿כן. הנה נוסח מסודר ומוכן להדבקה לסביבת הפרויקט, כדי שבשיחות עתידיות יהיה את כל ההקשר הטכני החשוב בלי להתחיל מחדש.
+
+⸻
+
+רשת חברתית תורנית — Project Context / Infrastructure
+
+מטרת הפרויקט
+
+אנחנו בונים רשת חברתית תורנית עצמאית בסגנון Twitter / Bluesky, המבוססת על AT Protocol, ומחוברת עמוק ל־Sefaria לציטוט, חיפוש, שיתוף מקורות תורניים וצפייה בסריקות כתבי יד עתיקים.
+
+המטרה אינה ליצור client חלופי ל־Bluesky אלא רשת נפרדת משלנו: משתמשים, חשבונות, פוסטים, follows, likes, reposts, feeds ו־AppView משלנו.
+
+נכון לעכשיו הרשת כבר מנותקת מתוכן Bluesky, והפיד נבדק בפועל ומופיע ריק, כפי שצריך להיות לפני שנוצר תוכן משלנו.
+
+⸻
+
+GitHub Repositories
+
+Client / Web / iOS
+
+https://github.com/davidpovarsky/social-app
+
+Branch פעיל:
+
+codex/torah-social-foundation
+
+קישור ישיר:
+
+https://github.com/davidpovarsky/social-app/tree/codex/torah-social-foundation
+
+זה fork של bluesky-social/social-app.
+
+⸻
+
+AT Protocol / AppView backend
+
+https://github.com/davidpovarsky/atproto
+
+Branch פעיל:
+
+codex/torah-social-foundation
+
+קישור:
+
+https://github.com/davidpovarsky/atproto/tree/codex/torah-social-foundation
+
+זה fork של bluesky-social/atproto.
+
+⸻
+
+PDS / Deployment
+
+https://github.com/davidpovarsky/pds
+
+Branch פעיל:
+
+codex/torah-social-foundation
+
+קישור:
+
+https://github.com/davidpovarsky/pds/tree/codex/torah-social-foundation
+
+בתוך הריפו נמצאים scripts של ההתקנה והפריסה של Torah Social.
+
+⸻
+
+השרת הנוכחי (Hosting Server)
+
+Provider:
+
+Oracle Cloud Infrastructure — Free Tier
+
+Region:
+
+il-jerusalem-1
+
+Oracle UI מציג:
+
+Israel Central (Jerusalem)
+
+VM:
+
+torah-social
+
+OS:
+
+Ubuntu 24.04 ARM64
+
+Shape:
+
+VM.Standard.A1.Flex
+
+Resources:
+
+2 OCPU / 12 GB RAM
+
+Public IPv4 הנוכחי:
+
+130.110.238.163
+
+חשוב: זה כרגע IP ציבורי זמני/ephemeral ולכן אם ה־VM ייווצר מחדש, ייתכן שהוא ישתנה.
+
+⸻
+
+כתובות פעילות כרגע
+
+Torah Social Web
+
+https://torah-130-110-238-163.nip.io
+
+זה האתר שהמשתמשים פותחים.
+
+⸻
+
+Torah Social PDS
+
+https://pds-130-110-238-163.nip.io
+
+כאן נוצרים ונשמרים החשבונות וה־repos של המשתמשים.
+
+PDS DID זמני:
+
+did:web:pds-130-110-238-163.nip.io
+
+⸻
+
+Torah Social AppView
+
+https://appview-130-110-238-163.nip.io
+
+AppView DID הנוכחי:
+
+did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+
+⸻
+
+הארכיטקטורה הנוכחית
+
+Torah Social Web / iOS
+          ↓
+Torah Social PDS (port 3000)
+          ↓
+Torah Social AppView (port 2584)
+          ↓
+Torah Social PostgreSQL (port 5432)
+
+ה־AppView מאזין ישירות ורק ל־PDS שלנו באמצעות firehose מקומי:
+
+ws://127.0.0.1:3000
+
+כרגע אין Relay ציבורי ואין צורך ב־Relay בשביל הרשת הקטנה שלנו.
+
+ה־AppView אינו מאזין ל־Bluesky Relay ואינו מאנדקס את Bluesky.
+
+⸻
+
+מצב הבידוד מ־Bluesky
+
+כבר בוצע ונבדק בפועל:
+
+* public.api.bsky.app אינו מקור הפיד.
+* Bluesky Discover הוסר מה־client המבודד.
+* AppView database שלנו התחיל ריק.
+* PDS_CRAWLERS ריק.
+* bsky.network אינו crawler.
+* Bluesky moderation service מבוטל.
+* Bluesky report service מבוטל.
+* ה־AppView מאנדקס רק accounts/posts שמגיעים מה־PDS שלנו.
+* בדיקה בפועל בדפדפן וב־Private Browsing הראתה פיד ריק.
+
+חשוב מאוד: לא מספיק להגדיר את:
+
+ATP_APPVIEW_HOST
+
+בשרת.
+
+ב־social-app יש כתובות AppView/Discover שנכנסות ל־JavaScript בזמן ה־build. לכן נוצר script מיוחד:
+
+scripts/torah-isolate-client.mjs
+
+שמסיר/מחליף את constants של Bluesky לפני בניית ה־Web bundle.
+
+בכל עדכון גדול או merge מה־upstream צריך לוודא שהבידוד הזה לא נשבר, אחרת תוכן Bluesky יכול לחזור.
+
+⸻
+
+Web build
+
+ב־Dockerfile של social-app שינינו את build stage להשתמש ב:
+
+node:24-bookworm
+
+ובתוכו:
+
+pnpm@11.21.0
+
+הסיבה: image של ghcr.io/pnpm/pnpm:11 הצליח להריץ pnpm אבל לא סיפק node רגיל ב־PATH, ולכן isolation script נכשל.
+
+בעת build מבודד מועברים בין היתר:
+
+EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-130-110-238-163.nip.io
+EXPO_PUBLIC_TORAH_PDS_DID=did:web:pds-130-110-238-163.nip.io
+EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-130-110-238-163.nip.io
+EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true
+
+⸻
+
+Containers / Services בשרת
+
+השרת מריץ בין היתר:
+
+pds
+torah-social-web
+caddy
+torah-appview
+torah-appview-postgres
+
+פורטים פנימיים עיקריים:
+
+PDS       → 127.0.0.1:3000
+Web       → 127.0.0.1:8100
+AppView   → 127.0.0.1:2584
+Postgres  → 127.0.0.1:5432
+
+Caddy מאזין מבחוץ על:
+
+80
+443
+
+ומבצע reverse proxy ל־Web, PDS ו־AppView עם TLS אוטומטי.
+
+⸻
+
+Networking / Firewall
+
+ב־Oracle VCN נוצרו:
+
+VCN
+Public subnet
+Internet Gateway
+Route to Internet
+Security List
+
+פתוחים:
+
+22/tcp   SSH
+80/tcp   HTTP
+443/tcp  HTTPS
+
+אותם פורטים נפתחו גם בפיירוול המקומי של Ubuntu / iptables.
+
+הייתה תקלה שבה Oracle Security List היה תקין אבל Ubuntu חסם 80/443. היא תוקנה.
+
+⸻
+
+HTTPS / DNS
+
+כרגע משתמשים ב־nip.io, כלומר אין צורך להגדיר DNS משלנו במהלך הניסויים.
+
+לדוגמה:
+
+torah-130-110-238-163.nip.io
+
+מתורגם אוטומטית ל:
+
+130.110.238.163
+
+Caddy מטפל ב־TLS/HTTPS אוטומטית באמצעות ACME.
+
+בהמשך צריך לעבור לדומיין אמיתי משלנו.
+
+⸻
+
+יצירת חשבונות
+
+חשבונות חדשים צריכים להיווצר על:
+
+https://pds-130-110-238-163.nip.io
+
+ולא על bsky.social.
+
+זרימה:
+
+Create account
+      ↓
+Torah Social PDS
+      ↓
+account + password + DID + repo
+      ↓
+AppView שלנו מאנדקס
+      ↓
+המשתמש מופיע ברשת שלנו
+
+ה־PDS שלנו הוא זה ששומר:
+
+Accounts
+Passwords/auth
+Profiles
+Posts
+Follows
+Likes
+Reposts
+User repositories
+
+כרגע ההרשמה הוגדרה באמצעות Invite Codes במהלך הניסויים.
+
+אפשר לשנות בהמשך להרשמה פתוחה.
+
+⸻
+
+DID / Identity — עדיין לא מבודד לחלוטין
+
+למרות שהפיד והתוכן מבודדים מ־Bluesky, כרגע עדיין משתמשים ב:
+
+https://plc.directory
+
+ל־DID resolution / identity infrastructure של AT Protocol.
+
+זה לא מכניס פוסטים או משתמשי Bluesky לרשת שלנו, אבל זו עדיין תלות חיצונית.
+
+בהמשך אפשר להחליט האם אנחנו רוצים גם identity layer עצמאי לחלוטין.
+
+⸻
+
+קבצי deployment חשובים בריפו pds
+
+בתיקיית:
+
+torah-social/
+
+נוצרו בין היתר:
+
+oci-bootstrap.sh
+oci-resume.sh
+fix-firewall.sh
+oci-fix-web-access.sh
+install-appview.sh
+oci-install-appview.sh
+
+oci-bootstrap.sh בונה את תשתית Oracle הראשונית.
+
+oci-install-appview.sh הוא helper של Cloud Shell שמפעיל את התקנת ה־AppView על ה־VM.
+
+install-appview.sh עושה בפועל את התקנת AppView, Postgres, הגדרות PDS ובנייה מחדש של Web client מבודד.
+
+⸻
+
+Oracle Cloud Shell
+
+ב־Oracle Cloud Shell אין צורך להגדיר OCI credentials ידנית.
+
+Cloud Shell משתמש ב:
+
+OCI_CLI_AUTH=instance_obo_user
+OCI_CLI_CONFIG_FILE=/etc/oci/config
+
+וה־profile הוא בדרך כלל:
+
+il-jerusalem-1
+
+הסקריפטים שלנו כבר משתמשים בזה.
+
+⸻
+
+CI
+
+Workflow עיקרי ב־social-app:
+
+Torah Social Foundation
+
+קובץ:
+
+.github/workflows/torah-social-foundation.yml
+
+Actions:
+
+https://github.com/davidpovarsky/social-app/actions
+
+ה־workflow בונה:
+
+Web
+iOS / iPad Simulator
+
+⸻
+
+Branding שכבר קיים ב־social-app
+
+האפליקציה כבר שונתה חלקית ל:
+
+Name: Torah Social
+Slug: torah-social
+Scheme: torahsocial
+iOS bundle identifier: com.davidpovarsky.torahsocial
+
+Bluesky OTA updates הושבתו.
+
+Associated Domains כרגע ריק בכוונה, עד שנבחר domain קבוע.
+
+⸻
+
+עברית / RTL
+
+עדיין לא בוצעה localization אמיתית לעברית.
+
+אמנם he הופיע בעבר ב־CFBundleLocalizations, אבל:
+
+* אין עדיין AppLanguage.he
+* אין Hebrew Lingui catalog מלא
+* אין runtime Hebrew activation
+* אין RTL מלא שנבדק
+
+לכן Hebrew + RTL הוא אחד השלבים הקרובים.
+
+⸻
+
+אינטגרציית Sefaria — הושלמה במלואה בקוד!
+
+האינטגרציה ל־Sefaria בוצעה ונבדקה בהצלחה בתיקיית `src/torah-social/`:
+
+1. מנוע ה־API של ספריא (`src/torah-social/sefaria/api.ts`):
+   * autocompleteRefs: השלמה אוטומטית מול Sefaria Name API (`/api/name`).
+   * validateRef: אימות מקור ונירמול קנוני מול `/api/ref` (תומך ב-normalized, hebrew, url_ref).
+   * getText: שליפת טקסט v3 דו-לשונית (`version=['hebrew', 'english']`).
+   * getTorahSourceImageUrl: חיבור ל-Social Media Image Generator (`/api/img-gen/{tref}`) להפקת כרטיסיות PNG מעוצבות של הפסוק/סוגיה ישירות מספריא.
+   * getManuscripts: חיבור ל-Manuscripts API (`/api/manuscripts/{tref}`) לשליפת סריקות היסטוריות של כתבי יד אותנטיים (כגון כתב יד לנינגרד משנת 1008, כתר ארם צובא, גניזת קהיר).
+
+2. מזהה ציטוטים אוטומטי (`src/torah-social/sefaria/linker.ts`):
+   * מזהה ציטוטים מתוך הטקסט בזמן הקלדה בקומפוזר דרך ה־Sefaria Linker האסינכרוני ומציע מקורות להצמדה.
+
+3. רכיבי UI שנבנו:
+   * TorahSourceCard (`src/torah-social/sources/SourceCard.tsx`): כרטיס מקור עשיר עם באנר תמונת המקור בראשו.
+   * SourceReaderDialog (`src/torah-social/sources/SourceReaderDialog.tsx`): קורא מקורות מלא עם 3 לשוניות: טקסט (עברית + תרגום), תמונת מקור גרפית, וסריקות כתבי יד עתיקים.
+   * קומפוזר: כפתור הצמדת מקור בסרגל הכלים (`TorahComposerSourceButton`) וסרגל הצעות ציטוט (`TorahComposerExtensions`).
+   * תמונת הציטוט מועברת כ־thumb ב־external embed לשיתופים עשירים ברשת.
+
+4. בדיקות אינטגרציה:
+   * נכתב והורץ בהצלחה סקריפט בדיקות חי: `scripts/test-torah-sefaria.mjs` שאימת את כל 7 נקודות הקצה מול השרתים החיים של ספריא.
+
+AT Protocol מנהל:
+accounts
+posts
+follows
+likes
+feeds
+social graph
+
+Sefaria מהווה את שכבת הטקסט, התמונות וכתבי היד התורניים מעל הרשת.
+
+⸻
+
+שלבים הבאים
+
+הסדר המומלץ כרגע:
+
+1. ליצור משתמש ראשון על ה־PDS שלנו (https://pds-130-110-238-163.nip.io).
+2. ליצור פוסט ראשון עם מקור תורני ותמונת מקור.
+3. לוודא שהוא נכנס ל־AppView ולפיד.
+4. ליצור משתמש שני ולבדוק Follow / Like / Reply / Repost.
+5. להוסיף Hebrew localization + RTL מלא ל-UI הכללי.
+6. [הושלם!] חיבור Sefaria לקומפוזר, יצירת Torah Source Card, תמונות מקור וסריקות כתבי יד.
+7. להחליף את nip.io בדומיין אמיתי.
+8. להסיר/להחליף בהדרגה שירותי upstream משניים שנותרו ב־client כגון chat/video/metrics אם הם עדיין מצביעים ל־Bluesky.
+9. לבנות moderation/Ozone משלנו.
+10. בהמשך להחליט האם לבודד גם את plc.directory.
+
+⸻
+
+כלל חשוב לעבודה עתידית
+
+אסור להפוך שוב את Torah Social ל־client שמציג Bluesky.
+
+המצב הרצוי הוא:
+
+Torah Social PDS only
+        +
+Torah Social AppView only
+        +
+Torah Social users/content only
+
+אם לאחר שינוי כלשהו מופיעים שוב משתמשים או פוסטים ציבוריים של Bluesky — זו תקלה בבידוד ולא התנהגות רצויה.
+
+⸻
+
+אבטחה
+
+אין להדביק לסביבת הפרויקט או לקוד:
+
+* Oracle Tenancy OCID
+* SSH private key
+* PDS secrets
+* AppView signing key
+* AppView admin password
+* Bsync API key
+* PostgreSQL password
+* Invite codes פעילים
+* credentials אחרים
+
+כל אלה צריכים להישאר רק בשרת/secret storage ולא ב־GitHub או ב־project instructions.
