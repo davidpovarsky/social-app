@@ -11,6 +11,7 @@ WORKDIR /app
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CI=1
+ENV NODE_OPTIONS="--max-old-space-size=6144"
 
 RUN npm install --global pnpm@11.21.0 && \
   node --version && \
@@ -79,6 +80,7 @@ RUN pnpm intl:build 2>&1 | tee i18n.log && \
 RUN SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN \
     SENTRY_RELEASE=$EXPO_PUBLIC_RELEASE_VERSION \
     SENTRY_DIST=$EXPO_PUBLIC_BUNDLE_IDENTIFIER \
+    NODE_OPTIONS="--max-old-space-size=6144" \
     pnpm build-web
 
 #
