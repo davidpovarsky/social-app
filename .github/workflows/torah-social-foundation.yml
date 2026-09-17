@@ -117,6 +117,7 @@ jobs:
             printf '%s\n' "$SCHEMES_JSON" >&2
             exit 1
           fi
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
 
           node scripts/fix-expo-modules-jsi.mjs
           echo "Building app scheme for iOS device: $SCHEME"

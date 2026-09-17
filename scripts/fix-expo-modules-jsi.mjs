@@ -33,11 +33,14 @@ function patchFiles(baseDir) {
     const base = path.basename(file)
 
     if (base === 'Package.swift') {
-      // 1. Remove experimental upcoming features not supported across all Swift 6 versions
+      // 1. Force swift-tools-version to 6.0 for broad Swift compiler compatibility (6.0, 6.1, 6.2)
+      content = content.replace(/swift-tools-version:\s*[0-9]+(\.[0-9]+)*/g, 'swift-tools-version: 6.0')
+
+      // 2. Remove experimental upcoming features not supported across all Swift 6 versions
       content = content.replace(/\.enableUpcomingFeature\("NonisolatedNonsendingByDefault"\),?/g, '// .enableUpcomingFeature("NonisolatedNonsendingByDefault"),')
       content = content.replace(/\.enableUpcomingFeature\("InferIsolatedConformances"\),?/g, '// .enableUpcomingFeature("InferIsolatedConformances"),')
 
-      // 2. Remove trailing comma in targets array if present
+      // 3. Remove trailing comma in targets array if present
       content = content.replace(/targets:\s*\["ExpoModulesJSI"\],/g, 'targets: ["ExpoModulesJSI"]')
     } else if (base === 'RuntimeScheduler.h') {
       // Remove invalid SWIFT_RETURNS_RETAINED on C++ constructors for Swift 6.2 C++ interop
