@@ -1,4 +1,4 @@
-﻿import fs from 'node:fs'
+import fs from 'node:fs'
 import path from 'node:path'
 
 function walk(dir) {
@@ -31,8 +31,9 @@ function patchFiles(baseDir) {
     let content = fs.readFileSync(file, 'utf8')
     const original = content
 
-    // 1. In Swift 6 mode, weak properties must be declared with var, not let
-    content = content.replace(/\bweak\s+let\b/g, 'weak var')
+    // 1. In Swift 6 mode, weak properties must be declared with `nonisolated(unsafe) weak var`
+    // to satisfy both mutability and Sendable conformance
+    content = content.replace(/\b(?:nonisolated\(unsafe\)\s+)?weak\s+(?:let|var)\b/g, 'nonisolated(unsafe) weak var')
 
     // 2. Trailing commas before closing parenthesis in closure parameter lists
     content = content.replace(/,\s*\)\s*async\s+throws\s*->/g, '\n    ) async throws ->')
