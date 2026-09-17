@@ -71,6 +71,7 @@ jobs:
           elif [ -d "/Applications/Xcode_16.0.app" ]; then
             sudo xcode-select -s /Applications/Xcode_16.0.app
           fi
+          sudo xcodebuild -runFirstLaunch
           xcodebuild -version
       - uses: pnpm/action-setup@v4
         with:
@@ -114,6 +115,9 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            SDKROOT=iphoneos \
+            SUPPORTED_PLATFORMS=iphoneos \
+            TARGETED_DEVICE_FAMILY="1,2" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \

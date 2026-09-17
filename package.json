@@ -19,6 +19,11 @@
   },
   "expo": {
     "autolinking": {
+      "exclude": [
+        "expo-dev-client",
+        "expo-dev-launcher",
+        "expo-dev-menu"
+      ],
       "android": {
         "buildFromSource": [
           "expo-notifications",
