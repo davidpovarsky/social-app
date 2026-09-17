@@ -62,18 +62,13 @@ jobs:
       EXPO_PUBLIC_ENV: production
     steps:
       - uses: actions/checkout@v4
-      - name: Select latest Xcode 16
+      - name: Select Xcode 16.2
         run: |
           for xcode_path in \
-            "/Applications/Xcode_16.4.0.app" \
-            "/Applications/Xcode_16.4.app" \
-            "/Applications/Xcode_16.3.0.app" \
-            "/Applications/Xcode_16.3.app" \
-            "/Applications/Xcode.app" \
-            "/Applications/Xcode_16.2.0.app" \
             "/Applications/Xcode_16.2.app" \
-            "/Applications/Xcode_16.1.0.app" \
-            "/Applications/Xcode_16.1.app"; do
+            "/Applications/Xcode_16.2.0.app" \
+            "/Applications/Xcode_16.1.app" \
+            "/Applications/Xcode.app"; do
             if [ -d "$xcode_path" ]; then
               echo "Selecting Xcode at $xcode_path"
               sudo xcode-select -s "$xcode_path"
@@ -94,19 +89,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Ensure Swift tools compatibility for ExpoModulesJSI
         run: |
-          SWIFT_MAJOR_MINOR="$(swift -version 2>/dev/null | sed -n 's/.*Swift version \([0-9]*\.[0-9]*\).*/\1/p' | head -n 1)"
-          echo "Detected Swift major.minor: $SWIFT_MAJOR_MINOR"
-          if [ -n "$SWIFT_MAJOR_MINOR" ]; then
-            find node_modules -path '*/expo-modules-jsi/apple/Package.swift' | while read -r pkg_file; do
-              chmod u+w "$pkg_file" 2>/dev/null || true
-              PKG_TOOLS_VER="$(sed -n 's/.*swift-tools-version:[ ]*\([0-9]*\.[0-9]*\).*/\1/p' "$pkg_file" | head -n 1)"
-              echo "Checking $pkg_file (declared: $PKG_TOOLS_VER, available: $SWIFT_MAJOR_MINOR)"
-              if [ -n "$PKG_TOOLS_VER" ] && [ "$(printf '%s\n%s\n' "$PKG_TOOLS_VER" "$SWIFT_MAJOR_MINOR" | sort -V | tail -n 1)" != "$SWIFT_MAJOR_MINOR" ]; then
-                echo "Adjusting swift-tools-version to $SWIFT_MAJOR_MINOR"
-                sed -i '' "s/swift-tools-version:[ ]*[0-9]*\.[0-9]*/swift-tools-version: $SWIFT_MAJOR_MINOR/" "$pkg_file"
-              fi
-            done
-          fi
+          rm -rf node_modules/expo-modules-jsi/apple/Products node_modules/expo-modules-jsi/apple/.build node_modules/expo-modules-jsi/apple/.DerivedData || true
           node scripts/fix-expo-modules-jsi.mjs
       - name: Compile locale catalogs
         run: pnpm intl:compile
