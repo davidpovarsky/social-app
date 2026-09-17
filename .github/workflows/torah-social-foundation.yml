@@ -115,9 +115,6 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            SDKROOT=iphoneos \
-            SUPPORTED_PLATFORMS=iphoneos \
-            TARGETED_DEVICE_FAMILY="1,2" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -127,7 +124,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -path '*Release-iphoneos*' -name '*.app' -print -quit)"
+          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 3 -type d -name "${SCHEME}.app" -print -quit)"
+          if [ -z "$APP" ]; then
+            APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -path '*Release-iphoneos*' -name '*.app' -print -quit)"
+          fi
           if [ -z "$APP" ]; then
             echo 'No Release-iphoneos .app produced.' >&2
             echo 'Products found:' >&2

@@ -21,6 +21,8 @@ module.exports = function (_config) {
   const IS_TESTFLIGHT = process.env.EXPO_PUBLIC_ENV === 'testflight'
   const IS_PRODUCTION = process.env.EXPO_PUBLIC_ENV === 'production'
   const IS_DEV = !IS_TESTFLIGHT && !IS_PRODUCTION
+  const IS_ISOLATED_TORAH =
+    process.env.EXPO_PUBLIC_TORAH_ISOLATED_NETWORK === 'true'
 
   // Keep production domains empty until the project has a permanent domain.
   // Localhost stays available for web development.
@@ -275,7 +277,9 @@ module.exports = function (_config) {
             networkInstrumentation: true,
           },
         ],
-        './plugins/starterPackAppClipExtension/withStarterPackAppClip.js',
+        ...(IS_ISOLATED_TORAH
+          ? []
+          : ['./plugins/starterPackAppClipExtension/withStarterPackAppClip.js']),
         './plugins/withGradleJVMHeapSizeIncrease.js',
         './plugins/withAndroidManifestLargeHeapPlugin.js',
         './plugins/withAndroidManifestFCMIconPlugin.js',
@@ -432,10 +436,15 @@ module.exports = function (_config) {
                       ],
                     },
                   },
-                  {
-                    targetName: 'BlueskyClip',
-                    bundleIdentifier: 'com.davidpovarsky.torahsocial.AppClip',
-                  },
+                  ...(IS_ISOLATED_TORAH
+                    ? []
+                    : [
+                        {
+                          targetName: 'BlueskyClip',
+                          bundleIdentifier:
+                            'com.davidpovarsky.torahsocial.AppClip',
+                        },
+                      ]),
                 ],
               },
             },
