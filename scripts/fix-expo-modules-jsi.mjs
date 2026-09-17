@@ -58,7 +58,7 @@ function patchFiles(baseDir) {
       if (!content.includes('createHostFunctionClosure')) {
         content = content.replace(
           '} // namespace expo',
-          'inline HostFunctionClosure * _Nonnull createHostFunctionClosure(\n    RetainedSwiftPointer::Context _Nullable context,\n    HostFunctionClosure::Closure * _Nonnull closure,\n    RetainedSwiftPointer::Deallocator * _Nonnull deallocator) {\n  return new HostFunctionClosure(context, closure, deallocator);\n}\n\n} // namespace expo'
+          'inline HostFunctionClosure *createHostFunctionClosure(\n    RetainedSwiftPointer::Context context,\n    HostFunctionClosure::Closure *closure,\n    RetainedSwiftPointer::Deallocator *deallocator) {\n  return new HostFunctionClosure(context, closure, deallocator);\n}\n\n} // namespace expo'
         )
       }
     } else if (file.endsWith('.swift')) {
