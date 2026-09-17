@@ -1,7 +1,7 @@
 import {useCallback} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 
-import {type ResolvedLink, imageToThumb} from '#/lib/api/resolve'
+import {type ResolvedExternalLink, imageToThumb} from '#/lib/api/resolve'
 import {precacheResolveLinkQuery} from '#/state/queries/resolve-link'
 import {getTorahSourceImageUrl} from '../sefaria/api'
 import {buildSefariaSourceUri, hasNoImageParam, refFromSefariaUri} from '../sources/url'
@@ -30,14 +30,14 @@ export function useTorahSourceSelection(
         ? getTorahSourceImageUrl(ref, {lang: 'he', platform: 'twitter'})
         : undefined
 
-      const initialResolved: ResolvedLink = {
+      const initialResolved: ResolvedExternalLink = {
         type: 'external',
         uri: targetUri,
         title: ref || 'Sefaria',
         description: 'מקור תורני ב־Sefaria',
         thumb: undefined,
         view: imageUrl
-          ? {
+          ? ({
               $type: 'app.bsky.embed.external#view',
               external: {
                 uri: targetUri,
@@ -45,7 +45,7 @@ export function useTorahSourceSelection(
                 description: 'מקור תורני ב־Sefaria',
                 thumb: imageUrl,
               },
-            }
+            } as any)
           : undefined,
       }
 

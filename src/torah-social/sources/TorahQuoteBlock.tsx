@@ -28,7 +28,7 @@ export function TorahQuoteBlock({
         accessibilityRole="button"
         accessibilityLabel={`פתח מקור תורני: ${displayRef}`}
         onPress={() => readerControl.open()}
-        style={({pressed, hovered}) => [
+        style={({pressed}) => [
           a.my_xs,
           a.p_md,
           a.rounded_md,
@@ -39,7 +39,7 @@ export function TorahQuoteBlock({
             backgroundColor: t.name === 'dark' ? '#1E1B15' : '#FCF9F2',
             borderRightWidth: 4,
             borderRightColor: '#C4973B',
-            opacity: pressed ? 0.85 : hovered ? 0.95 : 1,
+            opacity: pressed ? 0.85 : 1,
           },
         ]}>
         {/* Header */}

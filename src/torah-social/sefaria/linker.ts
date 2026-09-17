@@ -54,7 +54,11 @@ function sleep(ms: number, signal?: AbortSignal) {
       'abort',
       () => {
         clearTimeout(timer)
-        reject(new DOMException('Aborted', 'AbortError'))
+        const err =
+          typeof DOMException !== 'undefined'
+            ? new DOMException('Aborted', 'AbortError')
+            : new Error('Aborted')
+        reject(err)
       },
       {once: true},
     )

@@ -129,6 +129,7 @@ export function SourcePickerDialog({
 
               <TextField.Root>
                 <Dialog.Input
+                  label="חיפוש מקור תורני"
                   autoFocus
                   value={query}
                   onChangeText={txt => {

@@ -18,6 +18,13 @@ jobs:
     name: Web build
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
+      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+      EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"
+      EXPO_PUBLIC_ENV: production
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,10 +39,6 @@ jobs:
       - name: Compile locale catalogs
         run: pnpm intl:compile
       - name: Apply isolated Torah network build config
-        env:
-          EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview.torah.invalid
-          EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shTorahSocialCiAppView
-          EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds.torah.invalid
         run: node scripts/torah-isolate-client.mjs
       - run: pnpm typecheck:web
       - run: pnpm build-web
@@ -47,9 +50,16 @@ jobs:
           retention-days: 7
 
   ios:
-    name: iOS and iPad simulator build
-    runs-on: macos-26
-    timeout-minutes: 60
+    name: iOS and iPad unsigned IPA build
+    runs-on: macos-14
+    timeout-minutes: 90
+    env:
+      EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
+      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+      EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"
+      EXPO_PUBLIC_ENV: production
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -64,14 +74,10 @@ jobs:
       - name: Compile locale catalogs
         run: pnpm intl:compile
       - name: Apply isolated Torah network build config
-        env:
-          EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview.torah.invalid
-          EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shTorahSocialCiAppView
-          EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds.torah.invalid
         run: node scripts/torah-isolate-client.mjs
       - name: Generate native iOS project and install pods
         run: pnpm prebuild --platform ios
-      - name: Build unsigned simulator app
+      - name: Build unsigned iOS device application
         shell: bash
         run: |
           set -euo pipefail
@@ -90,32 +96,39 @@ jobs:
             exit 1
           fi
 
-          echo "Building app scheme: $SCHEME"
+          echo "Building app scheme for iOS device: $SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
             build
-      - name: Package simulator app
+      - name: Package unsigned IPA
         shell: bash
         run: |
           set -euo pipefail
-          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -path '*iphonesimulator*' -name '*.app' -print -quit)"
+          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -path '*Release-iphoneos*' -name '*.app' -print -quit)"
           if [ -z "$APP" ]; then
-            echo 'No simulator .app produced.' >&2
+            echo 'No Release-iphoneos .app produced.' >&2
             echo 'Products found:' >&2
             find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 4 -print >&2 || true
             exit 1
           fi
-          echo "Packaging simulator app: $APP"
-          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/TorahSocial-iOS-Simulator.zip"
-      - uses: actions/upload-artifact@v4
+          echo "Packaging unsigned IPA from $APP"
+          mkdir -p "$RUNNER_TEMP/ipa_pack/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa_pack/Payload/"
+          cd "$RUNNER_TEMP/ipa_pack"
+          zip -r -y "$RUNNER_TEMP/TorahSocial-unsigned.ipa" Payload
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: torah-social-ios-simulator
-          path: ${{ runner.temp }}/TorahSocial-iOS-Simulator.zip
+          name: torah-social-unsigned-ipa
+          path: ${{ runner.temp }}/TorahSocial-unsigned.ipa
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14

@@ -23,6 +23,7 @@ export function TorahInlineLink({
   return (
     <>
       <InlineLinkText
+        label={displayRef || text}
         selectable={selectable}
         to={cleanUri}
         style={style}

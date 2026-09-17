@@ -3,13 +3,13 @@ import {View} from 'react-native'
 import {atoms as a} from '#/alf'
 import {ExternalEmbedLink} from '#/view/com/composer/ExternalEmbed'
 import {isSefariaSourceUri} from '../sources/url'
-import type {ComposerPostEmbed} from '#/view/com/composer/state/composer'
+import type {EmbedDraft} from '#/view/com/composer/state/composer'
 
 export function TorahPostHeaderEmbed({
   embed,
   onRemove,
 }: {
-  embed: ComposerPostEmbed
+  embed: EmbedDraft
   onRemove: () => void
 }) {
   if (!embed.link || !isSefariaSourceUri(embed.link.uri)) {
