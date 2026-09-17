@@ -107,6 +107,7 @@ jobs:
               fi
             done
           fi
+          node scripts/fix-expo-modules-jsi.mjs
       - name: Compile locale catalogs
         run: pnpm intl:compile
       - name: Apply isolated Torah network build config
@@ -132,6 +133,7 @@ jobs:
             exit 1
           fi
 
+          node scripts/fix-expo-modules-jsi.mjs
           echo "Building app scheme for iOS device: $SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
