@@ -50,7 +50,7 @@ function patchFiles(baseDir) {
       if (!content.includes('createRuntimeScheduler')) {
         content = content.replace(
           '} // namespace expo',
-          'inline RuntimeScheduler *createRuntimeScheduler() {\n  return new RuntimeScheduler();\n}\n\ninline RuntimeScheduler *createRuntimeScheduler(void *scheduler, RuntimeScheduler::ScheduleFn fn) {\n  return new RuntimeScheduler(scheduler, fn);\n}\n\n} // namespace expo'
+          'inline SWIFT_RETURNS_RETAINED RuntimeScheduler *createRuntimeScheduler() {\n  return new RuntimeScheduler();\n}\n\ninline SWIFT_RETURNS_RETAINED RuntimeScheduler *createRuntimeScheduler(void *scheduler, RuntimeScheduler::ScheduleFn fn) {\n  return new RuntimeScheduler(scheduler, fn);\n}\n\n} // namespace expo'
         )
       }
     } else if (base === 'HostFunctionClosure.h') {
@@ -58,7 +58,7 @@ function patchFiles(baseDir) {
       if (!content.includes('createHostFunctionClosure')) {
         content = content.replace(
           '} // namespace expo',
-          'inline HostFunctionClosure *createHostFunctionClosure(\n    RetainedSwiftPointer::Context context,\n    HostFunctionClosure::Closure *closure,\n    RetainedSwiftPointer::Deallocator *deallocator) {\n  return new HostFunctionClosure(context, closure, deallocator);\n}\n\n} // namespace expo'
+          'inline HostFunctionClosure * _Nonnull createHostFunctionClosure(\n    RetainedSwiftPointer::Context _Nullable context,\n    HostFunctionClosure::Closure * _Nonnull closure,\n    RetainedSwiftPointer::Deallocator * _Nonnull deallocator) {\n  return new HostFunctionClosure(context, closure, deallocator);\n}\n\n} // namespace expo'
         )
       }
     } else if (file.endsWith('.swift')) {
@@ -74,13 +74,11 @@ function patchFiles(baseDir) {
       content = content.replace(/return Task\.immediate\([^)]*\)/g, 'return Task(priority: priority ?? .high, operation: operation)')
       content = content.replace(/return Task\(name:\s*name,\s*priority:\s*\.high,\s*operation:\s*operation\)/g, 'return Task(priority: priority ?? .high, operation: operation)')
 
-      // 4. JavaScriptCodable+Date.swift: Explicit JavaScriptValue.number call
+      // 4. JavaScriptCodable+Date.swift: Explicit JavaScriptValue.number call and disambiguate abs(milliseconds)
       content = content.replace(/let millisecondsValue:\s*JavaScriptValue\s*=\s*\.number\(milliseconds\)/g, 'let millisecondsValue: JavaScriptValue = JavaScriptValue.number(milliseconds)')
+      content = content.replace(/\babs\(milliseconds\)/g, 'Swift.abs(milliseconds)')
 
-      // 5. JavaScriptRuntime.swift: vector.push_back argument label
-      content = content.replace(/vector\.push_back\(consuming:\s*propNameId\)/g, 'vector.push_back(propNameId)')
-
-      // 6. JavaScriptRuntime.swift: use factory functions for C++ interop types
+      // 5. JavaScriptRuntime.swift: use factory functions for C++ interop types
       content = content.replace(/expo\.RuntimeScheduler\(\)/g, 'expo.createRuntimeScheduler()')
       content = content.replace(/expo\.RuntimeScheduler\(scheduler,\s*fn\)/g, 'expo.createRuntimeScheduler(scheduler, fn)')
       content = content.replace(/expo\.HostFunctionClosure\(context,\s*call,\s*deallocate\)/g, 'expo.createHostFunctionClosure(context, call, deallocate)')
