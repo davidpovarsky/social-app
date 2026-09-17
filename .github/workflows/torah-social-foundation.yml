@@ -62,16 +62,18 @@ jobs:
       EXPO_PUBLIC_ENV: production
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 16.2
+      - name: Select latest Xcode 16
         run: |
           for xcode_path in \
-            "/Applications/Xcode_16.2.app" \
-            "/Applications/Xcode_16.2.0.app" \
-            "/Applications/Xcode_16.1.app" \
-            "/Applications/Xcode.app"; do
+            "/Applications/Xcode.app" \
+            "/Applications/Xcode_16.4.app" \
+            "/Applications/Xcode_16.4.0.app" \
+            "/Applications/Xcode_16.3.app" \
+            "/Applications/Xcode_16.2.app"; do
             if [ -d "$xcode_path" ]; then
               echo "Selecting Xcode at $xcode_path"
               sudo xcode-select -s "$xcode_path"
+              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
               break
             fi
           done
