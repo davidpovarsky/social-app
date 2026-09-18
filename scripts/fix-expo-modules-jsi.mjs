@@ -124,6 +124,10 @@ function patchFiles(baseDir) {
       content = content.replace(/init\(completionHandler:\s*@escaping\s*\(URLSession\.AuthChallengeDisposition,\s*URLCredential\?\)\s*->\s*Void\)/g, 'init(completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)')
     } else if (base === 'URLSessionSessionDelegateProxy.swift') {
       content = content.replace(/public final class URLSessionSessionDelegateProxy:\s*NSObject,\s*URLSessionDataDelegate\s*\{/g, 'public final class URLSessionSessionDelegateProxy: NSObject, URLSessionDataDelegate, @unchecked Sendable {')
+    } else if (base === 'Tracks.swift') {
+      content = content.replace(/let trackUrl = assetVariant\.url/g, 'let trackUrl = mainUrl')
+    } else if (base === 'ExpoScrollEdgeEffectView.swift') {
+      content = `import ExpoModulesCore\nimport UIKit\n\nclass ExpoScrollEdgeEffectView: ExpoView {\n  var scrollViewTag: Int?\n  var edge: String = "top"\n  var effect: String = "automatic"\n\n  required init(appContext: AppContext? = nil) {\n    super.init(appContext: appContext)\n  }\n}\n`
     }
 
     // Defensive cleanup of any duplicate @MainActor annotations
@@ -183,6 +187,13 @@ const targets = [
   path.resolve('node_modules/expo-modules-jsi'),
   path.resolve('node_modules/expo-modules-core'),
   path.resolve('node_modules/react-native-pager-view'),
+  path.resolve('node_modules/expo-video'),
+  path.resolve('node_modules/@bsky.app/expo-scroll-edge-effect'),
+  path.resolve('ios/Pods/ExpoModulesJSI'),
+  path.resolve('ios/Pods/ExpoModulesCore'),
+  path.resolve('ios/Pods/react-native-pager-view'),
+  path.resolve('ios/Pods/ExpoVideo'),
+  path.resolve('ios/Pods/ExpoScrollEdgeEffect'),
 ]
 
 for (const target of targets) {
