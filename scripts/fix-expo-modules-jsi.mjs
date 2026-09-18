@@ -150,6 +150,12 @@ function patchFiles(baseDir) {
           'func startSymbolAnimation() {\n    if #available(iOS 17.0, tvOS 17.0, *) {\n      applySymbolEffect()\n    }\n  }\n\n  func stopSymbolAnimation()'
         )
       }
+    } else if (base === 'AgeRangeModule.swift') {
+      content = `import ExpoModulesCore\n\npublic class AgeRangeModule: Module, @unchecked Sendable {\n  public func definition() -> ModuleDefinition {\n    Name("ExpoAgeRange")\n\n    AsyncFunction("requestAgeRangeAsync") { (opts: AgeRangeRequestParams) in\n      return AgeRangeResponse()\n    }\n\n    AsyncFunction("isEligibleForAgeFeaturesAsync") { () -> Bool? in\n      return nil\n    }\n\n    AsyncFunction("showSignificantUpdateAcknowledgmentAsync") { (updateDescription: String) in\n      return\n    }\n\n    AsyncFunction("getRequiredRegulatoryFeaturesAsync") { () -> [String]? in\n      return nil\n    }\n  }\n}\n`
+    } else if (base === 'AgeRangeRecords.swift') {
+      content = content.replace('import DeclaredAgeRange\n', '')
+      content = content.replace(/@available\(iOS 26\.0,\s*\*\)\s*public init\(_ range: AgeRangeService\.AgeRangeDeclaration\) \{[\s\S]*?\n  \}/g, '')
+      content = content.replace(/@available\(iOS 26\.0,\s*\*\)\s*public init\(_ range: AgeRangeService\.AgeRange\) \{[\s\S]*?\n  \}/g, '')
     }
 
     // Defensive cleanup of any duplicate @MainActor annotations
@@ -214,6 +220,7 @@ const targets = [
   path.resolve('node_modules/expo-notifications'),
   path.resolve('node_modules/expo-image-picker'),
   path.resolve('node_modules/expo-image'),
+  path.resolve('node_modules/expo-age-range'),
   path.resolve('ios/Pods/ExpoModulesJSI'),
   path.resolve('ios/Pods/ExpoModulesCore'),
   path.resolve('ios/Pods/react-native-pager-view'),
@@ -222,6 +229,7 @@ const targets = [
   path.resolve('ios/Pods/ExpoNotifications'),
   path.resolve('ios/Pods/ExpoImagePicker'),
   path.resolve('ios/Pods/ExpoImage'),
+  path.resolve('ios/Pods/ExpoAgeRange'),
 ]
 
 for (const target of targets) {
