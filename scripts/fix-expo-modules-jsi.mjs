@@ -139,6 +139,11 @@ function patchFiles(baseDir) {
         /let utType: UTType\? = if #available\(iOS 26\.0,\s*\*\)\s*\{[\s\S]*?resource\.contentType[\s\S]*?\} else \{([\s\S]*?)\}/g,
         'let utType: UTType? = $1'
       )
+    } else if (base === 'ImageView.swift') {
+      content = content.replace(
+        /private func applySymbolEffectiOS26\(effect: SFSymbolEffectType, scope: SFSymbolEffectScope\?, options: SymbolEffectOptions\) \{[\s\S]*?\n  \}/g,
+        'private func applySymbolEffectiOS26(effect: SFSymbolEffectType, scope: SFSymbolEffectScope?, options: SymbolEffectOptions) {}'
+      )
     }
 
     // Defensive cleanup of any duplicate @MainActor annotations
@@ -202,6 +207,7 @@ const targets = [
   path.resolve('node_modules/@bsky.app/expo-scroll-edge-effect'),
   path.resolve('node_modules/expo-notifications'),
   path.resolve('node_modules/expo-image-picker'),
+  path.resolve('node_modules/expo-image'),
   path.resolve('ios/Pods/ExpoModulesJSI'),
   path.resolve('ios/Pods/ExpoModulesCore'),
   path.resolve('ios/Pods/react-native-pager-view'),
@@ -209,6 +215,7 @@ const targets = [
   path.resolve('ios/Pods/ExpoScrollEdgeEffect'),
   path.resolve('ios/Pods/ExpoNotifications'),
   path.resolve('ios/Pods/ExpoImagePicker'),
+  path.resolve('ios/Pods/ExpoImage'),
 ]
 
 for (const target of targets) {
