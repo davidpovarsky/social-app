@@ -141,9 +141,15 @@ function patchFiles(baseDir) {
       )
     } else if (base === 'ImageView.swift') {
       content = content.replace(
-        /private func applySymbolEffectiOS26\(effect: SFSymbolEffectType, scope: SFSymbolEffectScope\?, options: SymbolEffectOptions\) \{[\s\S]*?\n  \}/g,
-        'private func applySymbolEffectiOS26(effect: SFSymbolEffectType, scope: SFSymbolEffectScope?, options: SymbolEffectOptions) {}'
+        /case \.drawOn:[\s\S]*?case \.drawOff:[\s\S]*?default:/g,
+        'default:'
       )
+      if (!content.includes('func startSymbolAnimation()')) {
+        content = content.replace(
+          'func stopSymbolAnimation()',
+          'func startSymbolAnimation() {\n    if #available(iOS 17.0, tvOS 17.0, *) {\n      applySymbolEffect()\n    }\n  }\n\n  func stopSymbolAnimation()'
+        )
+      }
     }
 
     // Defensive cleanup of any duplicate @MainActor annotations
