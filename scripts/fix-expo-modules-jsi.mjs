@@ -15,7 +15,7 @@ function walk(dir) {
     }
     if (stat.isDirectory()) {
       results = results.concat(walk(filePath))
-    } else if (file.endsWith('.swift') || file.endsWith('.h') || file.endsWith('.m') || file.endsWith('.mm') || file === 'Package.swift') {
+    } else if (file.endsWith('.swift') || file.endsWith('.h') || file.endsWith('.m') || file.endsWith('.mm') || file === 'Package.swift' || file.endsWith('.podspec')) {
       results.push(filePath)
     }
   }
@@ -32,7 +32,10 @@ function patchFiles(baseDir) {
     const original = content
     const base = path.basename(file)
 
-    if (base === 'Package.swift') {
+    if (base.endsWith('.podspec')) {
+      // Align Swift version specification for CocoaPods pod targets
+      content = content.replace(/s\.swift_version\s*=\s*['"]6\.0['"]/g, "s.swift_version = '5.0'")
+    } else if (base === 'Package.swift') {
       // 1. Force swift-tools-version to 6.0 for broad Swift compiler compatibility (6.0, 6.1, 6.2)
       content = content.replace(/swift-tools-version:\s*[0-9]+(\.[0-9]+)*/g, 'swift-tools-version: 6.0')
 
@@ -79,10 +82,43 @@ function patchFiles(baseDir) {
           '#import <UIKit/UIKit.h>\n\n@interface UINavigationController (iOS26PopGesture)\n@property (nonatomic, readonly, nullable) UIGestureRecognizer *interactiveContentPopGestureRecognizer;\n@end\n\n@interface RNCPagerView'
         )
       }
-    } else if (file.endsWith('.swift')) {
-      // 1. In Swift 6 mode, weak properties must be declared with `nonisolated(unsafe) weak var`
-      // to satisfy both mutability and Sendable conformance
-      content = content.replace(/\b(?:nonisolated\(unsafe\)\s+)?weak\s+(?:let|var)\b/g, 'nonisolated(unsafe) weak var')
+    } else if (base === 'SwiftUIHostingView.swift') {
+      content = content.replace(/\binternal\s+protocol\s+AnyExpoSwiftUIHostingView\b/g, '@MainActor\ninternal protocol AnyExpoSwiftUIHostingView')
+      content = content.replace(/:\s*ExpoView,\s*@MainActor\s+AnyExpoSwiftUIHostingView\b/g, ': ExpoView, AnyExpoSwiftUIHostingView')
+    } else if (base === 'ExpoSwiftUI.swift') {
+      content = content.replace(/\bpublic\s+protocol\s+ViewWrapper\b/g, '@MainActor\n  public protocol ViewWrapper')
+    } else if (base === 'SwiftUIVirtualView.swift') {
+      content = content.replace(/,\s*@MainActor\s+ExpoSwiftUIView\b/g, ', ExpoSwiftUIView')
+      content = content.replace(/(^\s*final\s+class\s+SwiftUIVirtualView\b)/gm, '  @MainActor\n$1')
+      content = content.replace(/(^\s*final\s+class\s+SwiftUIVirtualViewDev\b)/gm, '  @MainActor\n$1')
+      content = content.replace(/extension\s+ExpoSwiftUI\.SwiftUIVirtualView:\s*@MainActor\s+ExpoSwiftUI\.ViewWrapper\b/g, 'extension ExpoSwiftUI.SwiftUIVirtualView: ExpoSwiftUI.ViewWrapper')
+      content = content.replace(/extension\s+ExpoSwiftUI\.SwiftUIVirtualViewDev:\s*@MainActor\s+ExpoSwiftUI\.ViewWrapper\b/g, 'extension ExpoSwiftUI.SwiftUIVirtualViewDev: ExpoSwiftUI.ViewWrapper')
+    } else if (base === 'ViewDefinition.swift') {
+      content = content.replace(/extension\s+UIView:\s*@MainActor\s+AnyArgument\b/g, '@MainActor\nextension UIView: AnyArgument')
+    } else if (base === 'Utilities.swift') {
+      content = content.replace(/internal func performSynchronouslyOnMainThread<Result>\(_ closure: \(\) throws -> Result\) rethrows -> Result/g, 'internal func performSynchronouslyOnMainThread<Result>(_ closure: @MainActor () throws -> Result) rethrows -> Result')
+      content = content.replace(/if Thread\.isMainThread \{\s*return try closure\(\)\s*\}/g, 'if Thread.isMainThread {\n    return try MainActor.assumeIsolated(closure)\n  }')
+    } else if (base === 'ExpoReactDelegate.swift') {
+      content = content.replace(/\.first\(where:\s*\{\s*_\s*in\s*true\s*\}\)\s*\?\?\s*UIViewController\(\)/g, '.first(where: { _ in true }) ?? MainActor.assumeIsolated { UIViewController() }')
+    } else if (base === 'PersistentFileLog.swift') {
+      content = content.replace(/public typealias PersistentFileLogFilter\s*=\s*\(String\)\s*->\s*Bool/g, 'public typealias PersistentFileLogFilter = @Sendable (String) -> Bool')
+    } else if (base === 'SwiftUIViewFrameObserver.swift') {
+      content = content.replace(/callback\(CGRect\(origin:\s*view\.frame\.origin,\s*size:\s*newValue\.size\)\)/g, 'let origin = MainActor.assumeIsolated { view.frame.origin }\n        callback(CGRect(origin: origin, size: newValue.size))')
+    } else if (base === 'URLAuthenticationChallengeForwardSender.swift') {
+      content = content.replace(/let completionHandler:\s*\(URLSession\.AuthChallengeDisposition,\s*URLCredential\?\)\s*->\s*Void/g, 'let completionHandler: @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void')
+      content = content.replace(/init\(completionHandler:\s*@escaping\s*\(URLSession\.AuthChallengeDisposition,\s*URLCredential\?\)\s*->\s*Void\)/g, 'init(completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)')
+    } else if (base === 'URLSessionSessionDelegateProxy.swift') {
+      content = content.replace(/public final class URLSessionSessionDelegateProxy:\s*NSObject,\s*URLSessionDataDelegate\s*\{/g, 'public final class URLSessionSessionDelegateProxy: NSObject, URLSessionDataDelegate, @unchecked Sendable {')
+    }
+
+    if (file.endsWith('.swift')) {
+      // 1. Weak properties must be declared as `weak var`, not `weak let`
+      content = content.replace(/\bweak\s+let\b/g, 'weak var')
+
+      // In expo-modules-jsi, satisfy mutability and Sendable conformance
+      if (file.includes('expo-modules-jsi')) {
+        content = content.replace(/\b(?:nonisolated\(unsafe\)\s+)?weak\s+(?:let|var)\b/g, 'nonisolated(unsafe) weak var')
+      }
 
       // 2. Trailing commas before closing parenthesis in closure parameter lists
       content = content.replace(/,\s*\)\s*async\s+throws\s*->/g, '\n    ) async throws ->')
@@ -127,6 +163,7 @@ function patchFiles(baseDir) {
 
 const targets = [
   path.resolve('node_modules/expo-modules-jsi'),
+  path.resolve('node_modules/expo-modules-core'),
   path.resolve('node_modules/react-native-pager-view'),
 ]
 
