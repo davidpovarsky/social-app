@@ -125,7 +125,15 @@ function patchFiles(baseDir) {
   console.log(`[fix-expo-modules-jsi] Completed patching ${patchedCount} files in ${baseDir}`)
 }
 
-const targetPath = path.resolve('node_modules')
-patchFiles(targetPath)
+const targets = [
+  path.resolve('node_modules/expo-modules-jsi'),
+  path.resolve('node_modules/react-native-pager-view'),
+]
+
+for (const target of targets) {
+  if (fs.existsSync(target)) {
+    patchFiles(target)
+  }
+}
 
 
