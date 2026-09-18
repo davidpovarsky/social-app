@@ -128,6 +128,8 @@ function patchFiles(baseDir) {
       content = content.replace(/let trackUrl = assetVariant\.url/g, 'let trackUrl = mainUrl')
     } else if (base === 'ExpoScrollEdgeEffectView.swift') {
       content = `import ExpoModulesCore\nimport UIKit\n\nclass ExpoScrollEdgeEffectView: ExpoView {\n  var scrollViewTag: Int?\n  var edge: String = "top"\n  var effect: String = "automatic"\n\n  required init(appContext: AppContext? = nil) {\n    super.init(appContext: appContext)\n  }\n}\n`
+    } else if (base === 'DateComponentsSerializer.swift') {
+      content = content.replace(/if #available\(iOS 26\.0,\s*\*\)\s*\{[\s\S]*?isRepeatedDay[\s\S]*?\}/g, '// iOS 26 isRepeatedDay omitted for Xcode 16 SDK')
     }
 
     // Defensive cleanup of any duplicate @MainActor annotations
@@ -189,11 +191,13 @@ const targets = [
   path.resolve('node_modules/react-native-pager-view'),
   path.resolve('node_modules/expo-video'),
   path.resolve('node_modules/@bsky.app/expo-scroll-edge-effect'),
+  path.resolve('node_modules/expo-notifications'),
   path.resolve('ios/Pods/ExpoModulesJSI'),
   path.resolve('ios/Pods/ExpoModulesCore'),
   path.resolve('ios/Pods/react-native-pager-view'),
   path.resolve('ios/Pods/ExpoVideo'),
   path.resolve('ios/Pods/ExpoScrollEdgeEffect'),
+  path.resolve('ios/Pods/ExpoNotifications'),
 ]
 
 for (const target of targets) {
