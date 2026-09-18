@@ -15,7 +15,7 @@ function walk(dir) {
     }
     if (stat.isDirectory()) {
       results = results.concat(walk(filePath))
-    } else if (file.endsWith('.swift') || file.endsWith('.h') || file === 'Package.swift') {
+    } else if (file.endsWith('.swift') || file.endsWith('.h') || file.endsWith('.m') || file.endsWith('.mm') || file === 'Package.swift') {
       results.push(filePath)
     }
   }
@@ -70,6 +70,13 @@ function patchFiles(baseDir) {
         content = content.replace(
           '} // namespace expo',
           'inline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::Runtime &runtime,\n    const std::string &name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, name));\n}\n\ninline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::IRuntime &runtime,\n    const std::string &name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, name));\n}\n\ninline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::Runtime &runtime,\n    const char *name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, std::string(name)));\n}\n\n} // namespace expo'
+        )
+      }
+    } else if (base === 'RNCPagerViewComponentView.mm' || base === 'RNCPagerView.m') {
+      if (!content.includes('iOS26PopGesture')) {
+        content = content.replace(
+          /@interface\s+RNCPagerView/g,
+          '#import <UIKit/UIKit.h>\n\n@interface UINavigationController (iOS26PopGesture)\n@property (nonatomic, readonly, nullable) UIGestureRecognizer *interactiveContentPopGestureRecognizer;\n@end\n\n@interface RNCPagerView'
         )
       }
     } else if (file.endsWith('.swift')) {
