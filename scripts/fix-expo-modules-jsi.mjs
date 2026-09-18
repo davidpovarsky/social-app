@@ -83,18 +83,33 @@ function patchFiles(baseDir) {
         )
       }
     } else if (base === 'SwiftUIHostingView.swift') {
-      content = content.replace(/\binternal\s+protocol\s+AnyExpoSwiftUIHostingView\b/g, '@MainActor\ninternal protocol AnyExpoSwiftUIHostingView')
+      if (!content.includes('@MainActor\ninternal protocol AnyExpoSwiftUIHostingView')) {
+        content = content.replace(/\binternal\s+protocol\s+AnyExpoSwiftUIHostingView\b/g, '@MainActor\ninternal protocol AnyExpoSwiftUIHostingView')
+      }
       content = content.replace(/:\s*ExpoView,\s*@MainActor\s+AnyExpoSwiftUIHostingView\b/g, ': ExpoView, AnyExpoSwiftUIHostingView')
     } else if (base === 'ExpoSwiftUI.swift') {
-      content = content.replace(/\bpublic\s+protocol\s+ViewWrapper\b/g, '@MainActor\n  public protocol ViewWrapper')
+      if (!content.includes('@MainActor\n  public protocol ViewWrapper')) {
+        content = content.replace(/\bpublic\s+protocol\s+ViewWrapper\b/g, '@MainActor\n  public protocol ViewWrapper')
+      }
     } else if (base === 'SwiftUIVirtualView.swift') {
       content = content.replace(/,\s*@MainActor\s+ExpoSwiftUIView\b/g, ', ExpoSwiftUIView')
-      content = content.replace(/(^\s*final\s+class\s+SwiftUIVirtualView\b)/gm, '  @MainActor\n$1')
-      content = content.replace(/(^\s*final\s+class\s+SwiftUIVirtualViewDev\b)/gm, '  @MainActor\n$1')
+      if (!content.includes('@MainActor\n  final class SwiftUIVirtualView<')) {
+        content = content.replace(/(^\s*final\s+class\s+SwiftUIVirtualView\b)/gm, '  @MainActor\n$1')
+      }
+      if (!content.includes('@MainActor\n  final class SwiftUIVirtualViewDev<')) {
+        content = content.replace(/(^\s*final\s+class\s+SwiftUIVirtualViewDev\b)/gm, '  @MainActor\n$1')
+      }
       content = content.replace(/extension\s+ExpoSwiftUI\.SwiftUIVirtualView:\s*@MainActor\s+ExpoSwiftUI\.ViewWrapper\b/g, 'extension ExpoSwiftUI.SwiftUIVirtualView: ExpoSwiftUI.ViewWrapper')
       content = content.replace(/extension\s+ExpoSwiftUI\.SwiftUIVirtualViewDev:\s*@MainActor\s+ExpoSwiftUI\.ViewWrapper\b/g, 'extension ExpoSwiftUI.SwiftUIVirtualViewDev: ExpoSwiftUI.ViewWrapper')
+    } else if (base === 'SwiftUIViewDefinition.swift') {
+      content = content.replace(
+        /let content = hostingUIView\.getContentView\(\)/g,
+        'let content = MainActor.assumeIsolated { hostingUIView.getContentView() }'
+      )
     } else if (base === 'ViewDefinition.swift') {
-      content = content.replace(/extension\s+UIView:\s*@MainActor\s+AnyArgument\b/g, '@MainActor\nextension UIView: AnyArgument')
+      if (!content.includes('@MainActor\nextension UIView: AnyArgument')) {
+        content = content.replace(/extension\s+UIView:\s*@MainActor\s+AnyArgument\b/g, '@MainActor\nextension UIView: AnyArgument')
+      }
     } else if (base === 'Utilities.swift') {
       content = content.replace(/internal func performSynchronouslyOnMainThread<Result>\(_ closure: \(\) throws -> Result\) rethrows -> Result/g, 'internal func performSynchronouslyOnMainThread<Result>(_ closure: @MainActor () throws -> Result) rethrows -> Result')
       content = content.replace(/if Thread\.isMainThread \{\s*return try closure\(\)\s*\}/g, 'if Thread.isMainThread {\n    return try MainActor.assumeIsolated(closure)\n  }')
@@ -110,6 +125,9 @@ function patchFiles(baseDir) {
     } else if (base === 'URLSessionSessionDelegateProxy.swift') {
       content = content.replace(/public final class URLSessionSessionDelegateProxy:\s*NSObject,\s*URLSessionDataDelegate\s*\{/g, 'public final class URLSessionSessionDelegateProxy: NSObject, URLSessionDataDelegate, @unchecked Sendable {')
     }
+
+    // Defensive cleanup of any duplicate @MainActor annotations
+    content = content.replace(/@MainActor\s*@MainActor/g, '@MainActor')
 
     if (file.endsWith('.swift')) {
       // 1. Weak properties must be declared as `weak var`, not `weak let`
