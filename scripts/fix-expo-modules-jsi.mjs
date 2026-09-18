@@ -61,6 +61,17 @@ function patchFiles(baseDir) {
           'inline HostFunctionClosure *createHostFunctionClosure(\n    RetainedSwiftPointer::Context context,\n    HostFunctionClosure::Closure *closure,\n    RetainedSwiftPointer::Deallocator *deallocator) {\n  return new HostFunctionClosure(context, closure, deallocator);\n}\n\n} // namespace expo'
         )
       }
+    } else if (base === 'HostObjectCallbacks.h') {
+      // Add C++ bridge helper for move-only PropNameID vector appending
+      if (!content.includes('<string>')) {
+        content = content.replace('#include <jsi/jsi.h>', '#include <jsi/jsi.h>\n#include <string>')
+      }
+      if (!content.includes('appendPropNameId')) {
+        content = content.replace(
+          '} // namespace expo',
+          'inline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::IRuntime &runtime,\n    const std::string &name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, name));\n}\n\ninline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::IRuntime &runtime,\n    const char *name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, std::string(name)));\n}\n\n} // namespace expo'
+        )
+      }
     } else if (file.endsWith('.swift')) {
       // 1. In Swift 6 mode, weak properties must be declared with `nonisolated(unsafe) weak var`
       // to satisfy both mutability and Sendable conformance
@@ -74,11 +85,17 @@ function patchFiles(baseDir) {
       content = content.replace(/return Task\.immediate\([^)]*\)/g, 'return Task(priority: priority ?? .high, operation: operation)')
       content = content.replace(/return Task\(name:\s*name,\s*priority:\s*\.high,\s*operation:\s*operation\)/g, 'return Task(priority: priority ?? .high, operation: operation)')
 
-      // 4. JavaScriptCodable+Date.swift: Explicit JavaScriptValue.number call and disambiguate abs(milliseconds)
+      // 4. JavaScriptCodable+Date.swift: Explicit JavaScriptValue.number call and idempotent milliseconds.magnitude
       content = content.replace(/let millisecondsValue:\s*JavaScriptValue\s*=\s*\.number\(milliseconds\)/g, 'let millisecondsValue: JavaScriptValue = JavaScriptValue.number(milliseconds)')
-      content = content.replace(/\babs\(milliseconds\)/g, 'Swift.abs(milliseconds)')
+      content = content.replace(/(?:Swift\.)*abs\(milliseconds\)/g, 'milliseconds.magnitude')
 
-      // 5. JavaScriptRuntime.swift: use factory functions for C++ interop types
+      // 5. JavaScriptRuntime.swift: replace move-only push_back with C++ helper appendPropNameId
+      content = content.replace(
+        /let propNameId\s*=\s*facebook\.jsi\.PropNameID\.forUtf8\(iRuntime,\s*std\.string\(propertyName\)\)[\r\n\s]*vector\.push_back\((?:consuming:\s*)?propNameId\)/g,
+        'expo.appendPropNameId(&vector, iRuntime, std.string(propertyName))'
+      )
+
+      // 6. JavaScriptRuntime.swift: use factory functions for C++ interop types
       content = content.replace(/expo\.RuntimeScheduler\(\)/g, 'expo.createRuntimeScheduler()')
       content = content.replace(/expo\.RuntimeScheduler\(scheduler,\s*fn\)/g, 'expo.createRuntimeScheduler(scheduler, fn)')
       content = content.replace(/expo\.HostFunctionClosure\(context,\s*call,\s*deallocate\)/g, 'expo.createHostFunctionClosure(context, call, deallocate)')
