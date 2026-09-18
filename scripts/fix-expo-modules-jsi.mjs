@@ -69,7 +69,7 @@ function patchFiles(baseDir) {
       if (!content.includes('appendPropNameId')) {
         content = content.replace(
           '} // namespace expo',
-          'inline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::IRuntime &runtime,\n    const std::string &name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, name));\n}\n\ninline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::IRuntime &runtime,\n    const char *name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, std::string(name)));\n}\n\n} // namespace expo'
+          'inline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::Runtime &runtime,\n    const std::string &name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, name));\n}\n\ninline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::IRuntime &runtime,\n    const std::string &name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, name));\n}\n\ninline void appendPropNameId(\n    HostObjectCallbacks::PropNameIds &vector,\n    facebook::jsi::Runtime &runtime,\n    const char *name) {\n  vector.push_back(facebook::jsi::PropNameID::forUtf8(runtime, std::string(name)));\n}\n\n} // namespace expo'
         )
       }
     } else if (file.endsWith('.swift')) {
@@ -91,8 +91,12 @@ function patchFiles(baseDir) {
 
       // 5. JavaScriptRuntime.swift: replace move-only push_back with C++ helper appendPropNameId
       content = content.replace(
-        /let propNameId\s*=\s*facebook\.jsi\.PropNameID\.forUtf8\(iRuntime,\s*std\.string\(propertyName\)\)[\r\n\s]*vector\.push_back\((?:consuming:\s*)?propNameId\)/g,
-        'expo.appendPropNameId(&vector, iRuntime, std.string(propertyName))'
+        /let propNameId\s*=\s*facebook\.jsi\.PropNameID\.forUtf8\(([^,]+),\s*std\.string\(propertyName\)\)[\r\n\s]*vector\.push_back\((?:consuming:\s*)?propNameId\)/g,
+        'expo.appendPropNameId(&vector, $1, std.string(propertyName))'
+      )
+      content = content.replace(
+        /vector\.push_back\(consuming:\s*propNameId\)/g,
+        'expo.appendPropNameId(&vector, runtime.pointee, std.string(propertyName))'
       )
 
       // 6. JavaScriptRuntime.swift: use factory functions for C++ interop types
