@@ -54,7 +54,7 @@ module.exports = function (_config) {
       userInterfaceStyle: 'automatic',
       primaryColor: '#006AFF',
       ios: {
-        supportsTablet: true,
+        supportsTablet: false,
         bundleIdentifier: 'com.davidpovarsky.torahsocial',
         appleTeamId: process.env.EXPO_APPLE_TEAM_ID,
         config: {
