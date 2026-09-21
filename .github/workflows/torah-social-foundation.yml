@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/torah-social-foundation
+      - codex/ios-bluesky-size-test
   pull_request:
     branches:
       - main
