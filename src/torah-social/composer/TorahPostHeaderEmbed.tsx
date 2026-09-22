@@ -1,9 +1,9 @@
 import {View} from 'react-native'
 
-import {atoms as a} from '#/alf'
 import {ExternalEmbedLink} from '#/view/com/composer/ExternalEmbed'
+import {type EmbedDraft} from '#/view/com/composer/state/composer'
+import {atoms as a} from '#/alf'
 import {isSefariaSourceUri} from '../sources/url'
-import type {EmbedDraft} from '#/view/com/composer/state/composer'
 
 export function TorahPostHeaderEmbed({
   embed,

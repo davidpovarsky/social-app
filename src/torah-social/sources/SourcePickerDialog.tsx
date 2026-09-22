@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {ActivityIndicator, Pressable, View} from 'react-native'
 
+import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useTheme, web} from '#/alf'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
 import * as Dialog from '#/components/Dialog'
@@ -8,9 +9,8 @@ import * as TextField from '#/components/forms/TextField'
 import {PageText_Stroke2_Corner0_Rounded as SourceIcon} from '#/components/icons/PageText'
 import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/Plus'
 import {Text} from '#/components/Typography'
-import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {autocompleteRefs, resolveTorahSource} from '../sefaria/api'
-import type {SefariaCompletion, TorahSource} from '../sefaria/types'
+import {type SefariaCompletion, type TorahSource} from '../sefaria/types'
 import {formatTorahQuoteForInsertion} from './quoteBlock'
 import {buildSefariaSourceUri} from './url'
 
@@ -108,13 +108,16 @@ export function SourcePickerDialog({
   return (
     <Dialog.Outer control={control} nativeOptions={{fullHeight: true}}>
       <Dialog.Handle />
-      <Dialog.ScrollableInner label="הוסף מקור תורני" style={web({maxWidth: 600})}>
+      <Dialog.ScrollableInner
+        label="הוסף מקור תורני"
+        style={web({maxWidth: 600})}>
         <View style={[a.gap_md, a.w_full]}>
           <View style={[a.flex_row, a.align_center, a.justify_between]}>
             <Text style={[a.text_xl, a.font_semi_bold]}>הוסף מקור תורני</Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="סגור"
+              accessibilityHint="סוגר את חלון בחירת המקור"
               onPress={() => control.close()}
               style={a.p_xs}>
               <Text style={[a.text_md, a.font_semi_bold]}>סגור</Text>
@@ -149,11 +152,17 @@ export function SourcePickerDialog({
                 variant="solid"
                 color="primary"
                 size="large">
-                <ButtonText>{isResolving ? 'מאמת מקור…' : 'המשך לבחירה'}</ButtonText>
+                <ButtonText>
+                  {isResolving ? 'מאמת מקור…' : 'המשך לבחירה'}
+                </ButtonText>
               </Button>
 
               {error ? (
-                <Text style={[a.text_sm, {color: t.palette.negative_400, textAlign: 'right'}]}>
+                <Text
+                  style={[
+                    a.text_sm,
+                    {color: t.palette.negative_400, textAlign: 'right'},
+                  ]}>
                   {error}
                 </Text>
               ) : null}
@@ -166,7 +175,12 @@ export function SourcePickerDialog({
 
               {suggestions.length > 0 && (
                 <View style={[a.gap_xs, a.pt_xs]}>
-                  <Text style={[a.text_xs, t.atoms.text_contrast_medium, {textAlign: 'right'}]}>
+                  <Text
+                    style={[
+                      a.text_xs,
+                      t.atoms.text_contrast_medium,
+                      {textAlign: 'right'},
+                    ]}>
                     הצעות התאמה מ־Sefaria:
                   </Text>
                   {suggestions.map(item => (
@@ -261,10 +275,16 @@ export function SourcePickerDialog({
                   {opacity: pressed ? 0.8 : 1},
                 ]}>
                 <View style={[a.gap_2xs, a.flex_1, {alignItems: 'flex-end'}]}>
-                  <Text style={[a.text_sm, a.font_semi_bold, {textAlign: 'right'}]}>
+                  <Text
+                    style={[a.text_sm, a.font_semi_bold, {textAlign: 'right'}]}>
                     כלול תמונת מקור מעוצבת
                   </Text>
-                  <Text style={[a.text_xs, t.atoms.text_contrast_medium, {textAlign: 'right'}]}>
+                  <Text
+                    style={[
+                      a.text_xs,
+                      t.atoms.text_contrast_medium,
+                      {textAlign: 'right'},
+                    ]}>
                     {includeImage
                       ? 'תוצג כרטיסייה גרפית עם תמונת הציטוט מ־Sefaria'
                       : 'יוצג כרטיס טקסטואלי אלגנטי בלבד, ללא תמונה'}

@@ -1,17 +1,12 @@
 import {useEffect, useState} from 'react'
-import {
-  Pressable,
-  type StyleProp,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import {Pressable, type StyleProp, View, type ViewStyle} from 'react-native'
 import {Image} from 'expo-image'
 
 import {atoms as a, useTheme} from '#/alf'
 import * as Dialog from '#/components/Dialog'
 import {Text} from '#/components/Typography'
 import {resolveTorahSource} from '../sefaria/api'
-import type {TorahSource} from '../sefaria/types'
+import {type TorahSource} from '../sefaria/types'
 import {SourceReaderDialog} from './SourceReaderDialog'
 import {hasNoImageParam, refFromSefariaUri} from './url'
 
@@ -55,6 +50,7 @@ export function TorahSourceCard({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`פתח מקור ${title}`}
+        accessibilityHint="פותח את המקור התורני לקריאה"
         onPress={() => {
           onOpen?.()
           reader.open()
@@ -80,14 +76,20 @@ export function TorahSourceCard({
               style={[a.w_full, a.h_full]}
               contentFit="cover"
               accessibilityLabel={`תמונת מקור: ${title}`}
+              accessibilityHint="תמונה מייצגת של המקור התורני"
               onError={() => setImageError(true)}
             />
           </View>
         ) : null}
         <View style={[a.p_md, a.gap_xs]}>
-          <View style={[a.flex_row, a.align_center, a.justify_between, a.gap_md]}>
-            <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>מקור תורני</Text>
-            <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>Sefaria</Text>
+          <View
+            style={[a.flex_row, a.align_center, a.justify_between, a.gap_md]}>
+            <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>
+              מקור תורני
+            </Text>
+            <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>
+              Sefaria
+            </Text>
           </View>
           <Text
             style={[

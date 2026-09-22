@@ -1,10 +1,14 @@
 import {useCallback} from 'react'
 import {useQueryClient} from '@tanstack/react-query'
 
-import {type ResolvedExternalLink, imageToThumb} from '#/lib/api/resolve'
+import {imageToThumb, type ResolvedExternalLink} from '#/lib/api/resolve'
 import {precacheResolveLinkQuery} from '#/state/queries/resolve-link'
 import {getTorahSourceImageUrl} from '../sefaria/api'
-import {buildSefariaSourceUri, hasNoImageParam, refFromSefariaUri} from '../sources/url'
+import {
+  buildSefariaSourceUri,
+  hasNoImageParam,
+  refFromSefariaUri,
+} from '../sources/url'
 
 export type TorahSourceSelectionOptions = {
   includeImage?: boolean
@@ -16,9 +20,7 @@ export type TorahSourceSelectionOptions = {
  * URI; we only pre-cache the metadata so the composer never needs Bluesky's
  * link metadata service for a Torah source preview.
  */
-export function useTorahSourceSelection(
-  onSelectUri: (uri: string) => void,
-) {
+export function useTorahSourceSelection(onSelectUri: (uri: string) => void) {
   const queryClient = useQueryClient()
 
   return useCallback(
@@ -26,9 +28,10 @@ export function useTorahSourceSelection(
       const includeImage = options?.includeImage ?? !hasNoImageParam(rawUri)
       const targetUri = buildSefariaSourceUri(rawUri, includeImage)
       const ref = refFromSefariaUri(targetUri)
-      const imageUrl = (includeImage && ref)
-        ? getTorahSourceImageUrl(ref, {lang: 'he', platform: 'twitter'})
-        : undefined
+      const imageUrl =
+        includeImage && ref
+          ? getTorahSourceImageUrl(ref, {lang: 'he', platform: 'twitter'})
+          : undefined
 
       const initialResolved: ResolvedExternalLink = {
         type: 'external',
@@ -45,7 +48,7 @@ export function useTorahSourceSelection(
                 description: 'מקור תורני ב־Sefaria',
                 thumb: imageUrl,
               },
-            } as any)
+            } as unknown)
           : undefined,
       }
 
@@ -68,4 +71,3 @@ export function useTorahSourceSelection(
     [onSelectUri, queryClient],
   )
 }
-

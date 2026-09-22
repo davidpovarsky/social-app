@@ -9,10 +9,9 @@ import '@formatjs/intl-numberformat/locale-data/en.js'
 import '@formatjs/intl-displaynames/locale-data/en.js'
 
 import {useEffect, useState} from 'react'
+import {I18nManager} from 'react-native'
 import {i18n} from '@lingui/core'
 import {enUS as defaultLocale} from 'date-fns/locale/en-US'
-
-import {I18nManager} from 'react-native'
 
 import {isRtl, sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {AppLanguage} from '#/locale/languages'
@@ -254,12 +253,16 @@ export async function dynamicActivate(locale: AppLanguage) {
     case AppLanguage.he: {
       i18n.loadAndActivate({locale, messages: messagesHe})
       const [dateLocale] = await Promise.all([
-        import('date-fns/locale/he')
-          .then(m => m.he)
-          .catch(() => defaultLocale),
-        import('@formatjs/intl-pluralrules/locale-data/he.js').catch(() => null),
-        import('@formatjs/intl-numberformat/locale-data/he.js').catch(() => null),
-        import('@formatjs/intl-displaynames/locale-data/he.js').catch(() => null),
+        import('date-fns/locale/he').then(m => m.he).catch(() => defaultLocale),
+        import('@formatjs/intl-pluralrules/locale-data/he.js').catch(
+          () => null,
+        ),
+        import('@formatjs/intl-numberformat/locale-data/he.js').catch(
+          () => null,
+        ),
+        import('@formatjs/intl-displaynames/locale-data/he.js').catch(
+          () => null,
+        ),
       ])
       return dateLocale
     }

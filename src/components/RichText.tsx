@@ -12,11 +12,11 @@ import {RichTextTag} from '#/components/RichTextTag'
 import {Text, type TextProps} from '#/components/Typography'
 import {IS_NATIVE} from '#/env'
 import {app} from '#/lexicons'
-import * as bsky from '#/types/bsky'
 import {hasTorahQuoteBlock} from '#/torah-social/sources/quoteBlock'
 import {TorahInlineLink} from '#/torah-social/sources/TorahInlineLink'
 import {TorahRichTextBlocks} from '#/torah-social/sources/TorahRichTextBlocks'
 import {isSefariaSourceUri} from '#/torah-social/sources/url'
+import * as bsky from '#/types/bsky'
 
 const WORD_WRAP = {wordWrap: 1}
 // lifted from facet detection in `RichText` impl, _without_ `gm` flags
@@ -95,9 +95,7 @@ export function RichText(props: RichTextProps) {
     return (
       <TorahRichTextBlocks
         text={text}
-        renderText={content => (
-          <RichText {...props} value={content} />
-        )}
+        renderText={content => <RichText {...props} value={content} />}
       />
     )
   }

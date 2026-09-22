@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -24,12 +25,12 @@ import {
   type LinkFacetMatch,
   suggestLinkCardUri,
 } from '#/view/com/composer/text-input/text-input-util'
+import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useAlf} from '#/alf'
 import {normalizeTextStyles} from '#/alf/typography'
 import {IS_ANDROID} from '#/env'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
-import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {Autocomplete} from './mobile/Autocomplete'
 import {type TextInputProps} from './TextInput.types'
 
@@ -71,9 +72,14 @@ export function TextInput({
     const onInsertText = (inserted: string) => {
       const sel = textInputSelection.current
       const currentText = richtext.text
-      const start = sel ? Math.min(sel.start, currentText.length) : currentText.length
-      const end = sel ? Math.min(sel.end, currentText.length) : currentText.length
-      const nextText = currentText.slice(0, start) + inserted + currentText.slice(end)
+      const start = sel
+        ? Math.min(sel.start, currentText.length)
+        : currentText.length
+      const end = sel
+        ? Math.min(sel.end, currentText.length)
+        : currentText.length
+      const nextText =
+        currentText.slice(0, start) + inserted + currentText.slice(end)
       const newRt = new RichText({text: nextText})
       newRt.detectFacetsWithoutResolution()
       setRichText(newRt)

@@ -26,6 +26,7 @@ module.exports = function (_config) {
 
   // Keep production domains empty until the project has a permanent domain.
   // Localhost stays available for web development.
+  /** @type {string[]} */
   const ASSOCIATED_DOMAINS = []
 
   // The fork must never consume Bluesky's signed OTA update channel.
@@ -279,7 +280,9 @@ module.exports = function (_config) {
         ],
         ...(IS_ISOLATED_TORAH
           ? []
-          : ['./plugins/starterPackAppClipExtension/withStarterPackAppClip.js']),
+          : [
+              './plugins/starterPackAppClipExtension/withStarterPackAppClip.js',
+            ]),
         './plugins/withGradleJVMHeapSizeIncrease.js',
         './plugins/withAndroidManifestLargeHeapPlugin.js',
         './plugins/withAndroidManifestFCMIconPlugin.js',

@@ -1,4 +1,3 @@
-import {useState} from 'react'
 import {Linking, Pressable, StyleSheet, View} from 'react-native'
 
 import {atoms as a, useTheme, web} from '#/alf'
@@ -27,6 +26,7 @@ export function TorahQuoteBlock({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`פתח מקור תורני: ${displayRef}`}
+        accessibilityHint="פותח את המקור התורני לקריאה בתוך האפליקציה"
         onPress={() => readerControl.open()}
         style={({pressed}) => [
           a.my_xs,
@@ -60,6 +60,7 @@ export function TorahQuoteBlock({
           <Pressable
             accessibilityRole="link"
             accessibilityLabel="פתח באתר Sefaria"
+            accessibilityHint="פותח את המקור באתר Sefaria בדפדפן"
             onPress={e => {
               e.stopPropagation?.()
               void Linking.openURL(cleanUri)
@@ -73,7 +74,8 @@ export function TorahQuoteBlock({
               a.rounded_xs,
               {opacity: pressed ? 0.6 : 0.85},
             ]}>
-            <Text style={[a.text_xs, a.font_medium, t.atoms.text_contrast_medium]}>
+            <Text
+              style={[a.text_xs, a.font_medium, t.atoms.text_contrast_medium]}>
               Sefaria
             </Text>
             <ExternalLinkIcon size="xs" style={t.atoms.text_contrast_medium} />
@@ -94,12 +96,21 @@ export function TorahQuoteBlock({
                 fontStyle: 'normal',
               },
             ]}>
-            {quote.startsWith('״') || quote.startsWith('"') ? quote : `״${quote}״`}
+            {quote.startsWith('״') || quote.startsWith('"')
+              ? quote
+              : `״${quote}״`}
           </Text>
         ) : null}
 
         {/* Footer hint */}
-        <View style={[a.flex_row, a.align_center, a.justify_end, a.gap_2xs, a.pt_2xs]}>
+        <View
+          style={[
+            a.flex_row,
+            a.align_center,
+            a.justify_end,
+            a.gap_2xs,
+            a.pt_2xs,
+          ]}>
           <Text style={[a.text_xs, t.atoms.text_contrast_low]}>
             לחץ לקריאה מלאה, פירושים וכתבי יד 📜
           </Text>

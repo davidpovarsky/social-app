@@ -265,6 +265,11 @@
       "count": 1
     }
   },
+  "src/components/RichText.tsx": {
+    "bsky-internal/avoid-unwrapped-text": {
+      "count": 1
+    }
+  },
   "src/components/RichTextTag.tsx": {
     "typescript/no-floating-promises": {
       "count": 2
@@ -395,6 +400,9 @@
   },
   "src/components/dialogs/ServerInput.tsx": {
     "typescript/no-floating-promises": {
+      "count": 1
+    },
+    "typescript/no-redundant-type-constituents": {
       "count": 1
     }
   },
@@ -1334,6 +1342,11 @@
   "src/view/com/composer/text-input/TextInput.web.tsx": {
     "typescript/no-misused-promises": {
       "count": 1
+    }
+  },
+  "src/view/com/composer/text-input/__tests__/TextInput.native.test.tsx": {
+    "typescript/no-unsafe-member-access": {
+      "count": 2
     }
   },
   "src/view/com/composer/text-input/web/Autocomplete.tsx": {
