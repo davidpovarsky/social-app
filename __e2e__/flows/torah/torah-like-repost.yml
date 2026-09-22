@@ -1,0 +1,48 @@
+# Torah Social: Like/unlike, repost/unrepost
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 20000
+# Post something to like
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+- inputText: "Like test post ${E2E_RUN_ID}"
+- tapOn:
+    id: "composerPublishBtn"
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 15000
+- tapOn:
+    id: "e2eRefreshHome"
+    optional: true
+# Like
+- tapOn:
+    id: "likeBtn"
+- waitForAnimationToEnd
+# Unlike
+- tapOn:
+    id: "likeBtn"
+- waitForAnimationToEnd
+# Repost
+- tapOn:
+    id: "repostBtn"
+- tapOn: "Repost"
+    optional: true
+- waitForAnimationToEnd
+# Undo repost
+- tapOn:
+    id: "repostBtn"
+- tapOn: "Remove repost"
+    optional: true
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "Internal Server Error"

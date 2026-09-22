@@ -1,0 +1,44 @@
+# Torah Social: Reply composer
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 20000
+# First post something to reply to
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+- inputText: "Parent post for reply test - ${E2E_RUN_ID}"
+- tapOn:
+    id: "composerPublishBtn"
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 15000
+# Refresh and reply
+- tapOn:
+    id: "e2eRefreshHome"
+    optional: true
+- tapOn:
+    id: "replyBtn"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+- assertNotVisible:
+    text: "ReferenceError"
+- assertNotVisible:
+    text: "TypeError"
+- inputText: "Reply - ${E2E_RUN_ID}"
+- tapOn:
+    id: "composerPublishBtn"
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 15000

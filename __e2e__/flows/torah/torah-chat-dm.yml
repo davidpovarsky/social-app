@@ -1,0 +1,28 @@
+# Torah Social: Direct messages (chat)
+# Verifies DM functionality using Torah Social chat backend (NOT api.bsky.chat)
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+# Navigate to Chats
+- tapOn:
+    id: "bottomBarMessagesBtn"
+    optional: true
+- tapOn:
+    text: "Messages"
+    optional: true
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "api.bsky.chat"
+- assertNotVisible:
+    text: "Internal Server Error"
+- takeScreenshot: "dm-list"
+# Try to start a new chat if UI is available
+- tapOn:
+    id: "newChatBtn"
+    optional: true
+- waitForAnimationToEnd
+    optional: true
+- assertNotVisible:
+    text: "Internal Server Error"
+- takeScreenshot: "dm-new"

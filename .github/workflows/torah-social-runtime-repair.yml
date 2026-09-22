@@ -1,0 +1,436 @@
+﻿---
+name: Torah Social — Runtime Repair CI
+
+on:
+  push:
+    branches:
+      - codex/torah-social-runtime-repair
+  workflow_dispatch:
+    inputs:
+      skip_e2e:
+        description: 'Skip iOS Simulator E2E (for fast static-only runs)'
+        required: false
+        default: 'false'
+        type: string
+
+concurrency:
+  group: torah-runtime-repair-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "1"
+  # Torah Social isolated network config
+  # These match the live OCI deployment; override via workflow_dispatch if needed.
+  EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
+  EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+  EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
+  EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
+  EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
+  EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"
+  EXPO_PUBLIC_ENV: production
+  # Maestro
+  MAESTRO_VERSION: "1.40.0"
+  MAESTRO_DRIVER_STARTUP_TIMEOUT: "180000"
+  MAESTRO_CLI_NO_ANALYTICS: "1"
+  MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
+  MAESTRO_DISABLE_UPDATE_CHECK: "1"
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Job 1: Static checks (typecheck + lint + unit tests)
+  # -----------------------------------------------------------------------
+  static-checks:
+    name: Static checks (typecheck / lint / unit tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: 🔧 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 📥 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🌐 Compile locale catalogs
+        run: pnpm intl:compile
+
+      - name: 🔍 Typecheck iOS
+        run: pnpm typecheck:ios
+
+      - name: 🔍 Typecheck Android
+        run: pnpm typecheck:android
+
+      - name: 🔍 Typecheck Web
+        run: pnpm typecheck:web
+
+      - name: 🧹 Lint
+        run: pnpm lint
+
+      - name: 🧪 Unit tests
+        run: pnpm test-ci
+        continue-on-error: false
+
+      - name: 📊 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            junit.xml
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # -----------------------------------------------------------------------
+  # Job 2: Web build
+  # -----------------------------------------------------------------------
+  web-build:
+    name: Web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: static-checks
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: 🔧 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 📥 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🌐 Compile locale catalogs
+        run: pnpm intl:compile
+
+      - name: 🏗️ Apply Torah network isolation config
+        run: node scripts/torah-isolate-client.mjs
+
+      - name: 🏗️ Build web
+        run: pnpm build-web
+
+      - name: 🚀 Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: torah-social-web-${{ github.sha }}
+          path: web-build
+          if-no-files-found: error
+          retention-days: 7
+
+  # -----------------------------------------------------------------------
+  # Job 3: iOS Simulator E2E (macos-15, resilient orchestrator)
+  # -----------------------------------------------------------------------
+  ios-simulator-e2e:
+    name: iOS Simulator E2E (Maestro)
+    runs-on: macos-15
+    timeout-minutes: 120
+    needs: static-checks
+    if: ${{ inputs.skip_e2e != 'true' }}
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Select Xcode 16
+        run: |
+          for xcode_path in \
+            "/Applications/Xcode.app" \
+            "/Applications/Xcode_16.4.app" \
+            "/Applications/Xcode_16.4.0.app" \
+            "/Applications/Xcode_16.3.app" \
+            "/Applications/Xcode_16.2.app"; do
+            if [ -d "$xcode_path" ]; then
+              echo "Selecting Xcode at $xcode_path"
+              sudo xcode-select -s "$xcode_path"
+              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          sudo xcodebuild -runFirstLaunch
+          xcodebuild -version
+          swift --version
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: 🔧 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 📥 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🌐 Compile locale catalogs
+        run: pnpm intl:compile
+
+      - name: 🏗️ Apply Torah network isolation config
+        run: node scripts/torah-isolate-client.mjs
+
+      - name: 📥 Install Maestro
+        run: |
+          mkdir -p artifacts/ios
+          # Try stable Maestro version known to work on macOS
+          MAESTRO_DL_VERSION="1.40.0"
+          curl -fsSL -o "$RUNNER_TEMP/maestro.zip" \
+            "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-${MAESTRO_DL_VERSION}/maestro.zip" || \
+          curl -fsSL -o "$RUNNER_TEMP/maestro.zip" \
+            "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-1.39.13/maestro.zip"
+          unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/maestro/bin" >> "$GITHUB_PATH"
+          maestro --version || "$RUNNER_TEMP/maestro/bin/maestro" --version
+
+      - name: 📱 Boot iPhone 16 simulator
+        run: |
+          # Find the newest available iPhone and iOS runtime
+          runtime_id=$(xcrun simctl list runtimes available --json | \
+            python3 -c '
+            import json,sys,re
+            rts = [r for r in json.load(sys.stdin)["runtimes"]
+                   if r.get("isAvailable") and r.get("name","").startswith("iOS")]
+            rts.sort(key=lambda r: r.get("version","0"), reverse=True)
+            print(rts[0]["identifier"] if rts else "")
+            ')
+          if [ -z "$runtime_id" ]; then echo "No iOS runtime available" >&2; exit 1; fi
+          echo "Using runtime: $runtime_id"
+
+          device_type_id=$(xcrun simctl list devicetypes --json | \
+            python3 -c '
+            import json,sys
+            preferred=["iPhone 16","iPhone 15","iPhone 14","iPhone 13"]
+            dts=json.load(sys.stdin)["devicetypes"]
+            for p in preferred:
+              for d in dts:
+                if d["name"]==p: print(d["identifier"]); exit()
+            print(dts[-1]["identifier"] if dts else "")
+            ')
+          echo "Using device type: $device_type_id"
+
+          udid=$(xcrun simctl create "torah-e2e-iphone" "$device_type_id" "$runtime_id")
+          echo "IOS_UDID=$udid" >> "$GITHUB_ENV"
+          echo "IOS_RUNTIME=$runtime_id" >> "$GITHUB_ENV"
+          xcrun simctl shutdown all || true
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "Booted: $udid"
+
+      - name: 🏗️ Generate iOS project and install pods
+        run: |
+          node scripts/fix-expo-modules-jsi.mjs || true
+          pnpm exec expo prebuild --platform ios --skip-dependency-update '*' 2>&1 | tail -20
+          node -e '
+            const fs=require("fs");
+            const pbx="ios/Pods/Pods.xcodeproj/project.pbxproj";
+            if(fs.existsSync(pbx)){
+              let c=fs.readFileSync(pbx,"utf8");
+              c=c.replace(/SWIFT_TREAT_WARNINGS_AS_ERRORS = YES/g,"SWIFT_TREAT_WARNINGS_AS_ERRORS = NO");
+              c=c.replace(/SWIFT_VERSION = 6\.0;/g,"SWIFT_VERSION = 5.0;");
+              c=c.replace(/SWIFT_STRICT_CONCURRENCY = complete;/g,"SWIFT_STRICT_CONCURRENCY = minimal;");
+              fs.writeFileSync(pbx,c,"utf8");
+            }
+          '
+
+      - name: 🏗️ Build iOS simulator app
+        run: |
+          WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          APP_SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          echo "Building scheme: $APP_SCHEME"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$APP_SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "id=${IOS_UDID}" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build \
+            2>&1 | tail -50
+          APP_PATH="$(find "$RUNNER_TEMP/DerivedData/Build/Products" \
+            -path '*Debug-iphonesimulator*' -name '*.app' -print -quit)"
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+
+      - name: 📲 Install app on simulator
+        run: |
+          xcrun simctl install "$IOS_UDID" "$APP_PATH"
+          echo "Installed app: $APP_PATH"
+
+      - name: 🧪 Run Torah Maestro flows (resilient — never stop early)
+        run: |
+          bash .github/scripts/run-torah-e2e.sh ios "$IOS_UDID"
+
+      - name: 📸 Collect simulator screenshots and crash reports
+        if: always()
+        run: |
+          mkdir -p artifacts/ios/crashes
+          # Collect crash reports from the simulator
+          CRASH_DIR=~/Library/Logs/DiagnosticReports
+          if [ -d "$CRASH_DIR" ]; then
+            cp "$CRASH_DIR"/*.ips artifacts/ios/crashes/ 2>/dev/null || true
+            cp "$CRASH_DIR"/*.crash artifacts/ios/crashes/ 2>/dev/null || true
+          fi
+          # Simulator logs
+          xcrun simctl spawn "$IOS_UDID" log collect \
+            --output artifacts/ios/simulator.logarchive 2>/dev/null || true
+          # Metro/React Native log scan for fatal errors
+          if [ -f artifacts/ios/metro.log ]; then
+            echo "=== Fatal error scan ==" >> artifacts/ios/crash-scan.txt
+            grep -E 'RCTExceptionsManager|Fatal|SIGABRT|EXC_CRASH|Unhandled|ReferenceError|TypeError|Invariant Violation|Internal Server Error|MethodNotImplemented' \
+              artifacts/ios/metro.log >> artifacts/ios/crash-scan.txt 2>/dev/null || \
+              echo 'No fatal patterns found' >> artifacts/ios/crash-scan.txt
+          fi
+
+      - name: 🚀 Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: torah-e2e-ios-${{ github.run_id }}
+          path: artifacts/ios
+          if-no-files-found: warn
+          retention-days: 14
+
+  # -----------------------------------------------------------------------
+  # Job 4: iOS Device IPA build (depends on static checks passing)
+  # Only runs after E2E passes or if E2E is explicitly skipped
+  # -----------------------------------------------------------------------
+  ios-device-ipa:
+    name: iOS unsigned device IPA
+    runs-on: macos-15
+    timeout-minutes: 90
+    needs: [static-checks, ios-simulator-e2e]
+    if: |
+      always() &&
+      needs.static-checks.result == 'success' &&
+      (needs.ios-simulator-e2e.result == 'success' || inputs.skip_e2e == 'true')
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Select Xcode 16
+        run: |
+          for xcode_path in \
+            "/Applications/Xcode.app" \
+            "/Applications/Xcode_16.4.app" \
+            "/Applications/Xcode_16.4.0.app" \
+            "/Applications/Xcode_16.3.app" \
+            "/Applications/Xcode_16.2.app"; do
+            if [ -d "$xcode_path" ]; then
+              echo "Selecting Xcode at $xcode_path"
+              sudo xcode-select -s "$xcode_path"
+              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          sudo xcodebuild -runFirstLaunch
+          xcodebuild -version
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+          run_install: false
+
+      - name: 🔧 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 📥 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🌐 Compile locale catalogs
+        run: pnpm intl:compile
+
+      - name: 🏗️ Apply Torah network isolation config
+        run: node scripts/torah-isolate-client.mjs
+
+      - name: 🏗️ Generate iOS project
+        run: |
+          node scripts/fix-expo-modules-jsi.mjs || true
+          pnpm exec expo prebuild --platform ios --skip-dependency-update '*'
+          node -e '
+            const fs=require("fs");
+            const pbx="ios/Pods/Pods.xcodeproj/project.pbxproj";
+            if(fs.existsSync(pbx)){
+              let c=fs.readFileSync(pbx,"utf8");
+              c=c.replace(/SWIFT_TREAT_WARNINGS_AS_ERRORS = YES/g,"SWIFT_TREAT_WARNINGS_AS_ERRORS = NO");
+              c=c.replace(/SWIFT_VERSION = 6\.0;/g,"SWIFT_VERSION = 5.0;");
+              c=c.replace(/SWIFT_STRICT_CONCURRENCY = complete;/g,"SWIFT_STRICT_CONCURRENCY = minimal;");
+              fs.writeFileSync(pbx,c,"utf8");
+            }
+          '
+
+      - name: 🏗️ Build unsigned iOS device app
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          APP_SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          echo "SCHEME=$APP_SCHEME" >> "$GITHUB_ENV"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$APP_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build
+
+      - name: 📦 Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 4 \
+            -path '*Release-iphoneos*' -name '*.app' -print -quit)"
+          if [ -z "$APP" ]; then
+            APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 4 \
+              -name "${SCHEME}.app" -print -quit)"
+          fi
+          [ -n "$APP" ] || { echo 'No .app found' >&2; exit 1; }
+          echo "Packaging: $APP"
+          mkdir -p "$RUNNER_TEMP/ipa_pack/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa_pack/Payload/"
+          cd "$RUNNER_TEMP/ipa_pack"
+          IPA_NAME="TorahSocial-$(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD)-unsigned.ipa"
+          zip -r -y "$RUNNER_TEMP/$IPA_NAME" Payload
+          echo "IPA_NAME=$IPA_NAME" >> "$GITHUB_ENV"
+
+      - name: 🚀 Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: torah-social-ipa-${{ github.sha }}
+          path: ${{ runner.temp }}/${{ env.IPA_NAME }}
+          if-no-files-found: error
+          retention-days: 30

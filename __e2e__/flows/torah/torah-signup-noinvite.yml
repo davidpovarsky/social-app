@@ -1,0 +1,79 @@
+# Torah Social: Signup without invite code
+# Verifies that the Torah Social PDS accepts account creation with no invite required.
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: ../../setupApp.yml
+- tapOn:
+    id: "e2eOpenLoggedOutView"
+    optional: true
+- tapOn:
+    text: "Create account"
+    optional: true
+- tapOn:
+    id: "createAccountButton"
+    optional: true
+# Select custom server - the Torah Social PDS
+- tapOn: "Bluesky Social"
+  optional: true
+- tapOn:
+    id: "customSelectBtn"
+    optional: true
+- tapOn:
+    id: "customServerTextInput"
+    optional: true
+- inputText: "${TORAH_PDS_HOST}"
+- pressKey: Enter
+- tapOn:
+    id: "doneBtn"
+    optional: true
+# Fill email and password
+- tapOn:
+    id: "emailInput"
+- clearText
+- inputText: "${E2E_USER_A_EMAIL}"
+- tapOn:
+    id: "passwordInput"
+- clearText
+- inputText: "${E2E_USER_A_PASSWORD}"
+# Scroll past invite code field - it should be hidden or optional
+- tapOn:
+    text: "Your account"
+    optional: true
+- tapOn:
+    id: "nextBtn"
+- waitForAnimationToEnd
+# Handle invitation code field if visible - it should not be required
+- runFlow:
+    when:
+      visible: "Invite code"
+    commands:
+      - assertNotVisible:
+          text: "Invite code is required"
+- tapOn:
+    point: 20%,20%
+    repeat: 2
+    delay: 500
+    optional: true
+# Set handle
+- tapOn:
+    id: "handleInput"
+    optional: true
+- clearText
+    optional: true
+- inputText: "${E2E_USER_A_HANDLE}"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "handleAvailableCheck"
+    timeout: 10000
+    optional: true
+- tapOn:
+    id: "nextBtn"
+    optional: true
+- waitForAnimationToEnd
+# Should reach onboarding or home - verify no error
+- assertNotVisible:
+    text: "Invite code is required"
+- assertNotVisible:
+    text: "Could not resolve handle"

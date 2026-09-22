@@ -1,0 +1,50 @@
+# Torah Social: Sefaria source picker in composer
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 20000
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+# Open Torah source picker
+- tapOn:
+    id: "torahSourceBtn"
+    optional: true
+- runFlow:
+    when:
+      visible: "Source"
+    commands:
+      - takeScreenshot: "source-picker-open"
+      # Search for a Torah text
+      - tapOn:
+          id: "sourceSearchInput"
+          optional: true
+      - inputText: "Genesis 1"
+          optional: true
+      - waitForAnimationToEnd
+      - takeScreenshot: "source-search-results"
+      # Close picker without corrupting composer state
+      - tapOn:
+          id: "sourcePickerCloseBtn"
+          optional: true
+      - pressKey: Back
+          optional: true
+- assertNotVisible:
+    text: "ReferenceError"
+- assertNotVisible:
+    text: "TypeError"
+- assertNotVisible:
+    text: "Invariant Violation"
+# Cancel composer
+- tapOn:
+    id: "composerCancelBtn"
+    optional: true
+- tapOn: "Discard"
+    optional: true

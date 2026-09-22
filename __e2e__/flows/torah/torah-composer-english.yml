@@ -1,0 +1,35 @@
+# Torah Social: Composer - English post (tests the exact crash path)
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+# Open composer - this is the exact path that crashed on physical device
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 20000
+- tapOn:
+    id: "composeFAB"
+# Verify composer opened without crash
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+- assertNotVisible:
+    text: "ReferenceError"
+- assertNotVisible:
+    text: "TypeError"
+- assertNotVisible:
+    text: "Invariant Violation"
+# Type English text
+- tapOn:
+    id: "composerTextInput"
+    optional: true
+- inputText: "E2E test post - English - ${E2E_RUN_ID}"
+- tapOn:
+    id: "composerPublishBtn"
+# Verify composer closed (post published)
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 15000

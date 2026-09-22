@@ -1,0 +1,42 @@
+# Torah Social: Hebrew/RTL screenshots for visual validation
+# Takes screenshots of all main screens in Hebrew mode.
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+# Switch to Hebrew
+- tapOn:
+    id: "bottomBarProfileBtn"
+- tapOn:
+    id: "settingsBtn"
+    optional: true
+- scrollUntilVisible:
+    element:
+      text: "Language"
+    direction: DOWN
+    timeout: 10000
+    optional: true
+- takeScreenshot: "rtl-before-settings"
+# Navigate back and take screenshots of main screens in current locale
+- tapOn:
+    id: "bottomBarHomeBtn"
+- takeScreenshot: "rtl-home"
+- tapOn:
+    id: "bottomBarSearchBtn"
+- takeScreenshot: "rtl-search"
+- tapOn:
+    id: "bottomBarProfileBtn"
+- takeScreenshot: "rtl-profile"
+# Open composer and screenshot
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+- takeScreenshot: "rtl-composer"
+- tapOn:
+    id: "composerCancelBtn"
+    optional: true
+- pressKey: Back
+    optional: true

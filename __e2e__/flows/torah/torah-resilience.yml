@@ -1,0 +1,48 @@
+# Torah Social: App resilience - force-close, background, relaunch
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 20000
+# Open composer
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+# Cancel composer
+- tapOn:
+    id: "composerCancelBtn"
+    optional: true
+- pressKey: Back
+    optional: true
+# Background app
+- pressKey: Home
+- waitForAnimationToEnd
+# Foreground app
+- launchApp:
+    appId: "xyz.blueskyweb.app"
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 30000
+# Reopen composer after relaunch - verify no crash
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+- assertNotVisible:
+    text: "ReferenceError"
+- assertNotVisible:
+    text: "TypeError"
+- assertNotVisible:
+    text: "Invariant Violation"
+- tapOn:
+    id: "composerCancelBtn"
+    optional: true

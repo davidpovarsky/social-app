@@ -1,0 +1,31 @@
+# Torah Social: Composer - Hebrew post and RTL input
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 20000
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible:
+      id: "composerPublishBtn"
+    timeout: 10000
+# Type Hebrew text
+- tapOn:
+    id: "composerTextInput"
+    optional: true
+- inputText: "בדיקת E2E - פוסט עברי - ${E2E_RUN_ID}"
+# Verify input did not crash
+- assertNotVisible:
+    text: "ReferenceError"
+- assertNotVisible:
+    text: "TypeError"
+- tapOn:
+    id: "composerPublishBtn"
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 15000

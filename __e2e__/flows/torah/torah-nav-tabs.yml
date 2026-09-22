@@ -1,0 +1,47 @@
+# Torah Social: Navigate all main tabs and verify no crashes
+appId: xyz.blueskyweb.app
+---
+- runFlow:
+    file: torah-login-session.yml
+- extendedWaitUntil:
+    visible:
+      id: "bottomBarHomeBtn"
+    timeout: 20000
+# Home tab
+- tapOn:
+    id: "bottomBarHomeBtn"
+- assertNotVisible:
+    text: "Internal Server Error"
+- assertNotVisible:
+    text: "Not Found"
+- takeScreenshot: "tab-home"
+# Search/Explore tab
+- tapOn:
+    id: "bottomBarSearchBtn"
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "Internal Server Error"
+- takeScreenshot: "tab-search"
+# Notifications tab
+- tapOn:
+    id: "bottomBarNotificationsBtn"
+    optional: true
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "Internal Server Error"
+- takeScreenshot: "tab-notifications"
+# Chats tab
+- tapOn:
+    id: "bottomBarMessagesBtn"
+    optional: true
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "Internal Server Error"
+- takeScreenshot: "tab-chats"
+# Profile tab
+- tapOn:
+    id: "bottomBarProfileBtn"
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "Internal Server Error"
+- takeScreenshot: "tab-profile"
