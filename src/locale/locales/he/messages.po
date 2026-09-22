@@ -25,7 +25,7 @@ msgstr ""
 #. A reply summary in chat
 #: src/components/dms/MessageItem.tsx:917
 msgid "(blocked message hidden)"
-msgstr ""
+msgstr "(הודעה חסומה הוסתרה)"
 
 #. A reply summary in chat
 #: src/components/dms/getMessageInfo.ts:118
@@ -35,27 +35,27 @@ msgstr ""
 
 #: src/components/dms/getMessageInfo.ts:100
 msgid "(contains embedded content)"
-msgstr ""
+msgstr "(מכיל תוכן מוטמע)"
 
 #. A reply summary in chat
 #: src/components/dms/MessageItem.tsx:933
 msgid "(deleted message)"
-msgstr ""
+msgstr "(הודעה נמחקה)"
 
 #. A reply summary in chat
 #: src/components/dms/replyPreview.ts:68
 msgid "(disabled chat invite link)"
-msgstr ""
+msgstr "(קישור הזמנה מבוטל)"
 
 #. A reply summary in chat
 #: src/components/dms/replyPreview.ts:82
 msgid "(invalid chat invite link)"
-msgstr ""
+msgstr "(קישור הזמנה לא חוקי)"
 
 #. A reply summary in chat
 #: src/components/dms/MessageItem.tsx:927
 msgid "(message sent before you joined)"
-msgstr ""
+msgstr "(הודעה שנשלחה לפני שהצטרפת)"
 
 #: src/screens/Settings/AccountSettings.tsx:74
 msgid "(no email)"
@@ -69,7 +69,7 @@ msgstr ""
 #. A reply summary in chat
 #: src/components/dms/replyPreview.ts:104
 msgid "(quoted post)"
-msgstr ""
+msgstr "(פוסט מצוטט)"
 
 #. placeholder {0}: labels.length
 #: src/components/moderation/LabelsOnMe.tsx:57
@@ -932,7 +932,7 @@ msgstr ""
 
 #: src/screens/Login/LoginForm.tsx:437
 msgid "2FA Confirmation"
-msgstr ""
+msgstr "ניקוי זהות דו-שלבי"
 
 #: src/components/dialogs/MutedWords.tsx:243
 #: src/components/dialogs/MutedWords.tsx:567
@@ -981,7 +981,7 @@ msgstr ""
 
 #: src/components/contacts/screens/VerifyNumber.tsx:147
 msgid "A new code has been sent"
-msgstr ""
+msgstr "קוד חדש נשלח"
 
 #: src/components/dialogs/nuxs/InitialVerificationAnnouncement.tsx:95
 msgid "A new form of verification"
@@ -1029,13 +1029,13 @@ msgstr ""
 #. Accept a chat request
 #: src/screens/Messages/components/RequestButtons.tsx:287
 msgid "Accept"
-msgstr ""
+msgstr "אשר"
 
 #. Accept a request to join a chat
 #: src/screens/Messages/JoinRequests.tsx:461
 msgctxt "button"
 msgid "Accept"
-msgstr ""
+msgstr "אשר"
 
 #: src/screens/Messages/components/RequestButtons.tsx:281
 msgid "Accept chat request"
@@ -1062,11 +1062,11 @@ msgstr ""
 #: src/screens/Settings/Settings.tsx:237
 #: src/screens/Settings/Settings.tsx:240
 msgid "Accessibility"
-msgstr ""
+msgstr "נגישות"
 
 #: src/Navigation.tsx:396
 msgid "Accessibility Settings"
-msgstr ""
+msgstr "הגדרות נגישות"
 
 #: src/Navigation.tsx:412
 #: src/screens/Settings/AccountSettings.tsx:54
@@ -1081,12 +1081,12 @@ msgstr "חשבון"
 #: src/view/com/profile/ProfileMenu.tsx:211
 msgctxt "toast"
 msgid "Account blocked"
-msgstr ""
+msgstr "חשבון חסום"
 
 #: src/view/com/profile/ProfileMenu.tsx:227
 msgctxt "toast"
 msgid "Account followed"
-msgstr ""
+msgstr "עוקבים אחרי החשבון"
 
 #: src/lib/strings/errors.ts:68
 msgid "Account has been suspended"
@@ -1100,7 +1100,7 @@ msgstr ""
 #: src/view/com/profile/ProfileMenu.tsx:147
 msgctxt "toast"
 msgid "Account muted"
-msgstr ""
+msgstr "חשבון הושתק"
 
 #: src/components/moderation/ModerationDetailsDialog.tsx:123
 #: src/lib/moderation/useModerationCauseDescription.ts:96
@@ -1125,18 +1125,18 @@ msgstr ""
 #: src/view/com/profile/ProfileMenu.tsx:198
 msgctxt "toast"
 msgid "Account unblocked"
-msgstr ""
+msgstr "חשבון בוטל חסימה"
 
 #: src/view/com/profile/ProfileMenu.tsx:242
 msgctxt "toast"
 msgid "Account unfollowed"
-msgstr ""
+msgstr "הפסקת מעקבות"
 
 #: src/components/PostControls/PostMenu/PostMenuItems.tsx:445
 #: src/view/com/profile/ProfileMenu.tsx:134
 msgctxt "toast"
 msgid "Account unmuted"
-msgstr ""
+msgstr "חשבון בוטל השתקה"
 
 #: src/components/verification/VerifierDialog.tsx:101
 msgid "Accounts with a scalloped blue check mark <0><1/></0> can verify others. These trusted verifiers are selected by Bluesky."
@@ -1188,7 +1188,7 @@ msgstr ""
 #: src/components/dialogs/SwitchAccount.tsx:56
 #: src/screens/Deactivated.tsx:188
 msgid "Add account"
-msgstr ""
+msgstr "הוסף חשבון"
 
 #: src/view/com/composer/GifAltText.tsx:77
 #: src/view/com/composer/GifAltText.tsx:151
@@ -1198,7 +1198,7 @@ msgstr ""
 #: src/view/com/composer/photos/ImageAltTextDialog.tsx:95
 #: src/view/com/composer/photos/ImageAltTextDialog.tsx:103
 msgid "Add alt text"
-msgstr ""
+msgstr "הוסף טקסט חלופי"
 
 #: src/view/com/composer/videos/SubtitleDialog.tsx:115
 msgid "Add alt text (optional)"
@@ -1209,15 +1209,15 @@ msgstr ""
 #: src/view/shell/desktop/LeftNav.tsx:276
 #: src/view/shell/desktop/LeftNav.tsx:279
 msgid "Add another account"
-msgstr ""
+msgstr "הוסף חשבון נוסף"
 
 #: src/view/com/composer/Composer.tsx:1625
 msgid "Add another post"
-msgstr ""
+msgstr "הוסף פוסט נוסף"
 
 #: src/view/com/composer/Composer.tsx:2296
 msgid "Add another post to thread"
-msgstr ""
+msgstr "הוסף פוסט לשרשור"
 
 #: src/screens/Search/components/AdvancedSearchDialog/index.tsx:439
 msgid "Add another search filter"
@@ -1251,12 +1251,12 @@ msgstr ""
 
 #: src/view/com/feeds/ComposerPrompt.tsx:237
 msgid "Add image"
-msgstr ""
+msgstr "הוסף תמונה"
 
 #. Accessibility label for button in composer to add images, a video, or a GIF to a post
 #: src/view/com/composer/SelectMediaButton.tsx:520
 msgid "Add media to post"
-msgstr ""
+msgstr "הוסף מדיה לפוסט"
 
 #: src/screens/Messages/ConversationSettings/AddMembersLink.tsx:72
 #: src/screens/Messages/ConversationSettings/AddMembersLink.tsx:106
@@ -2726,7 +2726,7 @@ msgstr ""
 #: src/view/shell/desktop/LeftNav.tsx:697
 #: src/view/shell/Drawer.tsx:528
 msgid "Chat"
-msgstr ""
+msgstr "צְּאַט"
 
 #: src/screens/Messages/components/RequestButtons.tsx:91
 #: src/screens/Messages/components/RequestButtons.tsx:331
@@ -3937,7 +3937,7 @@ msgstr ""
 #: src/components/PostControls/PostMenu/PostMenuItems.tsx:807
 #: src/view/com/composer/Composer.tsx:1737
 msgid "Delete post"
-msgstr ""
+msgstr "מחק פוסט"
 
 #: src/screens/StarterPack/StarterPackScreen.tsx:598
 #: src/screens/StarterPack/StarterPackScreen.tsx:774
@@ -6875,7 +6875,7 @@ msgstr ""
 #: src/view/com/composer/Composer.tsx:1573
 #: src/view/com/composer/drafts/DraftsButton.tsx:126
 msgid "Keep editing"
-msgstr ""
+msgstr "המשך לערוך"
 
 #: src/components/activity-notifications/SubscribeProfileDialog.tsx:227
 msgid "Keep me posted"
@@ -7659,7 +7659,7 @@ msgstr ""
 
 #: src/Navigation.tsx:785
 msgid "Messages"
-msgstr ""
+msgstr "הודעות"
 
 #: src/components/dms/MessageItem.tsx:751
 msgid "Messages from this person are hidden while they are blocking you."
@@ -7773,7 +7773,7 @@ msgstr ""
 #: src/view/com/profile/ProfileMenu.tsx:280
 #: src/view/com/profile/ProfileMenu.tsx:286
 msgid "More options"
-msgstr ""
+msgstr "עוד אפשרויות"
 
 #: src/screens/SavedFeeds.tsx:488
 msgid "Move feed down"
@@ -8262,7 +8262,7 @@ msgstr "אין מדיה עדיין"
 
 #: src/screens/Messages/components/ChatListItem.tsx:310
 msgid "No messages yet"
-msgstr ""
+msgstr "אין עדיין הודעות"
 
 #: src/screens/Onboarding/StepFinished/ValuePropositionPager.shared.tsx:24
 msgid "No more doomscrolling junk-filled algorithms. Find feeds that work for you, not against you."
@@ -9608,7 +9608,7 @@ msgstr "שפה ראשית"
 #: src/view/shell/desktop/RightNav.tsx:118
 #: src/view/shell/desktop/RightNav.tsx:119
 msgid "Privacy"
-msgstr ""
+msgstr "פרטיות"
 
 #: src/screens/Settings/Settings.tsx:185
 #: src/screens/Settings/Settings.tsx:188
@@ -10903,7 +10903,7 @@ msgstr ""
 #: src/components/interstitials/FeedTrendingTopics.tsx:116
 #: src/view/shell/desktop/SidebarTrendingTopics.tsx:82
 msgid "See more"
-msgstr ""
+msgstr "ראה עוד"
 
 #: src/components/FeedInterstitials.tsx:475
 msgid "See more suggested profiles"
@@ -11138,7 +11138,7 @@ msgstr ""
 
 #: src/screens/Messages/components/MessageComposer.tsx:327
 msgid "Send message"
-msgstr ""
+msgstr "שלח הודעה"
 
 #: src/components/PostControls/ShareMenu/RecentChats.tsx:143
 msgid "Send post to {name}"
@@ -13527,7 +13527,7 @@ msgstr ""
 #: src/screens/ModerationInbox/components/FilterMenu.tsx:28
 msgctxt "moderation-report-filter"
 msgid "Unread"
-msgstr ""
+msgstr "לא נקרא"
 
 #: src/screens/Settings/Settings.tsx:503
 #: src/screens/Settings/Settings.tsx:505
@@ -14074,7 +14074,7 @@ msgstr ""
 #: src/view/com/util/PostMeta.tsx:93
 #: src/view/com/util/PostMeta.tsx:121
 msgid "View profile"
-msgstr ""
+msgstr "הצג פרופיל"
 
 #: src/screens/Profile/Header/Shell.tsx:164
 msgid "View profile banner"
@@ -14430,7 +14430,7 @@ msgstr ""
 
 #: src/screens/Deactivated.tsx:121
 msgid "Welcome back!"
-msgstr ""
+msgstr "ברוך הבא!"
 
 #: src/components/NewskieDialog.tsx:142
 msgid "Welcome, friend!"
