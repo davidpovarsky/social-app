@@ -164,6 +164,8 @@ export function sanitizeAppLanguageSetting(appLanguage: string): AppLanguage {
     switch (fixLegacyLanguageCode(lang)) {
       case 'en':
         return AppLanguage.en
+      case 'he':
+        return AppLanguage.he
       case 'an':
         return AppLanguage.an
       case 'ast':
@@ -290,6 +292,11 @@ export function findSupportedAppLanguage(languageTags: (string | undefined)[]) {
     }
   }
   return AppLanguage.en
+}
+
+export function isRtl(lang: AppLanguage | string): boolean {
+  const code = String(lang)
+  return code === 'he' || code === 'iw'
 }
 
 /**

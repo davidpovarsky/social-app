@@ -3,7 +3,7 @@ import {i18n, type Messages} from '@lingui/core'
 import {type Locale} from 'date-fns/locale'
 import {enUS as defaultLocale} from 'date-fns/locale/en-US'
 
-import {sanitizeAppLanguageSetting} from '#/locale/helpers'
+import {isRtl, sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {AppLanguage} from '#/locale/languages'
 import {useLanguagePrefs} from '#/state/preferences'
 
@@ -135,6 +135,15 @@ export async function dynamicActivate(locale: AppLanguage) {
       ;[messages, dateLocale] = await Promise.all([
         import(`./locales/gl/messages`).then(m => m.messages),
         import('date-fns/locale/gl').then(m => m.gl),
+      ])
+      break
+    }
+    case AppLanguage.he: {
+      ;[messages, dateLocale] = await Promise.all([
+        import(`./locales/he/messages`).then(m => m.messages),
+        import('date-fns/locale/he')
+          .then(m => m.he)
+          .catch(() => defaultLocale),
       ])
       break
     }
@@ -313,6 +322,7 @@ export function useLocaleLanguage() {
     const sanitizedLanguage = sanitizeAppLanguageSetting(appLanguage)
 
     document.documentElement.lang = sanitizedLanguage
+    document.documentElement.dir = isRtl(sanitizedLanguage) ? 'rtl' : 'ltr'
     void dynamicActivate(sanitizedLanguage).then(locale => {
       setDateLocale(locale)
     })

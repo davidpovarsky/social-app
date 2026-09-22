@@ -4,6 +4,7 @@ export default defineConfig({
   sourceLocale: 'en',
   locales: [
     'en',
+    'he',
     'an',
     'ast',
     'ca',

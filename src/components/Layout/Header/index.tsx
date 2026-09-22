@@ -1,5 +1,5 @@
 import {createContext, useCallback, useContext} from 'react'
-import {type GestureResponderEvent, Keyboard, View} from 'react-native'
+import {type GestureResponderEvent, I18nManager, Keyboard, View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
@@ -18,7 +18,10 @@ import {
   web,
 } from '#/alf'
 import {Button, ButtonIcon, type ButtonProps} from '#/components/Button'
-import {ArrowLeft_Stroke2_Corner0_Rounded as ArrowLeft} from '#/components/icons/Arrow'
+import {
+  ArrowLeft_Stroke2_Corner0_Rounded as ArrowLeft,
+  ArrowRight_Stroke2_Corner0_Rounded as ArrowRight,
+} from '#/components/icons/Arrow'
 import {Menu_Stroke2_Corner0_Rounded as Menu} from '#/components/icons/Menu'
 import {
   BUTTON_VISUAL_ALIGNMENT_OFFSET,
@@ -128,6 +131,8 @@ export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
     [onPress, navigation],
   )
 
+  const isRTL = I18nManager.isRTL
+
   return (
     <Slot>
       <Button
@@ -139,12 +144,12 @@ export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
         onPress={onPressBack}
         hitSlop={HEADER_BUTTON_HITSLOP}
         style={[
-          {marginLeft: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
+          {marginStart: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
           a.bg_transparent,
           style,
         ]}
         {...props}>
-        <ButtonIcon icon={ArrowLeft} size="lg" />
+        <ButtonIcon icon={isRTL ? ArrowRight : ArrowLeft} size="lg" />
       </Button>
     </Slot>
   )
@@ -173,7 +178,7 @@ export function MenuButton() {
         onPress={onPress}
         hitSlop={HEADER_BUTTON_HITSLOP}
         style={[
-          {marginLeft: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
+          {marginStart: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
           a.bg_transparent,
         ]}>
         <ButtonIcon icon={Menu} size="lg" />
@@ -189,6 +194,7 @@ export function TitleText({
   const {gtMobile} = useBreakpoints()
   const {isWithinLeftPanel} = useIsWithinSplitView()
   const align = useContext(AlignmentContext)
+  const isRTL = I18nManager.isRTL
   return (
     <Text
       style={[
@@ -197,6 +203,7 @@ export function TitleText({
           : [a.text_lg, a.font_semi_bold],
         a.leading_tight,
         IS_IOS && align === 'platform' && a.text_center,
+        align === 'left' && {textAlign: isRTL ? 'right' : 'left'},
         gtMobile && a.text_xl,
         style,
       ]}
@@ -211,12 +218,14 @@ export function TitleText({
 export function SubtitleText({children}: {children: React.ReactNode}) {
   const t = useTheme()
   const align = useContext(AlignmentContext)
+  const isRTL = I18nManager.isRTL
   return (
     <Text
       style={[
         a.text_sm,
         a.leading_snug,
         IS_IOS && align === 'platform' && a.text_center,
+        align === 'left' && {textAlign: isRTL ? 'right' : 'left'},
         t.atoms.text_contrast_medium,
       ]}
       numberOfLines={1}>

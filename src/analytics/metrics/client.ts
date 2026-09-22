@@ -61,6 +61,10 @@ export class MetricsClient<M extends Record<string, any>> {
   }
 
   flush() {
+    if (!env.METRICS_API_HOST) {
+      this.queue.length = 0
+      return
+    }
     if (!this.queue.length) return
     const events = this.queue.splice(0, this.queue.length)
     this.sendBatch(events)

@@ -12,7 +12,9 @@ import {useEffect, useState} from 'react'
 import {i18n} from '@lingui/core'
 import {enUS as defaultLocale} from 'date-fns/locale/en-US'
 
-import {sanitizeAppLanguageSetting} from '#/locale/helpers'
+import {I18nManager} from 'react-native'
+
+import {isRtl, sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {AppLanguage} from '#/locale/languages'
 import {messages as messagesAn} from '#/locale/locales/an/messages'
 import {messages as messagesAst} from '#/locale/locales/ast/messages'
@@ -33,6 +35,7 @@ import {messages as messagesFy} from '#/locale/locales/fy/messages'
 import {messages as messagesGa} from '#/locale/locales/ga/messages'
 import {messages as messagesGd} from '#/locale/locales/gd/messages'
 import {messages as messagesGl} from '#/locale/locales/gl/messages'
+import {messages as messagesHe} from '#/locale/locales/he/messages'
 import {messages as messagesHi} from '#/locale/locales/hi/messages'
 import {messages as messagesHu} from '#/locale/locales/hu/messages'
 import {messages as messagesIa} from '#/locale/locales/ia/messages'
@@ -62,6 +65,10 @@ import {useLanguagePrefs} from '#/state/preferences'
  * We do a dynamic import of just the catalog that we need
  */
 export async function dynamicActivate(locale: AppLanguage) {
+  const shouldBeRTL = isRtl(locale)
+  I18nManager.allowRTL(shouldBeRTL)
+  I18nManager.forceRTL(shouldBeRTL)
+
   switch (locale) {
     case AppLanguage.an: {
       i18n.loadAndActivate({locale, messages: messagesAn})
@@ -241,6 +248,18 @@ export async function dynamicActivate(locale: AppLanguage) {
         import('@formatjs/intl-pluralrules/locale-data/gl.js'),
         import('@formatjs/intl-numberformat/locale-data/gl.js'),
         import('@formatjs/intl-displaynames/locale-data/gl.js'),
+      ])
+      return dateLocale
+    }
+    case AppLanguage.he: {
+      i18n.loadAndActivate({locale, messages: messagesHe})
+      const [dateLocale] = await Promise.all([
+        import('date-fns/locale/he')
+          .then(m => m.he)
+          .catch(() => defaultLocale),
+        import('@formatjs/intl-pluralrules/locale-data/he.js').catch(() => null),
+        import('@formatjs/intl-numberformat/locale-data/he.js').catch(() => null),
+        import('@formatjs/intl-displaynames/locale-data/he.js').catch(() => null),
       ])
       return dateLocale
     }

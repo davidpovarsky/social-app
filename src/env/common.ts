@@ -24,6 +24,9 @@ export const ENV: string = process.env.EXPO_PUBLIC_ENV as
 export const TORAH_PDS_HOST: string =
   process.env.EXPO_PUBLIC_TORAH_PDS_HOST || 'https://bsky.social'
 
+export const TORAH_ISOLATED_NETWORK: boolean =
+  process.env.EXPO_PUBLIC_TORAH_ISOLATED_NETWORK === 'true'
+
 /**
  * Indicates whether the app is running in TestFlight
  */
@@ -83,19 +86,25 @@ export const BLUESKY_PROXY_DID: DidString =
  * The DID of the chat service to proxy to
  */
 export const CHAT_PROXY_DID: DidString =
-  process.env.EXPO_PUBLIC_CHAT_PROXY_DID || 'did:web:api.bsky.chat'
+  process.env.EXPO_PUBLIC_CHAT_PROXY_DID ||
+  (TORAH_ISOLATED_NETWORK
+    ? (process.env.EXPO_PUBLIC_BLUESKY_PROXY_DID as DidString) ||
+      'did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H'
+    : 'did:web:api.bsky.chat')
 
 /**
  * Metrics API host
  */
 export const METRICS_API_HOST: string =
-  process.env.EXPO_PUBLIC_METRICS_API_HOST || 'https://events.bsky.app'
+  process.env.EXPO_PUBLIC_METRICS_API_HOST ||
+  (TORAH_ISOLATED_NETWORK ? '' : 'https://events.bsky.app')
 
 /**
  * Growthbook API host
  */
 export const GROWTHBOOK_API_HOST: string =
-  process.env.EXPO_PUBLIC_GROWTHBOOK_API_HOST || `${METRICS_API_HOST}/gb`
+  process.env.EXPO_PUBLIC_GROWTHBOOK_API_HOST ||
+  (TORAH_ISOLATED_NETWORK ? '' : `${METRICS_API_HOST}/gb`)
 
 /**
  * Growthbook client key
@@ -128,7 +137,9 @@ export const GCP_PROJECT_ID: number =
  * locally running server, see `env.example` for more.
  */
 export const GEOLOCATION_DEV_URL = process.env.GEOLOCATION_DEV_URL
-export const GEOLOCATION_PROD_URL = `https://ip.bsky.app`
+export const GEOLOCATION_PROD_URL = TORAH_ISOLATED_NETWORK
+  ? ''
+  : `https://ip.bsky.app`
 export const GEOLOCATION_URL = IS_DEV
   ? (GEOLOCATION_DEV_URL ?? GEOLOCATION_PROD_URL)
   : GEOLOCATION_PROD_URL
@@ -138,7 +149,9 @@ export const GEOLOCATION_URL = IS_DEV
  * locally running server, see `env.example` for more.
  */
 export const LIVE_EVENTS_DEV_URL = process.env.LIVE_EVENTS_DEV_URL
-export const LIVE_EVENTS_PROD_URL = `https://live-events.workers.bsky.app`
+export const LIVE_EVENTS_PROD_URL = TORAH_ISOLATED_NETWORK
+  ? ''
+  : `https://live-events.workers.bsky.app`
 export const LIVE_EVENTS_URL = IS_DEV
   ? (LIVE_EVENTS_DEV_URL ?? LIVE_EVENTS_PROD_URL)
   : LIVE_EVENTS_PROD_URL
@@ -148,7 +161,9 @@ export const LIVE_EVENTS_URL = IS_DEV
  * locally running server, see `env.example` for more.
  */
 export const APP_CONFIG_DEV_URL = process.env.APP_CONFIG_DEV_URL
-export const APP_CONFIG_PROD_URL = `https://app-config.workers.bsky.app`
+export const APP_CONFIG_PROD_URL = TORAH_ISOLATED_NETWORK
+  ? ''
+  : `https://app-config.workers.bsky.app`
 export const APP_CONFIG_URL = IS_DEV
   ? (APP_CONFIG_DEV_URL ?? APP_CONFIG_PROD_URL)
   : APP_CONFIG_PROD_URL

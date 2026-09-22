@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/torah-social-foundation
+      - codex/torah-social-runtime-repair
   pull_request:
     branches:
       - main
@@ -20,7 +21,8 @@ jobs:
     timeout-minutes: 30
     env:
       EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
-      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+      EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"
@@ -55,7 +57,8 @@ jobs:
     timeout-minutes: 90
     env:
       EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
-      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+      EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"

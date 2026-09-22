@@ -71,7 +71,42 @@ constants = replaceRequired(
   'PUBLIC_APPVIEW',
 )
 
+constants = replaceRequired(
+  constants,
+  "export const GIF_SERVICE = 'https://gifs.bsky.app'",
+  "export const GIF_SERVICE = ''",
+  'GIF_SERVICE',
+)
+constants = replaceRequired(
+  constants,
+  "export const VIDEO_SERVICE = 'https://video.bsky.app'",
+  "export const VIDEO_SERVICE = ''",
+  'VIDEO_SERVICE',
+)
+constants = replaceRequired(
+  constants,
+  "export const VIDEO_SERVICE_DID = 'did:web:video.bsky.app'",
+  "export const VIDEO_SERVICE_DID = ''",
+  'VIDEO_SERVICE_DID',
+)
+constants = replaceRequired(
+  constants,
+  "export const TRENDING_DID = 'did:plc:qrz3lhbyuxbeilrc6nekdqme'",
+  `export const TRENDING_DID = '${appviewDid}'`,
+  'TRENDING_DID',
+)
+
 fs.writeFileSync(constantsPath, constants)
+
+const commonEnvPath = 'src/env/common.ts'
+let commonEnv = fs.readFileSync(commonEnvPath, 'utf8').replace(/\r\n/g, '\n')
+if (commonEnv.includes("'did:web:api.bsky.chat'")) {
+  commonEnv = commonEnv.replace(
+    /process\.env\.EXPO_PUBLIC_CHAT_PROXY_DID \|\| 'did:web:api\.bsky\.chat'/g,
+    `process.env.EXPO_PUBLIC_CHAT_PROXY_DID || '${appviewDid}'`,
+  )
+  fs.writeFileSync(commonEnvPath, commonEnv)
+}
 
 const reactQueryPath = 'src/lib/react-query.tsx'
 let reactQuery = fs.readFileSync(reactQueryPath, 'utf8').replace(/\r\n/g, '\n')
@@ -117,10 +152,23 @@ if (!composer.includes('import {TorahComposerExtensions}') && !composer.includes
 fs.writeFileSync(composerPath, composer)
 
 // Fail the isolated build if the main application source still has a direct
-// public AppView endpoint capable of serving Bluesky content. References in
-// comments/tests/embeds are outside the main app bundle and are intentionally
-// not part of this check.
-for (const file of [constantsPath, reactQueryPath]) {
+// public AppView endpoint or forbidden Bluesky service capable of serving Bluesky content.
+const forbiddenServices = [
+  {target: 'https://public.api.bsky.app', label: 'Public Bluesky AppView'},
+  {target: 'https://events.bsky.app', label: 'Bluesky Events/Metrics API'},
+  {target: 'https://ip.bsky.app', label: 'Bluesky Geolocation API'},
+  {target: 'https://gifs.bsky.app', label: 'Bluesky GIF Service'},
+  {target: 'https://video.bsky.app', label: 'Bluesky Video Service'},
+]
+
+for (const {target, label} of forbiddenServices) {
+  const constantsContent = fs.readFileSync(constantsPath, 'utf8')
+  if (constantsContent.includes(`'${target}'`) || constantsContent.includes(`"${target}"`)) {
+    throw new Error(`Forbidden runtime service ${label} (${target}) still present in ${constantsPath}`)
+  }
+}
+
+for (const file of [reactQueryPath]) {
   const text = fs.readFileSync(file, 'utf8')
   if (text.includes("'https://public.api.bsky.app'")) {
     throw new Error(`Public Bluesky AppView still present in ${file}`)
