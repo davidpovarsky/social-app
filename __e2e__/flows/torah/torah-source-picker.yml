@@ -1,5 +1,5 @@
 # Torah Social: Sefaria source picker in composer
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml

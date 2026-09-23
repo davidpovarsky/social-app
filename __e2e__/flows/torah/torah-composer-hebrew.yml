@@ -1,5 +1,5 @@
 # Torah Social: Composer - Hebrew post and RTL input
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml

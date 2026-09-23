@@ -1,9 +1,9 @@
 # Torah Social: Signup without invite code
 # Verifies that the Torah Social PDS accepts account creation with no invite required.
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - launchApp:
-    appId: "xyz.blueskyweb.app"
+    appId: "com.davidpovarsky.torahsocial"
     clearState: true
 
 - extendedWaitUntil:

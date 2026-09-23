@@ -1,5 +1,5 @@
 # Torah Social: Like/unlike, repost/unrepost
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml

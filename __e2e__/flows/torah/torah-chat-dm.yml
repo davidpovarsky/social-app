@@ -1,6 +1,6 @@
 # Torah Social: Direct messages (chat)
 # Verifies DM functionality using Torah Social chat backend (NOT api.bsky.chat)
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml

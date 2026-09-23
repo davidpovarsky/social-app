@@ -1,6 +1,6 @@
 # Torah Social: Hebrew/RTL screenshots for visual validation
 # Takes screenshots of all main screens in Hebrew mode.
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml

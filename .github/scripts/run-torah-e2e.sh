@@ -95,9 +95,9 @@ run_flow() {
     crash_found=true
     log "WARNING: crash indicator found in $flow_name log"
     # Try to relaunch app for next flow
-    xcrun simctl terminate "$device_id" xyz.blueskyweb.app 2>/dev/null || true
+    xcrun simctl terminate "$device_id" com.davidpovarsky.torahsocial 2>/dev/null || true
     sleep 2
-    xcrun simctl launch "$device_id" xyz.blueskyweb.app 2>/dev/null || true
+    xcrun simctl launch "$device_id" com.davidpovarsky.torahsocial 2>/dev/null || true
     sleep 3
   fi
 

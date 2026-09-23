@@ -1,5 +1,5 @@
 # Torah Social: Navigate all main tabs and verify no crashes
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml

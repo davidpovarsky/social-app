@@ -1,5 +1,5 @@
 # Torah Social: App resilience - force-close, background, relaunch
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml
@@ -26,7 +26,7 @@ appId: xyz.blueskyweb.app
 - waitForAnimationToEnd
 # Foreground app
 - launchApp:
-    appId: "xyz.blueskyweb.app"
+    appId: "com.davidpovarsky.torahsocial"
 - extendedWaitUntil:
     visible:
       id: "composeFAB"

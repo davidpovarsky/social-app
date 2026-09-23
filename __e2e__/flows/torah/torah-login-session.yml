@@ -1,8 +1,8 @@
 # Torah Social: Login and session persistence
-appId: xyz.blueskyweb.app
+appId: com.davidpovarsky.torahsocial
 ---
 - launchApp:
-    appId: "xyz.blueskyweb.app"
+    appId: "com.davidpovarsky.torahsocial"
 
 - runFlow:
     when:
