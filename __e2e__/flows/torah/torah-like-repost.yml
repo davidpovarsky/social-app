@@ -35,13 +35,15 @@ appId: xyz.blueskyweb.app
 # Repost
 - tapOn:
     id: "repostBtn"
-- tapOn: "Repost"
+- tapOn:
+    text: "Repost"
     optional: true
 - waitForAnimationToEnd
 # Undo repost
 - tapOn:
     id: "repostBtn"
-- tapOn: "Remove repost"
+- tapOn:
+    text: "Remove repost"
     optional: true
 - waitForAnimationToEnd
 - assertNotVisible:

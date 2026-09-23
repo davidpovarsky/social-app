@@ -16,9 +16,10 @@ appId: xyz.blueskyweb.app
     timeout: 10000
 # Cancel composer
 - tapOn:
-    id: "composerCancelBtn"
+    text: "Cancel"
     optional: true
-- pressKey: Back
+- tapOn:
+    text: "Discard"
     optional: true
 # Background app
 - pressKey: Home
@@ -44,5 +45,9 @@ appId: xyz.blueskyweb.app
 - assertNotVisible:
     text: "Invariant Violation"
 - tapOn:
-    id: "composerCancelBtn"
+    text: "Cancel"
     optional: true
+- tapOn:
+    text: "Discard"
+    optional: true
+- takeScreenshot: "resilience-success"

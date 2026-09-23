@@ -2,78 +2,98 @@
 # Verifies that the Torah Social PDS accepts account creation with no invite required.
 appId: xyz.blueskyweb.app
 ---
-- runFlow:
-    file: ../../setupApp.yml
-- tapOn:
-    id: "e2eOpenLoggedOutView"
-    optional: true
-- tapOn:
-    text: "Create account"
-    optional: true
+- launchApp:
+    appId: "xyz.blueskyweb.app"
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "createAccountButton"
+    timeout: 30000
+
 - tapOn:
     id: "createAccountButton"
-    optional: true
+
 # Select custom server - the Torah Social PDS
-- tapOn: "Bluesky Social"
-  optional: true
 - tapOn:
-    id: "customSelectBtn"
+    text: "Bluesky Social"
     optional: true
-- tapOn:
-    id: "customServerTextInput"
-    optional: true
-- inputText: "${TORAH_PDS_HOST}"
-- pressKey: Enter
-- tapOn:
-    id: "doneBtn"
-    optional: true
+
+- runFlow:
+    when:
+      visible:
+        id: "customSelectBtn"
+    commands:
+      - tapOn:
+          id: "customSelectBtn"
+      - tapOn:
+          id: "customServerTextInput"
+      - inputText: "${TORAH_PDS_HOST}"
+      - tapOn:
+          id: "doneBtn"
+
 # Fill email and password
+- extendedWaitUntil:
+    visible:
+      id: "emailInput"
+    timeout: 10000
+
 - tapOn:
     id: "emailInput"
-- clearText
 - inputText: "${E2E_USER_A_EMAIL}"
 - tapOn:
     id: "passwordInput"
-- clearText
 - inputText: "${E2E_USER_A_PASSWORD}"
-# Scroll past invite code field - it should be hidden or optional
+
+# Dismiss keyboard and advance
 - tapOn:
     text: "Your account"
     optional: true
 - tapOn:
     id: "nextBtn"
+
 - waitForAnimationToEnd
-# Handle invitation code field if visible - it should not be required
-- runFlow:
-    when:
-      visible: "Invite code"
-    commands:
-      - assertNotVisible:
-          text: "Invite code is required"
+
+# Verify invite code field is NOT required / not visible
+- assertNotVisible:
+    text: "Invite code is required"
+
+# Tap away save-password prompt if present
 - tapOn:
-    point: 20%,20%
+    point: "20%,20%"
     repeat: 2
     delay: 500
     optional: true
+
 # Set handle
-- tapOn:
-    id: "handleInput"
-    optional: true
-- clearText
-    optional: true
-- inputText: "${E2E_USER_A_HANDLE}"
-    optional: true
 - extendedWaitUntil:
     visible:
-      id: "handleAvailableCheck"
-    timeout: 10000
+      id: "handleInput"
+    timeout: 15000
     optional: true
-- tapOn:
-    id: "nextBtn"
-    optional: true
+
+- runFlow:
+    when:
+      visible:
+        id: "handleInput"
+    commands:
+      - tapOn:
+          id: "handleInput"
+      - inputText: "${E2E_USER_A_HANDLE}"
+      - extendedWaitUntil:
+          visible:
+            id: "handleAvailableCheck"
+          timeout: 15000
+          optional: true
+      - tapOn:
+          id: "nextBtn"
+          optional: true
+
 - waitForAnimationToEnd
+
 # Should reach onboarding or home - verify no error
 - assertNotVisible:
     text: "Invite code is required"
 - assertNotVisible:
     text: "Could not resolve handle"
+- takeScreenshot: "signup-complete"

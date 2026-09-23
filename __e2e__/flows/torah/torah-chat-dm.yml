@@ -22,7 +22,6 @@ appId: xyz.blueskyweb.app
     id: "newChatBtn"
     optional: true
 - waitForAnimationToEnd
-    optional: true
 - assertNotVisible:
     text: "Internal Server Error"
 - takeScreenshot: "dm-new"

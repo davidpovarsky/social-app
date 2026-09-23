@@ -1,43 +1,52 @@
 # Torah Social: Login and session persistence
 appId: xyz.blueskyweb.app
 ---
+- launchApp:
+    appId: "xyz.blueskyweb.app"
+
 - runFlow:
-    file: ../../setupApp.yml
-- tapOn:
-    id: "e2eOpenLoggedOutView"
-    optional: true
-- tapOn:
-    text: "Sign in"
-- tapOn:
-    id: "selectServiceButton"
-    optional: true
-- tapOn:
-    id: "manualSelectBtn"
-    optional: true
-- tapOn:
-    id: "customServerTextInput"
-    optional: true
-- clearText
-    optional: true
-- inputText: "${TORAH_PDS_HOST}"
-    optional: true
-- pressKey: Enter
-    optional: true
-- tapOn:
-    id: "doneBtn"
-    optional: true
-- tapOn:
-    id: "loginUsernameInput"
-- clearText
-- inputText: "${E2E_USER_A_HANDLE}"
-- tapOn:
-    id: "loginPasswordInput"
-- clearText
-- inputText: "${E2E_USER_A_PASSWORD}"
-- pressKey: Enter
-- tapOn:
-    text: "Not Now"
-    optional: true
+    when:
+      notVisible:
+        id: "bottomBarHomeBtn"
+    commands:
+      - tapOn:
+          id: "signInButton"
+          optional: true
+      - tapOn:
+          text: "Sign in"
+          optional: true
+      - runFlow:
+          when:
+            visible:
+              id: "selectServiceButton"
+          commands:
+            - tapOn:
+                id: "selectServiceButton"
+            - tapOn:
+                id: "manualSelectBtn"
+                optional: true
+            - tapOn:
+                id: "customServerTextInput"
+                optional: true
+            - inputText: "${TORAH_PDS_HOST}"
+            - tapOn:
+                id: "doneBtn"
+                optional: true
+      - extendedWaitUntil:
+          visible:
+            id: "loginUsernameInput"
+          timeout: 10000
+      - tapOn:
+          id: "loginUsernameInput"
+      - inputText: "${E2E_USER_A_EMAIL}"
+      - tapOn:
+          id: "loginPasswordInput"
+      - inputText: "${E2E_USER_A_PASSWORD}"
+      - pressKey: Enter
+      - tapOn:
+          text: "Not Now"
+          optional: true
+
 # Verify home screen loads - proof login succeeded
 - extendedWaitUntil:
     visible:

@@ -36,7 +36,8 @@ appId: xyz.blueskyweb.app
     timeout: 10000
 - takeScreenshot: "rtl-composer"
 - tapOn:
-    id: "composerCancelBtn"
+    text: "Cancel"
     optional: true
-- pressKey: Back
+- tapOn:
+    text: "Discard"
     optional: true

@@ -20,8 +20,11 @@ E2E_USER_A_HANDLE="e2e-a-${E2E_RUN_ID}"
 E2E_USER_A_EMAIL="e2e-a-${E2E_RUN_ID}@test.local"
 E2E_USER_A_PASSWORD="E2ePass${E2E_RUN_ID}!"
 
+TORAH_PDS_DOMAIN="$(echo "$TORAH_PDS_HOST" | sed 's|https\?://||')"
+E2E_USER_A_FULL_HANDLE="${E2E_USER_A_HANDLE}.${TORAH_PDS_DOMAIN}"
+
 # Export for Maestro env substitution
-export TORAH_PDS_HOST E2E_RUN_ID E2E_USER_A_HANDLE E2E_USER_A_EMAIL E2E_USER_A_PASSWORD
+export TORAH_PDS_HOST TORAH_PDS_DOMAIN E2E_RUN_ID E2E_USER_A_HANDLE E2E_USER_A_FULL_HANDLE E2E_USER_A_EMAIL E2E_USER_A_PASSWORD
 
 log "Torah Social E2E run $E2E_RUN_ID"
 log "PDS: $TORAH_PDS_HOST"
@@ -74,8 +77,10 @@ run_flow() {
     --debug-output "$screenshot_dir" \
     --flatten-debug-output \
     -e "TORAH_PDS_HOST=$TORAH_PDS_HOST" \
+    -e "TORAH_PDS_DOMAIN=$TORAH_PDS_DOMAIN" \
     -e "E2E_RUN_ID=$E2E_RUN_ID" \
     -e "E2E_USER_A_HANDLE=$E2E_USER_A_HANDLE" \
+    -e "E2E_USER_A_FULL_HANDLE=$E2E_USER_A_FULL_HANDLE" \
     -e "E2E_USER_A_EMAIL=$E2E_USER_A_EMAIL" \
     -e "E2E_USER_A_PASSWORD=$E2E_USER_A_PASSWORD" \
     "$flow_file" \

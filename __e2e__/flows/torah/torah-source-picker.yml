@@ -15,26 +15,23 @@ appId: xyz.blueskyweb.app
     timeout: 10000
 # Open Torah source picker
 - tapOn:
-    id: "torahSourceBtn"
+    text: "מקור"
     optional: true
 - runFlow:
     when:
-      visible: "Source"
+      visible: "הוסף מקור תורני"
     commands:
       - takeScreenshot: "source-picker-open"
       # Search for a Torah text
       - tapOn:
-          id: "sourceSearchInput"
+          text: "חיפוש מקור תורני"
           optional: true
       - inputText: "Genesis 1"
-          optional: true
       - waitForAnimationToEnd
       - takeScreenshot: "source-search-results"
       # Close picker without corrupting composer state
       - tapOn:
-          id: "sourcePickerCloseBtn"
-          optional: true
-      - pressKey: Back
+          text: "סגור"
           optional: true
 - assertNotVisible:
     text: "ReferenceError"
@@ -44,7 +41,8 @@ appId: xyz.blueskyweb.app
     text: "Invariant Violation"
 # Cancel composer
 - tapOn:
-    id: "composerCancelBtn"
+    text: "Cancel"
     optional: true
-- tapOn: "Discard"
+- tapOn:
+    text: "Discard"
     optional: true
