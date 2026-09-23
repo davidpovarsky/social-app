@@ -56,7 +56,9 @@ export function sessionDataToSessionAccount(
     active: session.active,
     status: session.status,
     pdsUrl: pdsUrl ? new URL(pdsUrl).toString() : undefined,
-    isSelfHosted: !normalizedService.startsWith(BSKY_SERVICE),
+    isSelfHosted:
+      !normalizedService.startsWith(BSKY_SERVICE) &&
+      !normalizedService.startsWith('https://bsky.social'),
   }
 }
 
