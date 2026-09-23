@@ -9,12 +9,23 @@ appId: com.davidpovarsky.torahsocial
       notVisible:
         id: "bottomBarHomeBtn"
     commands:
-      - tapOn:
-          id: "signInButton"
-          optional: true
-      - tapOn:
-          text: "Sign in"
-          optional: true
+      # If not yet on the login form, wait for splash screen Sign in button and tap it
+      - runFlow:
+          when:
+            notVisible:
+              id: "loginUsernameInput"
+          commands:
+            - extendedWaitUntil:
+                visible:
+                  id: "signInButton"
+                timeout: 30000
+            - tapOn:
+                id: "signInButton"
+      - extendedWaitUntil:
+          visible:
+            id: "loginUsernameInput"
+          timeout: 20000
+      # Configure manual PDS provider if selectServiceButton is present
       - runFlow:
           when:
             visible:
@@ -22,27 +33,38 @@ appId: com.davidpovarsky.torahsocial
           commands:
             - tapOn:
                 id: "selectServiceButton"
-            - tapOn:
-                id: "manualSelectBtn"
-                optional: true
+            - runFlow:
+                when:
+                  visible:
+                    id: "manualSelectBtn"
+                commands:
+                  - tapOn:
+                      id: "manualSelectBtn"
             - tapOn:
                 id: "customServerTextInput"
-                optional: true
             - inputText: "${TORAH_PDS_HOST}"
             - tapOn:
                 id: "doneBtn"
-                optional: true
-      - extendedWaitUntil:
-          visible:
-            id: "loginUsernameInput"
-          timeout: 10000
+      # Fill credentials
       - tapOn:
           id: "loginUsernameInput"
-      - inputText: "${E2E_USER_A_EMAIL}"
+      - inputText: "${E2E_USER_A_FULL_HANDLE}"
       - tapOn:
           id: "loginPasswordInput"
       - inputText: "${E2E_USER_A_PASSWORD}"
+      # Wait for loginNextButton to become active (connecting to service completes)
+      - extendedWaitUntil:
+          visible:
+            id: "loginNextButton"
+          timeout: 15000
+      - tapOn:
+          id: "loginNextButton"
       - pressKey: Enter
+      # Dismiss confirmation dialog if shown for custom PDS
+      - tapOn:
+          text: "Continue"
+          optional: true
+      # Dismiss iOS keychain save password prompt if shown
       - tapOn:
           text: "Not Now"
           optional: true
