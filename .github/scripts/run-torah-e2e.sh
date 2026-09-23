@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # Torah Social resilient Maestro orchestrator
 # CRITICAL: This script NEVER exits on the first failure.
 # It runs ALL flows, records pass/fail, then exits non-zero if any failed.
@@ -69,17 +69,15 @@ run_flow() {
 
   set +e
   maestro test \
-    --udid "$device_id" \
     --format JUNIT \
     --output "$artifact_dir/flows/${flow_name}.xml" \
     --debug-output "$screenshot_dir" \
-    --test-output-dir "$screenshot_dir" \
     --flatten-debug-output \
-    --env "TORAH_PDS_HOST=$TORAH_PDS_HOST" \
-    --env "E2E_RUN_ID=$E2E_RUN_ID" \
-    --env "E2E_USER_A_HANDLE=$E2E_USER_A_HANDLE" \
-    --env "E2E_USER_A_EMAIL=$E2E_USER_A_EMAIL" \
-    --env "E2E_USER_A_PASSWORD=$E2E_USER_A_PASSWORD" \
+    -e "TORAH_PDS_HOST=$TORAH_PDS_HOST" \
+    -e "E2E_RUN_ID=$E2E_RUN_ID" \
+    -e "E2E_USER_A_HANDLE=$E2E_USER_A_HANDLE" \
+    -e "E2E_USER_A_EMAIL=$E2E_USER_A_EMAIL" \
+    -e "E2E_USER_A_PASSWORD=$E2E_USER_A_PASSWORD" \
     "$flow_file" \
     2>&1 | tee "$log_file"
   local exit_code=${PIPESTATUS[0]}
@@ -114,6 +112,7 @@ phase "Running Torah E2E flow suite"
 FLOW_DIR="__e2e__/flows/torah"
 
 if [ -d "$FLOW_DIR" ]; then
+  run_flow "signup-noinvite" "$FLOW_DIR/torah-signup-noinvite.yml"
   run_flow "login-session" "$FLOW_DIR/torah-login-session.yml"
   run_flow "composer-english" "$FLOW_DIR/torah-composer-english.yml"
   run_flow "composer-hebrew" "$FLOW_DIR/torah-composer-hebrew.yml"
