@@ -68,7 +68,7 @@ jest.mock('@lingui/react/macro', () => ({
 describe('Native Composer TextInput', () => {
   it('renders native TextInput without throwing ReferenceError or TypeError for useEffect', () => {
     const ref = createRef<TextInputRef>()
-    const setRichText = jest.fn<(next: RichText) => void>()
+    const setRichText = jest.fn((_next: RichText) => {})
     const onPhotoPasted = jest.fn()
     const onNewLink = jest.fn()
     const onError = jest.fn()
@@ -79,7 +79,7 @@ describe('Native Composer TextInput', () => {
 
     const {unmount} = render(
       <TextInput
-        accessibilityRole="none"
+        accessibilityLabel="Text input field"
         ref={ref}
         richtext={rt}
         webForceMinHeight={false}

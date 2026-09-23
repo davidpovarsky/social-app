@@ -3,6 +3,7 @@ import {useQueryClient} from '@tanstack/react-query'
 
 import {imageToThumb, type ResolvedExternalLink} from '#/lib/api/resolve'
 import {precacheResolveLinkQuery} from '#/state/queries/resolve-link'
+import {type app} from '#/lexicons'
 import {getTorahSourceImageUrl} from '../sefaria/api'
 import {
   buildSefariaSourceUri,
@@ -48,7 +49,7 @@ export function useTorahSourceSelection(onSelectUri: (uri: string) => void) {
                 description: 'מקור תורני ב־Sefaria',
                 thumb: imageUrl,
               },
-            } as unknown)
+            } as app.bsky.embed.external.View)
           : undefined,
       }
 
