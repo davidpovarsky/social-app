@@ -80,6 +80,7 @@ describe('Native Composer TextInput', () => {
     const {unmount} = render(
       <TextInput
         accessibilityLabel="Text input field"
+        accessibilityHint="Enter text for the post"
         ref={ref}
         richtext={rt}
         webForceMinHeight={false}
