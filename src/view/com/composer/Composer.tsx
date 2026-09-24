@@ -1400,7 +1400,9 @@ export const ComposePost = ({
       />
       <TorahComposerExtensions
         text={activePost.richtext.text}
-        disabled={!!activePost.embed.link || !!activePost.embed.media}
+        hasExistingEmbed={Boolean(
+          activePost.embed.link || activePost.embed.media,
+        )}
         onSelectUri={uri =>
           dispatch({type: 'embed_add_uri', uri: uri as UriString})
         }

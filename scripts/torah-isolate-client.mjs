@@ -127,7 +127,7 @@ if (!composer.includes('TorahComposerExtensions')) {
   composer = replaceRequired(
     composer,
     "      <ComposerFooter\n        post={activePost}",
-    "      <TorahComposerExtensions\n        text={activePost.richtext.text}\n        disabled={!!activePost.embed.link || !!activePost.embed.media}\n        onSelectUri={uri =>\n          dispatch({type: 'embed_add_uri', uri: uri as UriString})\n        }\n      />\n      <ComposerFooter\n        post={activePost}",
+    "      <TorahComposerExtensions\n        text={activePost.richtext.text}\n        hasExistingEmbed={Boolean(activePost.embed.link || activePost.embed.media)}\n        onSelectUri={uri =>\n          dispatch({type: 'embed_add_uri', uri: uri as UriString})\n        }\n      />\n      <ComposerFooter\n        post={activePost}",
     'Torah detected-source suggestions',
   )
 }

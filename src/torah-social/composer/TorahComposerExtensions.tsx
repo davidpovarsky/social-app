@@ -11,10 +11,12 @@ import {useTorahSourceSelection} from './useTorahSourceSelection'
 export function TorahComposerExtensions({
   text,
   disabled,
+  hasExistingEmbed,
   onSelectUri,
 }: {
   text: string
   disabled?: boolean
+  hasExistingEmbed?: boolean
   onSelectUri: (uri: string) => void
 }) {
   const selectSource = useTorahSourceSelection(onSelectUri)
@@ -24,6 +26,7 @@ export function TorahComposerExtensions({
       <DetectedTorahSources
         text={text}
         disabled={disabled}
+        hasExistingEmbed={hasExistingEmbed}
         onSelectUri={selectSource}
       />
     </View>
