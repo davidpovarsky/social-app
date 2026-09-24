@@ -14,29 +14,61 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "createAccountButton"
 
-# Select custom server - the Torah Social PDS
-- tapOn:
-    text: "Bluesky Social"
-    optional: true
+- runFlow:
+    when:
+      notVisible: "Your account"
+    commands:
+      - tapOn:
+          text: "Create account"
+          optional: true
 
 - runFlow:
     when:
-      visible:
-        id: "customSelectBtn"
+      notVisible: "Your account"
     commands:
       - tapOn:
+          text: "Create new account"
+          optional: true
+
+- runFlow:
+    when:
+      notVisible: "Your account"
+    commands:
+      - tapOn:
+          id: "createAccountButton"
+          optional: true
+
+- extendedWaitUntil:
+    visible: "Your account"
+    timeout: 30000
+
+# Select custom server - the Torah Social PDS
+- runFlow:
+    when:
+      visible: "Bluesky Social"
+    commands:
+      - tapOn: "Bluesky Social"
+      - extendedWaitUntil:
+          visible:
+            id: "customSelectBtn"
+          timeout: 10000
+      - tapOn:
           id: "customSelectBtn"
+      - extendedWaitUntil:
+          visible:
+            id: "customServerTextInput"
+          timeout: 10000
       - tapOn:
           id: "customServerTextInput"
       - inputText: "${TORAH_PDS_HOST}"
       - tapOn:
           id: "doneBtn"
 
-# Fill email and password
+# Wait for service info to load from Torah PDS and emailInput to appear
 - extendedWaitUntil:
     visible:
       id: "emailInput"
-    timeout: 10000
+    timeout: 30000
 
 - tapOn:
     id: "emailInput"

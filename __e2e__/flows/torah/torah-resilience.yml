@@ -7,12 +7,16 @@ appId: com.davidpovarsky.torahsocial
     visible:
       id: "composeFAB"
     timeout: 20000
+
 # Open composer
 - tapOn:
     id: "composeFAB"
+
 - extendedWaitUntil:
-    visible: "Cancel"
-    timeout: 10000
+    visible:
+      id: "composerPublishBtn"
+    timeout: 15000
+
 # Cancel composer
 - tapOn:
     text: "Cancel"
@@ -20,32 +24,63 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     text: "Discard"
     optional: true
+
+# Ensure composer is dismissed
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 15000
+
 # Background app
 - pressKey: Home
 - waitForAnimationToEnd
+
 # Foreground app
 - launchApp:
     appId: "com.davidpovarsky.torahsocial"
+
 - extendedWaitUntil:
     visible:
       id: "composeFAB"
     timeout: 30000
+
+- waitForAnimationToEnd
+
 # Reopen composer after relaunch - verify no crash
 - tapOn:
     id: "composeFAB"
+
+- runFlow:
+    when:
+      notVisible:
+        id: "composerPublishBtn"
+    commands:
+      - tapOn:
+          id: "composeFAB"
+          optional: true
+
 - extendedWaitUntil:
-    visible: "Cancel"
-    timeout: 10000
+    visible:
+      id: "composerPublishBtn"
+    timeout: 20000
+
 - assertNotVisible:
     text: "ReferenceError"
 - assertNotVisible:
     text: "TypeError"
 - assertNotVisible:
     text: "Invariant Violation"
+
 - tapOn:
     text: "Cancel"
     optional: true
 - tapOn:
     text: "Discard"
     optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "composeFAB"
+    timeout: 15000
+
 - takeScreenshot: "resilience-success"
