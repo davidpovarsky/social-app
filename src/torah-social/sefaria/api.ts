@@ -1,9 +1,9 @@
-import type {
-  SefariaCompletion,
-  SefariaManuscript,
-  SefariaTextResponse,
-  SefariaVersion,
-  TorahSource,
+import {
+  type SefariaCompletion,
+  type SefariaManuscript,
+  type SefariaTextResponse,
+  type SefariaVersion,
+  type TorahSource,
 } from './types'
 
 const SEFARIA_ORIGIN = 'https://www.sefaria.org'
@@ -64,6 +64,20 @@ export function sefariaRefUrl(ref: string) {
   return `${SEFARIA_ORIGIN}/${pathRef}`
 }
 
+export function formatHebrewRef(ref: string, heRef?: string): string {
+  if (!heRef) return ref
+  // If Talmud daf ends in 'a' (א) or 'b' (ב), format canonically with ע״א / ע״ב
+  if (/[0-9]+[ab]$/i.test(ref)) {
+    if (heRef.endsWith(' א')) {
+      return heRef.slice(0, -2) + ' ע״א'
+    }
+    if (heRef.endsWith(' ב')) {
+      return heRef.slice(0, -2) + ' ע״ב'
+    }
+  }
+  return heRef
+}
+
 export async function autocompleteRefs(
   query: string,
   signal?: AbortSignal,
@@ -92,9 +106,86 @@ export async function autocompleteRefs(
     .flatMap(item => {
       const title = item.title?.trim()
       if (!title) return []
-      const rawKey = Array.isArray(item.key) ? item.key[0] : item.key
-      return [{title, key: rawKey?.trim() || title}]
+      const rawKeys = Array.isArray(item.key) ? item.key : [item.key]
+      return rawKeys
+        .map(k => k?.trim())
+        .filter((k): k is string => Boolean(k))
+        .map(key => ({title, key}))
     })
+}
+
+export async function searchTorahSources(
+  query: string,
+  signal?: AbortSignal,
+): Promise<SefariaCompletion[]> {
+  const value = query.trim()
+  if (value.length < 2) return []
+
+  const [validatedResult, autocompleteResult] = await Promise.allSettled([
+    validateRef(value, signal),
+    autocompleteRefs(value, signal),
+  ])
+
+  const results: SefariaCompletion[] = []
+  const seenRefs = new Set<string>()
+
+  if (validatedResult.status === 'fulfilled' && validatedResult.value) {
+    const valid = validatedResult.value
+    seenRefs.add(valid.ref.toLowerCase())
+
+    const formattedTitle = formatHebrewRef(valid.ref, valid.heRef)
+    results.push({
+      title: formattedTitle,
+      key: valid.ref,
+      exact: true,
+      heRef: formattedTitle,
+      ref: valid.ref,
+      category: valid.category,
+    })
+
+    // If it's a Talmud daf without amud (e.g. "Rosh Hashanah 22" or "Berakhot 2"),
+    // generate daf/amud candidates: 22a (ע״א) and 22b (ע״ב)
+    const talmudDafMatch = valid.ref.match(/^(.+?)\s+(\d+)$/)
+    if (talmudDafMatch) {
+      const [, tractate, dafNum] = talmudDafMatch
+      const amudA = `${tractate} ${dafNum}a`
+      const amudB = `${tractate} ${dafNum}b`
+
+      const amudCandidates = await Promise.allSettled([
+        validateRef(amudA, signal),
+        validateRef(amudB, signal),
+      ])
+
+      for (const cand of amudCandidates) {
+        if (cand.status === 'fulfilled' && cand.value) {
+          const c = cand.value
+          if (!seenRefs.has(c.ref.toLowerCase())) {
+            seenRefs.add(c.ref.toLowerCase())
+            const candTitle = formatHebrewRef(c.ref, c.heRef)
+            results.push({
+              title: candTitle,
+              key: c.ref,
+              exact: true,
+              heRef: candTitle,
+              ref: c.ref,
+              category: c.category,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  if (autocompleteResult.status === 'fulfilled') {
+    for (const item of autocompleteResult.value) {
+      if (!seenRefs.has(item.key.toLowerCase())) {
+        seenRefs.add(item.key.toLowerCase())
+        results.push(item)
+      }
+    }
+  }
+
+  return results
 }
 
 export async function validateRef(
@@ -216,4 +307,3 @@ export async function resolveTorahSource(
 }
 
 export {SEFARIA_ORIGIN}
-

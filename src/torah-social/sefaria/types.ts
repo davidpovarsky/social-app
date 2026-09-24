@@ -1,6 +1,10 @@
 export type SefariaCompletion = {
   title: string
   key: string
+  exact?: boolean
+  heRef?: string
+  ref?: string
+  category?: string
 }
 
 export type SefariaVersion = {
@@ -54,5 +58,5 @@ export type DetectedTorahSource = TorahSource & {
   startChar: number
   endChar: number
   ambiguous: boolean
+  candidateRefs?: Array<{ref: string; heRef: string; uri: string}>
 }
-
