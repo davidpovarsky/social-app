@@ -4,6 +4,20 @@ appId: com.davidpovarsky.torahsocial
 - launchApp:
     appId: "com.davidpovarsky.torahsocial"
 
+# Wait for home screen to restore active session if already logged in
+- extendedWaitUntil:
+    visible:
+      id: "bottomBarHomeBtn"
+    timeout: 10000
+    optional: true
+
+# Dismiss email verification modal if already covering screen
+- runFlow:
+    when:
+      visible: "Maybe later"
+    commands:
+      - tapOn: "Maybe later"
+
 - runFlow:
     when:
       notVisible:

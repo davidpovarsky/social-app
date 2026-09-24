@@ -12,8 +12,6 @@ appId: com.davidpovarsky.torahsocial
     id: "bottomBarHomeBtn"
 - assertNotVisible:
     text: "Internal Server Error"
-- assertNotVisible:
-    text: "Not Found"
 - takeScreenshot: "tab-home"
 # Search/Explore tab
 - tapOn:

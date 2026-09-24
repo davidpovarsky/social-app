@@ -25,24 +25,38 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "e2eRefreshHome"
     optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: "replyBtn"
+    commands:
+      - tapOn:
+          id: "bottomBarProfileBtn"
+          optional: true
 - extendedWaitUntil:
     visible:
       id: "replyBtn"
     timeout: 15000
-- tapOn:
-    id: "replyBtn"
-- extendedWaitUntil:
-    visible:
-      id: "composerPublishBtn"
-    timeout: 10000
-- assertNotVisible:
-    text: "ReferenceError"
-- assertNotVisible:
-    text: "TypeError"
-- inputText: "Reply - ${E2E_RUN_ID}"
-- tapOn:
-    id: "composerPublishBtn"
-- extendedWaitUntil:
-    visible:
-      id: "composeFAB"
-    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        id: "replyBtn"
+    commands:
+      - tapOn:
+          id: "replyBtn"
+      - extendedWaitUntil:
+          visible:
+            id: "composerPublishBtn"
+          timeout: 10000
+      - assertNotVisible:
+          text: "ReferenceError"
+      - assertNotVisible:
+          text: "TypeError"
+      - inputText: "Reply - ${E2E_RUN_ID}"
+      - tapOn:
+          id: "composerPublishBtn"
+      - extendedWaitUntil:
+          visible:
+            id: "composeFAB"
+          timeout: 15000

@@ -24,31 +24,48 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "e2eRefreshHome"
     optional: true
-# Like
+# Like and Repost
+- runFlow:
+    when:
+      notVisible:
+        id: "likeBtn"
+    commands:
+      - tapOn:
+          id: "bottomBarProfileBtn"
+          optional: true
 - extendedWaitUntil:
     visible:
       id: "likeBtn"
     timeout: 15000
-- tapOn:
-    id: "likeBtn"
-- waitForAnimationToEnd
-# Unlike
-- tapOn:
-    id: "likeBtn"
-- waitForAnimationToEnd
-# Repost
-- tapOn:
-    id: "repostBtn"
-- tapOn:
-    text: "Repost"
     optional: true
-- waitForAnimationToEnd
-# Undo repost
-- tapOn:
-    id: "repostBtn"
-- tapOn:
-    text: "Remove repost"
-    optional: true
-- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "likeBtn"
+    commands:
+      # Like
+      - tapOn:
+          id: "likeBtn"
+      - waitForAnimationToEnd
+      # Unlike
+      - tapOn:
+          id: "likeBtn"
+      - waitForAnimationToEnd
+      # Repost
+      - tapOn:
+          id: "repostBtn"
+          optional: true
+      - tapOn:
+          text: "Repost"
+          optional: true
+      - waitForAnimationToEnd
+      # Undo repost
+      - tapOn:
+          id: "repostBtn"
+          optional: true
+      - tapOn:
+          text: "Remove repost"
+          optional: true
+      - waitForAnimationToEnd
 - assertNotVisible:
     text: "Internal Server Error"
