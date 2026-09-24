@@ -53,6 +53,16 @@ if echo "$ACCOUNT_JSON" | grep -q '"error"'; then
   log "Continuing anyway — account may already exist or invite may be needed"
 else
   log "Account created successfully: $E2E_USER_A_FULL_HANDLE"
+  ACCESS_JWT=$(echo "$ACCOUNT_JSON" | grep -o '"accessJwt":"[^"]*' | cut -d'"' -f4)
+  if [ -n "$ACCESS_JWT" ]; then
+    log "Seeding birthdate preferences (age assurance bypass) for test account"
+    curl -sf --max-time 15 \
+      -X POST \
+      -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $ACCESS_JWT" \
+      -d '{"preferences":[{"$type":"app.bsky.actor.defs#personalDetailsPref","birthDate":"2000-01-01T00:00:00.000Z"}]}' \
+      "$TORAH_PDS_HOST/xrpc/app.bsky.actor.putPreferences" 2>/dev/null || true
+  fi
 fi
 
 # -------------------------------------------------------------------------
