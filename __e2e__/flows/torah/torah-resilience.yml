@@ -11,8 +11,7 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "composeFAB"
 - extendedWaitUntil:
-    visible:
-      id: "composerPublishBtn"
+    visible: "Cancel"
     timeout: 10000
 # Cancel composer
 - tapOn:
@@ -35,8 +34,7 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "composeFAB"
 - extendedWaitUntil:
-    visible:
-      id: "composerPublishBtn"
+    visible: "Cancel"
     timeout: 10000
 - assertNotVisible:
     text: "ReferenceError"

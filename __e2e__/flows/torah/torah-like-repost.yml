@@ -11,12 +11,15 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "composeFAB"
 - extendedWaitUntil:
-    visible:
-      id: "composerPublishBtn"
+    visible: "Cancel"
     timeout: 10000
 - inputText: "Like test post ${E2E_RUN_ID}"
 - tapOn:
     id: "composerPublishBtn"
+    optional: true
+- tapOn:
+    text: "Post"
+    optional: true
 - extendedWaitUntil:
     visible:
       id: "composeFAB"

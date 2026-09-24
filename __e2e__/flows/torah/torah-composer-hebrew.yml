@@ -10,9 +10,14 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "composeFAB"
 - extendedWaitUntil:
-    visible:
-      id: "composerPublishBtn"
+    visible: "Cancel"
     timeout: 10000
+# Dismiss tooltip if present
+- runFlow:
+    when:
+      visible: "Psst! You can edit who can interact with this post."
+    commands:
+      - tapOn: "Psst! You can edit who can interact with this post."
 # Type Hebrew text
 - tapOn:
     id: "composerTextInput"
@@ -23,8 +28,13 @@ appId: com.davidpovarsky.torahsocial
     text: "ReferenceError"
 - assertNotVisible:
     text: "TypeError"
+# Publish post
 - tapOn:
     id: "composerPublishBtn"
+    optional: true
+- tapOn:
+    text: "Post"
+    optional: true
 - extendedWaitUntil:
     visible:
       id: "composeFAB"

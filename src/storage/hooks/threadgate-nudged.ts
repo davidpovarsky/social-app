@@ -1,9 +1,12 @@
 import {device, useStorage} from '#/storage'
 
 export function useThreadgateNudged() {
-  const [threadgateNudged = false, setThreadgateNudged] = useStorage(device, [
-    'threadgateNudged',
-  ])
+  const isIsolated =
+    process.env.EXPO_PUBLIC_TORAH_ISOLATED_NETWORK === 'true'
+  const [threadgateNudged = isIsolated, setThreadgateNudged] = useStorage(
+    device,
+    ['threadgateNudged'],
+  )
 
-  return [threadgateNudged, setThreadgateNudged] as const
+  return [isIsolated || threadgateNudged, setThreadgateNudged] as const
 }

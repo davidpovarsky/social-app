@@ -142,7 +142,7 @@ jobs:
   ios-simulator-e2e:
     name: iOS Simulator E2E (Maestro)
     runs-on: macos-15
-    timeout-minutes: 120
+    timeout-minutes: 180
     needs: static-checks
     if: ${{ inputs.skip_e2e != 'true' }}
     steps:

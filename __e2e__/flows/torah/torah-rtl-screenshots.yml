@@ -31,8 +31,7 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "composeFAB"
 - extendedWaitUntil:
-    visible:
-      id: "composerPublishBtn"
+    visible: "Cancel"
     timeout: 10000
 - takeScreenshot: "rtl-composer"
 - tapOn:

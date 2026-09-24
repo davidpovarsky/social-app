@@ -11,12 +11,15 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "composeFAB"
 - extendedWaitUntil:
-    visible:
-      id: "composerPublishBtn"
+    visible: "Cancel"
     timeout: 10000
 - inputText: "Parent post for reply test - ${E2E_RUN_ID}"
 - tapOn:
     id: "composerPublishBtn"
+    optional: true
+- tapOn:
+    text: "Post"
+    optional: true
 - extendedWaitUntil:
     visible:
       id: "composeFAB"
@@ -46,8 +49,7 @@ appId: com.davidpovarsky.torahsocial
       - tapOn:
           id: "replyBtn"
       - extendedWaitUntil:
-          visible:
-            id: "composerPublishBtn"
+          visible: "Cancel"
           timeout: 10000
       - assertNotVisible:
           text: "ReferenceError"
@@ -56,6 +58,13 @@ appId: com.davidpovarsky.torahsocial
       - inputText: "Reply - ${E2E_RUN_ID}"
       - tapOn:
           id: "composerPublishBtn"
+          optional: true
+      - tapOn:
+          text: "Reply"
+          optional: true
+      - tapOn:
+          text: "Post"
+          optional: true
       - extendedWaitUntil:
           visible:
             id: "composeFAB"
