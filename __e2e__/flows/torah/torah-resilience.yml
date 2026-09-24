@@ -35,9 +35,12 @@ appId: com.davidpovarsky.torahsocial
 - pressKey: Home
 - waitForAnimationToEnd
 
-# Foreground app
+# Foreground app (resume from background without stopping/restarting)
 - launchApp:
     appId: "com.davidpovarsky.torahsocial"
+    stopApp: false
+
+- waitForAnimationToEnd
 
 - extendedWaitUntil:
     visible:
