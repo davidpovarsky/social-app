@@ -9,7 +9,7 @@ import * as TextField from '#/components/forms/TextField'
 import {PageText_Stroke2_Corner0_Rounded as SourceIcon} from '#/components/icons/PageText'
 import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/Plus'
 import {Text} from '#/components/Typography'
-import {autocompleteRefs, resolveTorahSource} from '../sefaria/api'
+import {resolveTorahSource, searchTorahSources} from '../sefaria/api'
 import {type SefariaCompletion, type TorahSource} from '../sefaria/types'
 import {formatTorahQuoteForInsertion} from './quoteBlock'
 import {buildSefariaSourceUri} from './url'
@@ -41,7 +41,7 @@ export function SourcePickerDialog({
     const abort = new AbortController()
     const timer = setTimeout(() => {
       setIsSearching(true)
-      void autocompleteRefs(value, abort.signal)
+      void searchTorahSources(value, abort.signal)
         .then(items => {
           setSuggestions(items)
           setError(undefined)
@@ -192,17 +192,61 @@ export function SourcePickerDialog({
                         a.p_md,
                         a.rounded_sm,
                         a.border,
-                        t.atoms.border_contrast_low,
+                        item.exact
+                          ? [
+                              t.atoms.border_contrast_medium,
+                              {
+                                backgroundColor:
+                                  t.name === 'dark' ? '#1c1b18' : '#faf8f5',
+                                borderRightWidth: 3,
+                                borderRightColor: t.palette.primary_500,
+                              },
+                            ]
+                          : t.atoms.border_contrast_low,
                         {opacity: pressed ? 0.65 : 1},
                       ]}>
-                      <Text
+                      <View
                         style={[
-                          a.text_md,
-                          a.font_semi_bold,
-                          {textAlign: 'right', writingDirection: 'rtl'},
+                          a.flex_row,
+                          a.align_center,
+                          a.justify_between,
+                          a.gap_sm,
                         ]}>
-                        {item.title}
-                      </Text>
+                        <View style={[a.flex_row, a.align_center, a.gap_xs]}>
+                          {item.exact ? (
+                            <View
+                              style={[
+                                a.px_xs,
+                                a.py_2xs,
+                                a.rounded_full,
+                                {
+                                  backgroundColor:
+                                    t.name === 'dark'
+                                      ? t.palette.contrast_100
+                                      : t.palette.contrast_50,
+                                },
+                              ]}>
+                              <Text
+                                style={[
+                                  a.text_2xs,
+                                  a.font_semi_bold,
+                                  t.atoms.text_contrast_high,
+                                ]}>
+                                מקור מדויק
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text
+                          style={[
+                            a.text_md,
+                            a.font_semi_bold,
+                            a.flex_1,
+                            {textAlign: 'right', writingDirection: 'rtl'},
+                          ]}>
+                          {item.title}
+                        </Text>
+                      </View>
                       {item.key !== item.title ? (
                         <Text
                           style={[
