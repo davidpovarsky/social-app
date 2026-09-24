@@ -25,6 +25,10 @@ appId: com.davidpovarsky.torahsocial
     id: "e2eRefreshHome"
     optional: true
 # Like
+- extendedWaitUntil:
+    visible:
+      id: "likeBtn"
+    timeout: 15000
 - tapOn:
     id: "likeBtn"
 - waitForAnimationToEnd

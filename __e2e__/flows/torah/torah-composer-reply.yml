@@ -25,6 +25,10 @@ appId: com.davidpovarsky.torahsocial
 - tapOn:
     id: "e2eRefreshHome"
     optional: true
+- extendedWaitUntil:
+    visible:
+      id: "replyBtn"
+    timeout: 15000
 - tapOn:
     id: "replyBtn"
 - extendedWaitUntil:

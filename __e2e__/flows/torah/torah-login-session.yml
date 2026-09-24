@@ -21,6 +21,12 @@ appId: com.davidpovarsky.torahsocial
                 timeout: 30000
             - tapOn:
                 id: "signInButton"
+      - runFlow:
+          when:
+            notVisible:
+              id: "loginUsernameInput"
+          commands:
+            - tapOn: "Sign in"
       - extendedWaitUntil:
           visible:
             id: "loginUsernameInput"
@@ -76,5 +82,7 @@ appId: com.davidpovarsky.torahsocial
     timeout: 30000
 - assertNotVisible:
     text: "Invalid identifier or password"
+- assertNotVisible:
+    text: "Incorrect username or password"
 - assertNotVisible:
     text: "Internal Server Error"

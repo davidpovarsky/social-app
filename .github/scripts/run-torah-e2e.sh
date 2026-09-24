@@ -20,7 +20,8 @@ E2E_USER_A_HANDLE="e2e-a-${E2E_RUN_ID}"
 E2E_USER_A_EMAIL="e2e-a-${E2E_RUN_ID}@test.local"
 E2E_USER_A_PASSWORD="E2ePass${E2E_RUN_ID}!"
 
-TORAH_PDS_DOMAIN="$(echo "$TORAH_PDS_HOST" | sed 's|https\?://||')"
+TORAH_PDS_DOMAIN="${TORAH_PDS_HOST#*://}"
+TORAH_PDS_DOMAIN="${TORAH_PDS_DOMAIN%/}"
 E2E_USER_A_FULL_HANDLE="${E2E_USER_A_HANDLE}.${TORAH_PDS_DOMAIN}"
 
 # Export for Maestro env substitution
@@ -28,6 +29,8 @@ export TORAH_PDS_HOST TORAH_PDS_DOMAIN E2E_RUN_ID E2E_USER_A_HANDLE E2E_USER_A_F
 
 log "Torah Social E2E run $E2E_RUN_ID"
 log "PDS: $TORAH_PDS_HOST"
+log "PDS domain: $TORAH_PDS_DOMAIN"
+log "Test handle: $E2E_USER_A_FULL_HANDLE"
 log "Device: $device_id ($platform)"
 
 # -------------------------------------------------------------------------
@@ -41,7 +44,7 @@ log "PDS health: $PDS_HEALTH"
 ACCOUNT_JSON=$(curl -sf --max-time 30 \
   -X POST \
   -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$E2E_USER_A_EMAIL\",\"handle\":\"${E2E_USER_A_HANDLE}.$(echo "$TORAH_PDS_HOST" | sed 's|https\?://||')\",\"password\":\"$E2E_USER_A_PASSWORD\"}" \
+  -d "{\"email\":\"$E2E_USER_A_EMAIL\",\"handle\":\"$E2E_USER_A_FULL_HANDLE\",\"password\":\"$E2E_USER_A_PASSWORD\"}" \
   "$TORAH_PDS_HOST/xrpc/com.atproto.server.createAccount" 2>/dev/null || \
   echo '{"error":"createAccount failed"}')
 
@@ -49,7 +52,7 @@ if echo "$ACCOUNT_JSON" | grep -q '"error"'; then
   log "WARNING: Account creation returned error: $ACCOUNT_JSON"
   log "Continuing anyway — account may already exist or invite may be needed"
 else
-  log "Account created: $E2E_USER_A_HANDLE"
+  log "Account created successfully: $E2E_USER_A_FULL_HANDLE"
 fi
 
 # -------------------------------------------------------------------------
