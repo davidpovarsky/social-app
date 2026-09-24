@@ -1,3 +1,4 @@
+import {TORAH_ISOLATED_NETWORK} from '#/env'
 import {simpleAreDatesEqual} from '#/lib/strings/time'
 import {logger} from '#/logger'
 import * as persisted from '#/state/persisted'
@@ -5,6 +6,7 @@ import {type SessionAccount} from '../session'
 import {isOnboardingActive} from './onboarding'
 
 export function shouldRequestEmailConfirmation(account: SessionAccount) {
+  if (TORAH_ISOLATED_NETWORK) return false
   // ignore logged out
   if (!account) return false
   // ignore confirmed accounts, this is the success state of this reminder

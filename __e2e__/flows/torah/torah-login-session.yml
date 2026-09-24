@@ -9,6 +9,13 @@ appId: com.davidpovarsky.torahsocial
       notVisible:
         id: "bottomBarHomeBtn"
     commands:
+      # Dismiss email verification modal if already covering screen
+      - runFlow:
+          when:
+            visible: "Maybe later"
+          commands:
+            - tapOn: "Maybe later"
+
       # If not yet on the login form, wait for splash screen Sign in button and tap it
       - runFlow:
           when:
@@ -90,6 +97,25 @@ appId: com.davidpovarsky.torahsocial
             - tapOn:
                 text: "Done"
                 optional: true
+      # Dismiss email verification modal if covering home screen
+      - runFlow:
+          when:
+            visible: "Maybe later"
+          commands:
+            - tapOn: "Maybe later"
+
+# Dismiss email verification modal if covering home screen
+- extendedWaitUntil:
+    visible:
+      id: "bottomBarHomeBtn"
+    timeout: 10000
+    optional: true
+
+- runFlow:
+    when:
+      visible: "Maybe later"
+    commands:
+      - tapOn: "Maybe later"
 
 # Verify home screen loads - proof login succeeded
 - extendedWaitUntil:
