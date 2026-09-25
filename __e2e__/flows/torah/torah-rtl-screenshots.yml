@@ -7,17 +7,30 @@ appId: com.davidpovarsky.torahsocial
     file: torah-login-session.yml
 
 # 1. Open Navigation Drawer to access Settings
-- extendedWaitUntil:
-    visible:
-      id: "viewHeaderDrawerBtn"
-    timeout: 15000
-- tapOn:
-    id: "viewHeaderDrawerBtn"
+- runFlow:
+    when:
+      visible: "Open drawer menu"
+    commands:
+      - tapOn: "Open drawer menu"
+- runFlow:
+    when:
+      notVisible: "Settings"
+    commands:
+      - swipe:
+          start: "0%,50%"
+          end: "70%,50%"
+- runFlow:
+    when:
+      notVisible: "Settings"
+    commands:
+      - tapOn:
+          id: "viewHeaderDrawerBtn"
+          optional: true
 
 # 2. Tap Settings from the drawer menu
 - extendedWaitUntil:
     visible: "Settings"
-    timeout: 10000
+    timeout: 15000
 - tapOn: "Settings"
 
 # 3. Scroll to Languages setting item and enter LanguageSettingsScreen

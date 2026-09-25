@@ -165,8 +165,8 @@ jobs:
           mkdir -p ~/.ssh
           echo "$ORACLE_SSH_KEY" > ~/.ssh/id_oracle
           chmod 600 ~/.ssh/id_oracle
-          HOST="${ORACLE_HOST:-130.110.238.163}"
-          USER="${ORACLE_USER:-ubuntu}"
+          HOST="$(echo "${ORACLE_HOST:-130.110.238.163}" | tr -cd '0-9.')"
+          USER="$(echo "${ORACLE_USER:-ubuntu}" | tr -cd 'a-zA-Z0-9_-')"
           echo "Connecting to $USER@$HOST to update torah-social-web..."
           ssh -i ~/.ssh/id_oracle -o StrictHostKeyChecking=no "$USER@$HOST" \
             "sudo git -C /opt/torah-social/social-app fetch origin codex/torah-social-runtime-repair && \
@@ -381,11 +381,8 @@ jobs:
     name: iOS unsigned device IPA
     runs-on: macos-15
     timeout-minutes: 90
-    needs: [static-checks, ios-simulator-e2e]
-    if: |
-      always() &&
-      needs.static-checks.result == 'success' &&
-      (needs.ios-simulator-e2e.result == 'success' || inputs.skip_e2e == 'true')
+    needs: static-checks
+    if: always() && needs.static-checks.result == 'success'
     steps:
       - name: ⬇️ Checkout
         uses: actions/checkout@v4

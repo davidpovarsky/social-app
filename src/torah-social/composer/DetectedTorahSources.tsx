@@ -101,6 +101,7 @@ export function DetectedTorahSources({
               <View style={[a.flex_row, a.align_center, a.gap_2xs]}>
                 {!hasExistingEmbed ? (
                   <Pressable
+                    testID="torahAttachSourceBtn"
                     accessibilityRole="button"
                     accessibilityLabel={`הצמד מקור ${item.heRef}`}
                     accessibilityHint="מצמיד את המקור התורני להודעה"
@@ -122,6 +123,7 @@ export function DetectedTorahSources({
                 ) : null}
 
                 <Pressable
+                  testID="torahInsertTextBtn"
                   accessibilityRole="button"
                   accessibilityLabel={`הוסף ציטוט של ${item.heRef} לטקסט`}
                   accessibilityHint="מוסיף ציטוט לתוך גוף ההודעה"

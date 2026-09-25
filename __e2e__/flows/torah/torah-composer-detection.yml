@@ -29,13 +29,15 @@ appId: com.davidpovarsky.torahsocial
 - extendedWaitUntil:
     visible: "ראש השנה כ״ב ע״א"
     timeout: 15000
-- assertVisible: "הצמד"
-- assertVisible: "הוסף לטקסט"
+- assertVisible:
+    id: "torahAttachSourceBtn"
+- assertVisible:
+    id: "torahInsertTextBtn"
 - takeScreenshot: "torah-detected-rosh-hashanah"
 
 # Test Case 2: Attach the detected source
 - tapOn:
-    text: "הצמד"
+    id: "torahAttachSourceBtn"
 - waitForAnimationToEnd:
     timeout: 2000
 - takeScreenshot: "torah-attached-rosh-hashanah"
