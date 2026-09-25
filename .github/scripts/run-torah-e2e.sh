@@ -139,6 +139,7 @@ if [ -d "$FLOW_DIR" ]; then
   run_flow "like-repost" "$FLOW_DIR/torah-like-repost.yml"
   run_flow "chat-dm" "$FLOW_DIR/torah-chat-dm.yml"
   run_flow "source-picker" "$FLOW_DIR/torah-source-picker.yml"
+  run_flow "composer-detection" "$FLOW_DIR/torah-composer-detection.yml"
   run_flow "rtl-screenshots" "$FLOW_DIR/torah-rtl-screenshots.yml"
   run_flow "resilience" "$FLOW_DIR/torah-resilience.yml"
 else

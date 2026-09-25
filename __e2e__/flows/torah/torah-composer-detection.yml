@@ -18,24 +18,77 @@ appId: com.davidpovarsky.torahsocial
       visible: "Psst! You can edit who can interact with this post."
     commands:
       - tapOn: "Psst! You can edit who can interact with this post."
-# Type Hebrew text containing a recognized Torah citation
+
+# Test Case 1: Primary sentence with Talmud tractate and daf/amud
 - tapOn:
     id: "composerTextInput"
     optional: true
-- inputText: "שלום עולם ברכות ב ע\"א תורה"
+- inputText: "כמו שכתוב בראש השנה כב ע\"א, ארבעה ראשי שנים הם"
 - waitForAnimationToEnd:
     timeout: 2500
-# Verify detection UI appears
 - extendedWaitUntil:
-    visible: "הצמד"
+    visible: "ראש השנה כ״ב ע״א"
     timeout: 15000
-- takeScreenshot: "torah-source-detected"
-# Attach detected Torah source
+- assertVisible: "הצמד"
+- assertVisible: "הוסף לטקסט"
+- takeScreenshot: "torah-detected-rosh-hashanah"
+
+# Test Case 2: Attach the detected source
 - tapOn:
     text: "הצמד"
 - waitForAnimationToEnd:
     timeout: 2000
-- takeScreenshot: "torah-source-attached"
+- takeScreenshot: "torah-attached-rosh-hashanah"
+
+# Discard and test Case 3: Berakhot
+- tapOn:
+    text: "Cancel"
+    optional: true
+- tapOn:
+    text: "Discard"
+    optional: true
+
+# Reopen composer for Berakhot test
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible: "Cancel"
+    timeout: 10000
+- tapOn:
+    id: "composerTextInput"
+    optional: true
+- inputText: "עיין ברכות ב ע\"ב"
+- waitForAnimationToEnd:
+    timeout: 2500
+- extendedWaitUntil:
+    visible: "ברכות ב׳ ע״ב"
+    timeout: 15000
+- takeScreenshot: "torah-detected-berakhot"
+
+# Discard and test Case 4: Tanakh verse
+- tapOn:
+    text: "Cancel"
+    optional: true
+- tapOn:
+    text: "Discard"
+    optional: true
+
+- tapOn:
+    id: "composeFAB"
+- extendedWaitUntil:
+    visible: "Cancel"
+    timeout: 10000
+- tapOn:
+    id: "composerTextInput"
+    optional: true
+- inputText: "בראשית א:א"
+- waitForAnimationToEnd:
+    timeout: 2500
+- extendedWaitUntil:
+    visible: "בראשית א׳:א׳"
+    timeout: 15000
+- takeScreenshot: "torah-detected-genesis"
+
 # Verify no crash or error states
 - assertNotVisible:
     text: "ReferenceError"
@@ -43,7 +96,8 @@ appId: com.davidpovarsky.torahsocial
     text: "TypeError"
 - assertNotVisible:
     text: "Invariant Violation"
-# Cancel composer to keep environment clean
+
+# Clean up composer
 - tapOn:
     text: "Cancel"
     optional: true

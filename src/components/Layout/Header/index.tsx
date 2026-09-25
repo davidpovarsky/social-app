@@ -1,5 +1,10 @@
 import {createContext, useCallback, useContext} from 'react'
-import {type GestureResponderEvent, I18nManager, Keyboard, View} from 'react-native'
+import {
+  type GestureResponderEvent,
+  I18nManager,
+  Keyboard,
+  View,
+} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
@@ -170,6 +175,7 @@ export function MenuButton() {
   return gtMobile ? null : (
     <Slot>
       <Button
+        testID="viewHeaderDrawerBtn"
         label={_(msg`Open drawer menu`)}
         size="small"
         variant="ghost"

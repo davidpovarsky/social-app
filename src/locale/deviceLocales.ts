@@ -1,6 +1,7 @@
 import {getLocales as defaultGetLocales, type Locale} from 'expo-localization'
 
 import {dedupArray} from '#/lib/functions'
+import {findSupportedAppLanguage} from './helpers'
 
 type LocalWithLanguageCode = Locale & {
   languageCode: string
@@ -74,3 +75,12 @@ export const deviceLocales = getLocales()
 export const deviceLanguageCodes = dedupArray(
   deviceLocales.map(l => l.languageCode),
 )
+
+export function getPreferredDeviceAppLanguage(): string {
+  const currentLocales = getLocales()
+  const candidateTags = currentLocales.flatMap(l => [
+    l.languageTag,
+    l.languageCode,
+  ])
+  return findSupportedAppLanguage(candidateTags)
+}

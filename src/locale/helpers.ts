@@ -290,6 +290,12 @@ export function findSupportedAppLanguage(languageTags: (string | undefined)[]) {
     if (supported.has(tag as AppLanguage)) {
       return tag
     }
+    const base = fixLegacyLanguageCode(
+      tag.split(/[-_]/)[0]?.toLowerCase() ?? '',
+    )
+    if (base && supported.has(base as AppLanguage)) {
+      return base as AppLanguage
+    }
   }
   return AppLanguage.en
 }

@@ -6,7 +6,11 @@ import {
   useMemo,
   useState,
 } from 'react'
+import {AppState, I18nManager, Platform} from 'react-native'
 
+import {getPreferredDeviceAppLanguage} from '#/locale/deviceLocales'
+import {isRtl} from '#/locale/helpers'
+import {dynamicActivate} from '#/locale/i18n'
 import {type AppLanguage} from '#/locale/languages'
 import * as persisted from '#/state/persisted'
 import {AnalyticsContext, utils} from '#/analytics'
@@ -37,16 +41,128 @@ const apiContext = createContext<ApiContext>({
 apiContext.displayName = 'LanguagePrefsApiContext'
 
 export function Provider({children}: React.PropsWithChildren<{}>) {
-  const [state, setState] = useState(() => persisted.get('languagePrefs'))
+  const [state, setState] = useState(() => {
+    const persistedPrefs = persisted.get('languagePrefs')
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android')
+      return persistedPrefs
+    const currentDeviceLang = getPreferredDeviceAppLanguage()
+    if (!currentDeviceLang) return persistedPrefs
+
+    const prevSystem = persistedPrefs.systemAppLanguage
+    const hasChanged = prevSystem !== currentDeviceLang
+
+    if (hasChanged) {
+      const nextLang = currentDeviceLang as AppLanguage
+      const nextIsRTL = isRtl(nextLang)
+      I18nManager.allowRTL(nextIsRTL)
+      I18nManager.forceRTL(nextIsRTL)
+      void dynamicActivate(nextLang)
+
+      const updated = {
+        ...persistedPrefs,
+        appLanguage: currentDeviceLang,
+        systemAppLanguage: currentDeviceLang,
+        customAppLanguage: false,
+      }
+      void persisted.write('languagePrefs', updated)
+      return updated
+    }
+
+    if (
+      !persistedPrefs.customAppLanguage &&
+      persistedPrefs.appLanguage !== currentDeviceLang
+    ) {
+      const nextLang = currentDeviceLang as AppLanguage
+      const nextIsRTL = isRtl(nextLang)
+      I18nManager.allowRTL(nextIsRTL)
+      I18nManager.forceRTL(nextIsRTL)
+      void dynamicActivate(nextLang)
+
+      const updated = {
+        ...persistedPrefs,
+        appLanguage: currentDeviceLang,
+        systemAppLanguage: currentDeviceLang,
+      }
+      void persisted.write('languagePrefs', updated)
+      return updated
+    }
+
+    return persistedPrefs
+  })
 
   const setStateWrapped = useCallback(
     (fn: SetStateCb) => {
       const s = fn(persisted.get('languagePrefs'))
       setState(s)
-      persisted.write('languagePrefs', s)
+      void persisted.write('languagePrefs', s)
     },
     [setState],
   )
+
+  const syncWithDeviceLanguage = useCallback(() => {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') return
+    const currentDeviceLang = getPreferredDeviceAppLanguage()
+    if (!currentDeviceLang) return
+
+    setStateWrapped(current => {
+      const prevSystem = current.systemAppLanguage
+      const hasChanged = prevSystem !== currentDeviceLang
+
+      if (hasChanged) {
+        // System / Per-app language changed in iOS Settings
+        const nextLang = currentDeviceLang as AppLanguage
+        const nextIsRTL = isRtl(nextLang)
+        I18nManager.allowRTL(nextIsRTL)
+        I18nManager.forceRTL(nextIsRTL)
+        void dynamicActivate(nextLang)
+
+        return {
+          ...current,
+          appLanguage: currentDeviceLang,
+          systemAppLanguage: currentDeviceLang,
+          customAppLanguage: false,
+        }
+      }
+
+      // If user never set a custom in-app language, ensure appLanguage tracks current device language
+      if (
+        !current.customAppLanguage &&
+        current.appLanguage !== currentDeviceLang
+      ) {
+        const nextLang = currentDeviceLang as AppLanguage
+        const nextIsRTL = isRtl(nextLang)
+        I18nManager.allowRTL(nextIsRTL)
+        I18nManager.forceRTL(nextIsRTL)
+        void dynamicActivate(nextLang)
+
+        return {
+          ...current,
+          appLanguage: currentDeviceLang,
+          systemAppLanguage: currentDeviceLang,
+        }
+      }
+
+      if (current.systemAppLanguage !== currentDeviceLang) {
+        return {
+          ...current,
+          systemAppLanguage: currentDeviceLang,
+        }
+      }
+
+      return current
+    })
+  }, [setStateWrapped])
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', appState => {
+      if (appState === 'active') {
+        syncWithDeviceLanguage()
+      }
+    })
+    return () => {
+      sub.remove()
+    }
+  }, [syncWithDeviceLanguage])
 
   useEffect(() => {
     return persisted.onUpdate('languagePrefs', nextLanguagePrefs => {
@@ -85,7 +201,11 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
         }))
       },
       setAppLanguage(code2: AppLanguage) {
-        setStateWrapped(s => ({...s, appLanguage: code2}))
+        setStateWrapped(s => ({
+          ...s,
+          appLanguage: code2,
+          customAppLanguage: true,
+        }))
       },
     }),
     [setStateWrapped],

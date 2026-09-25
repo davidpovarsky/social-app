@@ -102,6 +102,8 @@ const schema = z.object({
      * to match with {@link AppLanguage}.
      */
     appLanguage: z.string(),
+    systemAppLanguage: z.string().optional(),
+    customAppLanguage: z.boolean().optional(),
   }),
   requireAltTextEnabled: z.boolean(), // should move to server
   largeAltBadgeEnabled: z.boolean().optional(),
@@ -166,6 +168,11 @@ export const defaults: Schema = {
       deviceLocales.at(0)?.languageTag,
       deviceLanguageCodes[0],
     ]),
+    systemAppLanguage: findSupportedAppLanguage([
+      deviceLocales.at(0)?.languageTag,
+      deviceLanguageCodes[0],
+    ]),
+    customAppLanguage: false,
   },
   requireAltTextEnabled: false,
   largeAltBadgeEnabled: false,

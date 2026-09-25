@@ -63,6 +63,8 @@ module.exports = function (_config) {
         },
         icon: IOS_ICON_FILE,
         infoPlist: {
+          CFBundleAllowMixedLocalizations: true,
+          ExpoLocalization_supportsRTL: true,
           CADisableMinimumFrameDurationOnPhone: true,
           UIBackgroundModes: ['remote-notification'],
           NSUserActivityTypes: ['INSendMessageIntent'],

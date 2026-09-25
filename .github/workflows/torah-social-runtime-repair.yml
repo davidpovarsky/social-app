@@ -81,6 +81,9 @@ jobs:
         run: pnpm test-ci
         continue-on-error: false
 
+      - name: 📜 Run Torah Social test suite
+        run: node scripts/test-torah.mjs
+
       - name: 📊 Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -135,6 +138,59 @@ jobs:
           path: web-build
           if-no-files-found: error
           retention-days: 7
+
+  # -----------------------------------------------------------------------
+  # Job 2.5: Deploy to Oracle Cloud server
+  # -----------------------------------------------------------------------
+  web-deploy:
+    name: Deploy to Oracle Cloud (torah-social-web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [static-checks, web-build]
+    if: always() && needs.static-checks.result == 'success' && needs.web-build.result == 'success'
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Oracle Cloud Server via SSH
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          if [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "::error::ORACLE_SSH_KEY is not configured in repository secrets."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          echo "$ORACLE_SSH_KEY" > ~/.ssh/id_oracle
+          chmod 600 ~/.ssh/id_oracle
+          HOST="${ORACLE_HOST:-130.110.238.163}"
+          USER="${ORACLE_USER:-ubuntu}"
+          echo "Connecting to $USER@$HOST to update torah-social-web..."
+          ssh -i ~/.ssh/id_oracle -o StrictHostKeyChecking=no "$USER@$HOST" \
+            "sudo git -C /opt/torah-social/social-app fetch origin codex/torah-social-runtime-repair && \
+             sudo git -C /opt/torah-social/social-app checkout -B codex/torah-social-runtime-repair FETCH_HEAD && \
+             sudo docker build \
+               --build-arg EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-130-110-238-163.nip.io \
+               --build-arg EXPO_PUBLIC_TORAH_PDS_DID=did:web:pds-130-110-238-163.nip.io \
+               --build-arg EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-130-110-238-163.nip.io \
+               --build-arg EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H \
+               --build-arg EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true \
+               --build-arg EXPO_PUBLIC_ENV=production \
+               -t torah-social-web:latest \
+               /opt/torah-social/social-app && \
+             sudo docker stop torah-social-web || true && \
+             sudo docker rm torah-social-web || true && \
+             sudo docker run -d \
+               --name torah-social-web \
+               --restart unless-stopped \
+               -p 127.0.0.1:8100:8100 \
+               -e ATP_APPVIEW_HOST=https://appview-130-110-238-163.nip.io \
+               -e HTTP_ADDRESS=:8100 \
+               -e ROBOTS_DISALLOW_ALL=true \
+               torah-social-web:latest"
+          echo "✓ Deployment completed successfully on Oracle server."
 
   # -----------------------------------------------------------------------
   # Job 3: iOS Simulator E2E (macos-15, resilient orchestrator)

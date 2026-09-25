@@ -1,42 +1,95 @@
-# Torah Social: Hebrew/RTL screenshots for visual validation
-# Takes screenshots of all main screens in Hebrew mode.
+# Torah Social: Authentic Hebrew Localization & RTL Verification Flow
+# Switches the app to Hebrew via in-app Settings, verifies Hebrew UI strings,
+# and captures visual evidence of all core screens in Hebrew RTL mode.
 appId: com.davidpovarsky.torahsocial
 ---
 - runFlow:
     file: torah-login-session.yml
-# Switch to Hebrew
+
+# 1. Open Navigation Drawer to access Settings
+- extendedWaitUntil:
+    visible:
+      id: "viewHeaderDrawerBtn"
+    timeout: 15000
 - tapOn:
-    id: "bottomBarProfileBtn"
-- tapOn:
-    id: "settingsBtn"
-    optional: true
+    id: "viewHeaderDrawerBtn"
+
+# 2. Tap Settings from the drawer menu
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 10000
+- tapOn: "Settings"
+
+# 3. Scroll to Languages setting item and enter LanguageSettingsScreen
 - scrollUntilVisible:
     element:
-      text: "Language"
+      text: "Languages"
     direction: DOWN
     timeout: 10000
+- tapOn: "Languages"
+
+# 4. Open App Language picker and select Hebrew
+- extendedWaitUntil:
+    visible: "App language"
+    timeout: 10000
+- tapOn:
+    text: "Select app language"
     optional: true
-- takeScreenshot: "rtl-before-settings"
-# Navigate back and take screenshots of main screens in current locale
+- runFlow:
+    when:
+      notVisible: "עברית – Hebrew"
+    commands:
+      - tapOn: "App language"
+- extendedWaitUntil:
+    visible: "עברית – Hebrew"
+    timeout: 10000
+- tapOn: "עברית – Hebrew"
+
+# 5. Verify Hebrew UI and RTL on Settings
+- extendedWaitUntil:
+    visible: "שפת האפליקציה"
+    timeout: 15000
+- assertVisible:
+    text: "הגדרות"
+    optional: true
+- assertVisible:
+    text: "שפות תוכן"
+    optional: true
+- takeScreenshot: "hebrew-settings"
+
+# 6. Navigate to Home and capture Hebrew Home screen
 - tapOn:
     id: "bottomBarHomeBtn"
-- takeScreenshot: "rtl-home"
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: "hebrew-home"
+
+# 7. Navigate to Search and capture Hebrew Search screen
 - tapOn:
     id: "bottomBarSearchBtn"
-- takeScreenshot: "rtl-search"
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: "hebrew-search"
+
+# 8. Navigate to Profile and capture Hebrew Profile screen
 - tapOn:
     id: "bottomBarProfileBtn"
-- takeScreenshot: "rtl-profile"
-# Open composer and screenshot
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: "hebrew-profile"
+
+# 9. Open Composer and capture Hebrew Composer screen
 - tapOn:
     id: "composeFAB"
 - extendedWaitUntil:
-    visible: "Cancel"
+    visible: "ביטול"
     timeout: 10000
-- takeScreenshot: "rtl-composer"
+- takeScreenshot: "hebrew-composer"
+
+# Clean up composer
 - tapOn:
-    text: "Cancel"
+    text: "ביטול"
     optional: true
 - tapOn:
-    text: "Discard"
+    text: "התעלם"
     optional: true
