@@ -10,7 +10,6 @@ import {AppState, I18nManager, Platform} from 'react-native'
 
 import {getPreferredDeviceAppLanguage} from '#/locale/deviceLocales'
 import {isRtl} from '#/locale/helpers'
-import {dynamicActivate} from '#/locale/i18n'
 import {type AppLanguage} from '#/locale/languages'
 import * as persisted from '#/state/persisted'
 import {AnalyticsContext, utils} from '#/analytics'
@@ -56,7 +55,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
       const nextIsRTL = isRtl(nextLang)
       I18nManager.allowRTL(nextIsRTL)
       I18nManager.forceRTL(nextIsRTL)
-      void dynamicActivate(nextLang)
 
       const updated = {
         ...persistedPrefs,
@@ -76,7 +74,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
       const nextIsRTL = isRtl(nextLang)
       I18nManager.allowRTL(nextIsRTL)
       I18nManager.forceRTL(nextIsRTL)
-      void dynamicActivate(nextLang)
 
       const updated = {
         ...persistedPrefs,
@@ -114,7 +111,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
         const nextIsRTL = isRtl(nextLang)
         I18nManager.allowRTL(nextIsRTL)
         I18nManager.forceRTL(nextIsRTL)
-        void dynamicActivate(nextLang)
 
         return {
           ...current,
@@ -133,7 +129,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
         const nextIsRTL = isRtl(nextLang)
         I18nManager.allowRTL(nextIsRTL)
         I18nManager.forceRTL(nextIsRTL)
-        void dynamicActivate(nextLang)
 
         return {
           ...current,
