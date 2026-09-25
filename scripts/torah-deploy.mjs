@@ -63,6 +63,7 @@ if (sshKeyPath && fs.existsSync(sshKeyPath)) {
   console.log(`\n2. מתחבר ב-SSH לשרת האורקל (${oracleUser}@${oracleHost})...`)
   const remoteCommand = [
     'sudo git -C /opt/torah-social/social-app fetch origin ' + targetBranch,
+    'sudo git -C /opt/torah-social/social-app reset --hard FETCH_HEAD',
     'sudo git -C /opt/torah-social/social-app checkout -B ' + targetBranch + ' FETCH_HEAD',
     'sudo docker build ' +
       '--build-arg EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-' + oracleHost.replaceAll('.', '-') + '.nip.io ' +
@@ -72,8 +73,7 @@ if (sshKeyPath && fs.existsSync(sshKeyPath)) {
       '--build-arg EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true ' +
       '--build-arg EXPO_PUBLIC_ENV=production ' +
       '-t torah-social-web:latest /opt/torah-social/social-app',
-    'sudo docker stop torah-social-web || true',
-    'sudo docker rm torah-social-web || true',
+    'sudo docker rm -f torah-social-web || true',
     'sudo docker run -d ' +
       '--name torah-social-web ' +
       '--restart unless-stopped ' +
