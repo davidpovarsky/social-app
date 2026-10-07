@@ -17,7 +17,6 @@ on:
       - "Torah Social Foundation"
       - "Torah Social — Runtime Repair CI"
     types:
-      - requested
       - in_progress
       - completed
 
