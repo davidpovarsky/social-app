@@ -18,11 +18,29 @@ export type TorahBlockQuote = {
 
 export type TorahBlockItem = TorahBlockText | TorahBlockQuote
 
+/**
+ * A quote is prose; the tappable reference belongs in the separate external
+ * embed. Never paste a raw Sefaria URL into the post body automatically.
+ */
 export function formatTorahQuoteForInsertion(source: TorahSource): string {
-  const preview = source.preview ? `״${source.preview.trim()}״\n` : ''
-  const cleanUri = cleanSefariaUri(source.uri)
-  const ref = source.heRef || source.ref || 'מקור'
-  return `\n> ${preview}(📖 ${ref} · ${cleanUri})\n`
+  const excerpt = source.preview?.replace(/\s+/g, ' ').trim() ?? ''
+  const quote = excerpt.length > 140 ? `${excerpt.slice(0, 137)}…` : excerpt
+  const ref = source.heRef || source.ref || 'מקור תורני'
+  return quote ? `\n״${quote}״\n— ${ref}\n` : `\nמקור: ${ref}\n`
+}
+
+/** Prevent accidental repeated insertion from search and auto-detection. */
+export function isTorahQuoteAlreadyIncluded(
+  text: string,
+  source: TorahSource,
+): boolean {
+  const ref = source.heRef || source.ref
+  if (!text || !ref) return false
+  return (
+    text.includes(`— ${ref}`) ||
+    text.includes(`מקור: ${ref}`) ||
+    (Boolean(source.uri) && text.includes(cleanSefariaUri(source.uri)))
+  )
 }
 
 export function hasTorahQuoteBlock(text: string): boolean {

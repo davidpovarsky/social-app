@@ -39,7 +39,7 @@ constants = replaceRequired(
 )
 constants = replaceRequired(
   constants,
-  "export const PROD_DEFAULT_FEED = (rkey: string) =>\n  `at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/${rkey}`",
+  'export const PROD_DEFAULT_FEED = (rkey: string) =>\n  `at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/${rkey}`',
   `export const PROD_DEFAULT_FEED = (rkey: string) =>\n  \`at://${appviewDid}/app.bsky.feed.generator/\${rkey}\``,
   'PROD_DEFAULT_FEED',
 )
@@ -60,7 +60,7 @@ constants = replaceRequired(
 )
 constants = replaceRequired(
   constants,
-  "] = [DISCOVER_SAVED_FEED, TIMELINE_SAVED_FEED]",
+  '] = [DISCOVER_SAVED_FEED, TIMELINE_SAVED_FEED]',
   '] = [TIMELINE_SAVED_FEED]',
   'RECOMMENDED_SAVED_FEEDS',
 )
@@ -126,27 +126,48 @@ let composer = fs.readFileSync(composerPath, 'utf8').replace(/\r\n/g, '\n')
 if (!composer.includes('TorahComposerExtensions')) {
   composer = replaceRequired(
     composer,
-    "      <ComposerFooter\n        post={activePost}",
-    "      <TorahComposerExtensions\n        text={activePost.richtext.text}\n        hasExistingEmbed={Boolean(activePost.embed.link || activePost.embed.media)}\n        onSelectUri={uri =>\n          dispatch({type: 'embed_add_uri', uri: uri as UriString})\n        }\n      />\n      <ComposerFooter\n        post={activePost}",
-    'Torah detected-source suggestions',
+    '                {IS_WEBFooterSticky && post.id === activePost.id && (',
+    "                {post.id === activePost.id && (\n                  <TorahComposerExtensions\n                    text={post.richtext.text}\n                    hasExistingEmbed={Boolean(post.embed.link || post.embed.media)}\n                    onSelectUri={uri => dispatch({type: 'embed_add_uri', uri: uri as UriString})}\n                  />\n                )}\n                {IS_WEBFooterSticky && post.id === activePost.id && (",
+    'Torah detected-source suggestions inside the scroll area',
   )
 }
 
 if (!composer.includes('TorahComposerSourceButton')) {
   composer = replaceRequired(
     composer,
-    "              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              {IS_WEB && gtPhone ? (",
-    "              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              <TorahComposerSourceButton\n                disabled={!!media || !!post.embed.link}\n                onSelectUri={uri =>\n                  dispatch({type: 'embed_add_uri', uri: uri as UriString})\n                }\n              />\n              {IS_WEB && gtPhone ? (",
+    '              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              {IS_WEB && gtPhone ? (',
+    "              <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />\n              <TorahComposerSourceButton\n                text={post.richtext.text}\n                disabled={!!media || !!post.embed.link}\n                onSelectUri={uri =>\n                  dispatch({type: 'embed_add_uri', uri: uri as UriString})\n                }\n              />\n              {IS_WEB && gtPhone ? (",
     'Torah source toolbar button',
   )
 }
 
-if (!composer.includes('import {TorahComposerExtensions}') && !composer.includes('TorahComposerExtensions')) {
-  composer = replaceRequired(
-    composer,
-    "import {TextInput} from '#/view/com/composer/text-input/TextInput'",
-    "import {TorahComposerExtensions} from '#/torah-social/composer/TorahComposerExtensions'\nimport {TorahComposerSourceButton} from '#/torah-social/composer/TorahComposerSourceButton'\nimport {TextInput} from '#/view/com/composer/text-input/TextInput'",
-    'Torah composer imports',
+for (const [needle, importLine] of [
+  [
+    'import {TorahComposerExtensions}',
+    "import {TorahComposerExtensions} from '#/torah-social/composer/TorahComposerExtensions'",
+  ],
+  [
+    'import {TorahComposerSourceButton}',
+    "import {TorahComposerSourceButton} from '#/torah-social/composer/TorahComposerSourceButton'",
+  ],
+]) {
+  if (!composer.includes(needle)) {
+    composer = replaceRequired(
+      composer,
+      "import {TextInput} from '#/view/com/composer/text-input/TextInput'",
+      importLine +
+        "\nimport {TextInput} from '#/view/com/composer/text-input/TextInput'",
+      'Torah composer import ' + needle,
+    )
+  }
+}
+if (
+  !composer.includes(
+    '{post.id === activePost.id && (\n                  <TorahComposerExtensions',
+  )
+) {
+  throw new Error(
+    'Torah composer source suggestions must be inside the scrollable editor, not the fixed keyboard footer.',
   )
 }
 fs.writeFileSync(composerPath, composer)
@@ -163,8 +184,13 @@ const forbiddenServices = [
 
 for (const {target, label} of forbiddenServices) {
   const constantsContent = fs.readFileSync(constantsPath, 'utf8')
-  if (constantsContent.includes(`'${target}'`) || constantsContent.includes(`"${target}"`)) {
-    throw new Error(`Forbidden runtime service ${label} (${target}) still present in ${constantsPath}`)
+  if (
+    constantsContent.includes(`'${target}'`) ||
+    constantsContent.includes(`"${target}"`)
+  ) {
+    throw new Error(
+      `Forbidden runtime service ${label} (${target}) still present in ${constantsPath}`,
+    )
   }
 }
 
@@ -176,4 +202,6 @@ for (const file of [reactQueryPath]) {
 }
 
 console.log(`Torah client isolation applied: ${appviewHost} (${appviewDid})`)
-console.log('Torah composer hooks verified: Sefaria toolbar + detected references')
+console.log(
+  'Torah composer hooks verified: Sefaria toolbar + detected references',
+)

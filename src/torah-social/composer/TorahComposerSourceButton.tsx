@@ -12,9 +12,11 @@ import {useTorahSourceSelection} from './useTorahSourceSelection'
 export function TorahComposerSourceButton({
   disabled,
   onSelectUri,
+  text,
 }: {
   disabled?: boolean
   onSelectUri: (uri: string) => void
+  text: string
 }) {
   const picker = Dialog.useDialogControl()
   const selectSource = useTorahSourceSelection(onSelectUri)
@@ -32,7 +34,11 @@ export function TorahComposerSourceButton({
         <SourceIcon size="lg" />
         <ButtonText style={a.text_sm}>מקור</ButtonText>
       </Button>
-      <SourcePickerDialog control={picker} onSelect={selectSource} />
+      <SourcePickerDialog
+        control={picker}
+        onSelect={selectSource}
+        text={text}
+      />
     </>
   )
 }

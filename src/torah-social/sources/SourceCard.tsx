@@ -15,7 +15,7 @@ import {
   ChevronRight_Stroke2_Corner0_Rounded as ChevronRight,
 } from '#/components/icons/Chevron'
 import {Text} from '#/components/Typography'
-import {resolveTorahSource} from '../sefaria/api'
+import {formatHebrewRef, resolveTorahSource} from '../sefaria/api'
 import {type TorahSource} from '../sefaria/types'
 import {SourceReaderDialog} from './SourceReaderDialog'
 import {hasNoImageParam, refFromSefariaUri} from './url'
@@ -50,8 +50,14 @@ export function TorahSourceCard({
 
   if (!sourceRef) return null
 
-  const title = source?.heRef || fallbackTitle || sourceRef
-  const preview = source?.preview || fallbackDescription
+  const title = source
+    ? formatHebrewRef(source.ref, source.heRef)
+    : fallbackTitle || sourceRef
+  const preview =
+    source?.preview ||
+    (fallbackDescription === 'מקור תורני ב־Sefaria'
+      ? undefined
+      : fallbackDescription)
   const allowImage = !hasNoImageParam(uri)
   const showImage = Boolean(allowImage && source?.imageUrl && !imageError)
   const ChevronIcon = I18nManager.isRTL ? ChevronLeft : ChevronRight
@@ -90,8 +96,8 @@ export function TorahSourceCard({
                   a.border,
                   t.atoms.border_contrast_low,
                   {
-                    width: 76,
-                    height: 76,
+                    width: 64,
+                    height: 64,
                     backgroundColor: t.palette.contrast_50,
                   },
                 ]}>
@@ -108,7 +114,7 @@ export function TorahSourceCard({
 
             <View style={[a.flex_1, a.gap_2xs]}>
               <Text
-                numberOfLines={1}
+                numberOfLines={2}
                 style={[
                   a.text_md,
                   a.font_semi_bold,
@@ -119,7 +125,7 @@ export function TorahSourceCard({
 
               {preview ? (
                 <Text
-                  numberOfLines={2}
+                  numberOfLines={3}
                   style={[
                     a.text_sm,
                     a.leading_snug,
