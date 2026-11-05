@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {ActivityIndicator, Pressable, View} from 'react-native'
 
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
@@ -38,6 +38,7 @@ export function SourcePickerDialog({
   const [resolvedSource, setResolvedSource] = useState<TorahSource | null>(null)
   const [includeImage, setIncludeImage] = useState(true)
   const [error, setError] = useState<string>()
+  const actionPending = useRef(false)
 
   useEffect(() => {
     const value = query.trim()
@@ -85,31 +86,37 @@ export function SourcePickerDialog({
     }
   }
 
+  const resetAfterClose = () => {
+    actionPending.current = false
+    setQuery('')
+    setSuggestions([])
+    setResolvedSource(null)
+  }
+
   const handleAttachSource = () => {
-    if (!resolvedSource) return
+    if (!resolvedSource || actionPending.current) return
+    actionPending.current = true
     const targetUri = buildSefariaSourceUri(resolvedSource.uri, includeImage)
     onSelect(targetUri)
-    control.close(() => {
-      setQuery('')
-      setSuggestions([])
-      setResolvedSource(null)
-    })
+    control.close(resetAfterClose)
   }
 
   const handleInsertIntoText = () => {
-    if (!resolvedSource || isTorahQuoteAlreadyIncluded(text, resolvedSource)) {
+    if (
+      !resolvedSource ||
+      actionPending.current ||
+      isTorahQuoteAlreadyIncluded(text, resolvedSource)
+    ) {
       return
     }
+    actionPending.current = true
     const formatted = formatTorahQuoteForInsertion(resolvedSource)
     textInputWebEmitter.emit('insert-text', formatted)
-    control.close(() => {
-      setQuery('')
-      setSuggestions([])
-      setResolvedSource(null)
-    })
+    control.close(resetAfterClose)
   }
 
   const handleReset = () => {
+    actionPending.current = false
     setResolvedSource(null)
     setQuery('')
     setSuggestions([])

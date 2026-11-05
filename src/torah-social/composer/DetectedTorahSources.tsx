@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {Pressable, View} from 'react-native'
 
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
@@ -25,8 +25,11 @@ export function DetectedTorahSources({
   const t = useTheme()
   const [items, setItems] = useState<DetectedTorahSource[]>([])
   const [expanded, setExpanded] = useState(false)
+  const pendingInserts = useRef(new Set<string>())
 
   useEffect(() => {
+    // Text updates are the acknowledgement that an insertion was applied.
+    pendingInserts.current.clear()
     setExpanded(false)
     if (disabled || text.trim().length < 4) {
       setItems([])
@@ -71,9 +74,17 @@ export function DetectedTorahSources({
   if (!items.length) return null
 
   const handleInsert = (item: DetectedTorahSource) => {
-    if (isTorahQuoteAlreadyIncluded(text, item)) return
-    const formatted = formatTorahQuoteForInsertion(item)
-    textInputWebEmitter.emit('insert-text', formatted)
+    const key = item.ref.toLowerCase()
+    if (
+      pendingInserts.current.has(key) ||
+      isTorahQuoteAlreadyIncluded(text, item)
+    ) {
+      return
+    }
+    // An immediate second press must not enqueue a duplicate before React
+    // has committed the updated text and re-rendered the composer.
+    pendingInserts.current.add(key)
+    textInputWebEmitter.emit('insert-text', formatTorahQuoteForInsertion(item))
   }
 
   return (
