@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {ActivityIndicator, Pressable, View} from 'react-native'
 
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
@@ -9,17 +9,26 @@ import * as TextField from '#/components/forms/TextField'
 import {PageText_Stroke2_Corner0_Rounded as SourceIcon} from '#/components/icons/PageText'
 import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/Plus'
 import {Text} from '#/components/Typography'
-import {resolveTorahSource, searchTorahSources} from '../sefaria/api'
+import {
+  formatHebrewRef,
+  resolveTorahSource,
+  searchTorahSources,
+} from '../sefaria/api'
 import {type SefariaCompletion, type TorahSource} from '../sefaria/types'
-import {formatTorahQuoteForInsertion} from './quoteBlock'
+import {
+  formatTorahQuoteForInsertion,
+  isTorahQuoteAlreadyIncluded,
+} from './quoteBlock'
 import {buildSefariaSourceUri} from './url'
 
 export function SourcePickerDialog({
   control,
   onSelect,
+  text = '',
 }: {
   control: ReturnType<typeof Dialog.useDialogControl>
   onSelect: (uri: string) => void
+  text?: string
 }) {
   const t = useTheme()
   const [query, setQuery] = useState('')
@@ -29,6 +38,7 @@ export function SourcePickerDialog({
   const [resolvedSource, setResolvedSource] = useState<TorahSource | null>(null)
   const [includeImage, setIncludeImage] = useState(true)
   const [error, setError] = useState<string>()
+  const actionPending = useRef(false)
 
   useEffect(() => {
     const value = query.trim()
@@ -76,29 +86,37 @@ export function SourcePickerDialog({
     }
   }
 
+  const resetAfterClose = () => {
+    actionPending.current = false
+    setQuery('')
+    setSuggestions([])
+    setResolvedSource(null)
+  }
+
   const handleAttachSource = () => {
-    if (!resolvedSource) return
+    if (!resolvedSource || actionPending.current) return
+    actionPending.current = true
     const targetUri = buildSefariaSourceUri(resolvedSource.uri, includeImage)
     onSelect(targetUri)
-    control.close(() => {
-      setQuery('')
-      setSuggestions([])
-      setResolvedSource(null)
-    })
+    control.close(resetAfterClose)
   }
 
   const handleInsertIntoText = () => {
-    if (!resolvedSource) return
+    if (
+      !resolvedSource ||
+      actionPending.current ||
+      isTorahQuoteAlreadyIncluded(text, resolvedSource)
+    ) {
+      return
+    }
+    actionPending.current = true
     const formatted = formatTorahQuoteForInsertion(resolvedSource)
     textInputWebEmitter.emit('insert-text', formatted)
-    control.close(() => {
-      setQuery('')
-      setSuggestions([])
-      setResolvedSource(null)
-    })
+    control.close(resetAfterClose)
   }
 
   const handleReset = () => {
+    actionPending.current = false
     setResolvedSource(null)
     setQuery('')
     setSuggestions([])
@@ -110,10 +128,18 @@ export function SourcePickerDialog({
       <Dialog.Handle />
       <Dialog.ScrollableInner
         label="הוסף מקור תורני"
-        style={web({maxWidth: 600})}>
-        <View style={[a.gap_md, a.w_full]}>
+        style={[a.w_full, web({maxWidth: 600})]}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: 540,
+          minWidth: 0,
+          alignSelf: 'center',
+        }}>
+        <View style={[a.gap_md, {width: '100%', minWidth: 0, flexShrink: 1}]}>
           <View style={[a.flex_row, a.align_center, a.justify_between]}>
-            <Text style={[a.text_xl, a.font_semi_bold]}>הוסף מקור תורני</Text>
+            <Text style={[a.text_xl, a.font_semi_bold, {flexShrink: 1}]}>
+              הוסף מקור תורני
+            </Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="סגור"
@@ -141,7 +167,15 @@ export function SourcePickerDialog({
                   }}
                   onSubmitEditing={() => void resolveSourceItem(query)}
                   placeholder="לדוגמה: ברכות ב ע״א, בראשית א:א..."
-                  style={[{textAlign: 'right', writingDirection: 'rtl'}]}
+                  style={[
+                    {
+                      textAlign: 'right',
+                      writingDirection: 'rtl',
+                      width: '100%',
+                      minWidth: 0,
+                      flexShrink: 1,
+                    },
+                  ]}
                 />
               </TextField.Root>
 
@@ -286,7 +320,7 @@ export function SourcePickerDialog({
                       a.font_semi_bold,
                       {textAlign: 'right', writingDirection: 'rtl'},
                     ]}>
-                    {resolvedSource.heRef || resolvedSource.ref}
+                    {formatHebrewRef(resolvedSource.ref, resolvedSource.heRef)}
                   </Text>
                 </View>
                 {resolvedSource.preview ? (
@@ -375,6 +409,7 @@ export function SourcePickerDialog({
 
                 <Button
                   label="הכנס ציטוט לתוך הטקסט (איפה שהסמן)"
+                  disabled={isTorahQuoteAlreadyIncluded(text, resolvedSource)}
                   onPress={handleInsertIntoText}
                   variant="outline"
                   color="primary"

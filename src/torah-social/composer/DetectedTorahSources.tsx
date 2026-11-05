@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {Pressable, View} from 'react-native'
 
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
@@ -6,7 +6,10 @@ import {atoms as a, useTheme} from '#/alf'
 import {Text} from '#/components/Typography'
 import {detectTorahSources} from '../sefaria/linker'
 import {type DetectedTorahSource} from '../sefaria/types'
-import {formatTorahQuoteForInsertion} from '../sources/quoteBlock'
+import {
+  formatTorahQuoteForInsertion,
+  isTorahQuoteAlreadyIncluded,
+} from '../sources/quoteBlock'
 
 export function DetectedTorahSources({
   text,
@@ -21,8 +24,13 @@ export function DetectedTorahSources({
 }) {
   const t = useTheme()
   const [items, setItems] = useState<DetectedTorahSource[]>([])
+  const [expanded, setExpanded] = useState(false)
+  const pendingInserts = useRef(new Set<string>())
 
   useEffect(() => {
+    // Text updates are the acknowledgement that an insertion was applied.
+    pendingInserts.current.clear()
+    setExpanded(false)
     if (disabled || text.trim().length < 4) {
       setItems([])
       return
@@ -32,7 +40,19 @@ export function DetectedTorahSources({
     const timer = setTimeout(() => {
       void detectTorahSources(text, abort.signal)
         .then(results => {
-          if (!abort.signal.aborted) setItems(results.slice(0, 3))
+          if (!abort.signal.aborted) {
+            const seen = new Set<string>()
+            setItems(
+              results
+                .filter(item => {
+                  const ref = item.ref.trim().toLowerCase()
+                  if (seen.has(ref)) return false
+                  seen.add(ref)
+                  return true
+                })
+                .slice(0, 3),
+            )
+          }
         })
         .catch(err => {
           if (!abort.signal.aborted) {
@@ -54,13 +74,22 @@ export function DetectedTorahSources({
   if (!items.length) return null
 
   const handleInsert = (item: DetectedTorahSource) => {
-    const formatted = formatTorahQuoteForInsertion(item)
-    textInputWebEmitter.emit('insert-text', formatted)
+    const key = item.ref.toLowerCase()
+    if (
+      pendingInserts.current.has(key) ||
+      isTorahQuoteAlreadyIncluded(text, item)
+    ) {
+      return
+    }
+    // An immediate second press must not enqueue a duplicate before React
+    // has committed the updated text and re-rendered the composer.
+    pendingInserts.current.add(key)
+    textInputWebEmitter.emit('insert-text', formatTorahQuoteForInsertion(item))
   }
 
   return (
     <View style={[a.mt_sm, a.gap_xs]}>
-      {items.map((item, index) => (
+      {(expanded ? items : items.slice(0, 1)).map((item, index) => (
         <View
           key={`${item.ref}-${item.startChar}-${index}`}
           style={[
@@ -127,6 +156,7 @@ export function DetectedTorahSources({
                   accessibilityRole="button"
                   accessibilityLabel={`הוסף ציטוט של ${item.heRef} לטקסט`}
                   accessibilityHint="מוסיף ציטוט לתוך גוף ההודעה"
+                  disabled={isTorahQuoteAlreadyIncluded(text, item)}
                   onPress={() => handleInsert(item)}
                   style={({pressed}) => [
                     a.px_sm,
@@ -217,6 +247,21 @@ export function DetectedTorahSources({
           ) : null}
         </View>
       ))}
+      {items.length > 1 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            expanded ? 'הסתר מקורות נוספים' : 'הצג מקורות נוספים'
+          }
+          onPress={() => setExpanded(value => !value)}
+          style={[a.py_xs, a.align_center]}>
+          <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>
+            {expanded
+              ? 'הסתר מקורות נוספים'
+              : 'עוד ' + (items.length - 1) + ' מקורות שזוהו'}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   )
 }

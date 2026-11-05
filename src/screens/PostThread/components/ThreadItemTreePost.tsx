@@ -47,6 +47,7 @@ import * as Skele from '#/components/Skeleton'
 import {SubtleHover} from '#/components/SubtleHover'
 import {Text} from '#/components/Typography'
 import {type app} from '#/lexicons'
+import {isSefariaEmbed} from '#/torah-social/sources/url'
 
 /**
  * Mimic the space in PostMeta
@@ -357,6 +358,16 @@ const ThreadItemTreePostInner = memo(function ThreadItemTreePostInner({
                     style={[a.pb_2xs]}
                     additionalCauses={additionalPostAlerts}
                   />
+                  {post.embed && isSefariaEmbed(post.embed) && (
+                    <View style={[a.pb_xs]}>
+                      <Embed
+                        embed={post.embed}
+                        moderation={moderation}
+                        viewContext={PostEmbedViewContext.Feed}
+                        post={post}
+                      />
+                    </View>
+                  )}
                   {richText?.text ? (
                     <View style={[a.mb_2xs]}>
                       <RichText
@@ -393,7 +404,7 @@ const ThreadItemTreePostInner = memo(function ThreadItemTreePostInner({
                     />
                   )}
                   <TranslatedPost hideTranslateLink post={post} />
-                  {post.embed && (
+                  {post.embed && !isSefariaEmbed(post.embed) && (
                     <View style={[a.pb_xs]}>
                       <Embed
                         embed={post.embed}

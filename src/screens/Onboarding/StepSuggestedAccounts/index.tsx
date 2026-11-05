@@ -29,6 +29,7 @@ import {ArrowRotateCounterClockwise_Stroke2_Corner0_Rounded as ArrowRotateCounte
 import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/Plus'
 import {boostInterests, InterestTabs} from '#/components/InterestTabs'
 import {Loader} from '#/components/Loader'
+import {Text} from '#/components/Typography'
 import * as ProfileCard from '#/components/ProfileCard'
 import * as toast from '#/components/Toast'
 import {useAnalytics} from '#/analytics'
@@ -40,6 +41,8 @@ export function StepSuggestedAccounts() {
   const {_} = useLingui()
   const ax = useAnalytics()
   const t = useTheme()
+  const isTorahNetwork =
+    process.env.EXPO_PUBLIC_TORAH_ISOLATED_NETWORK === 'true'
   const {gtMobile} = useBreakpoints()
   const moderationOpts = useModerationOpts()
   const appviewClient = useAppviewClient()
@@ -81,7 +84,9 @@ export function StepSuggestedAccounts() {
 
   const isError = !!error
   const isEmpty =
-    !isLoading && suggestedUsers && suggestedUsers.actors.length === 0
+    !isLoading &&
+    suggestedUsers &&
+    suggestedUsers.actors.every(user => user.did === currentAccount?.did)
 
   const followableDids =
     suggestedUsers?.actors
@@ -183,9 +188,13 @@ export function StepSuggestedAccounts() {
     <View style={[a.align_start, a.gap_sm]} testID="onboardingInterests">
       <OnboardingPosition />
       <OnboardingTitleText>
-        <Trans comment="Accounts suggested to the user for them to follow">
-          Suggested for you
-        </Trans>
+        {isTorahNetwork ? (
+          'אנשים ברשת התורנית'
+        ) : (
+          <Trans comment="Accounts suggested to the user for them to follow">
+            Suggested for you
+          </Trans>
+        )}
       </OnboardingTitleText>
 
       <View
@@ -198,17 +207,19 @@ export function StepSuggestedAccounts() {
           a.flex_1,
           a.justify_start,
         ]}>
-        <TabBar
-          selectedInterest={selectedInterest}
-          onSelectInterest={setSelectedInterest}
-          defaultTabLabel={_(
-            msg({
-              message: 'All',
-              comment: 'the default tab in the interests tab bar',
-            }),
-          )}
-          selectedInterests={state.interestsStepResults.selectedInterests}
-        />
+        {!isTorahNetwork ? (
+          <TabBar
+            selectedInterest={selectedInterest}
+            onSelectInterest={setSelectedInterest}
+            defaultTabLabel={_(
+              msg({
+                message: 'All',
+                comment: 'the default tab in the interests tab bar',
+              }),
+            )}
+            selectedInterests={state.interestsStepResults.selectedInterests}
+          />
+        ) : null}
 
         {isLoading || !moderationOpts ? (
           <View
@@ -221,21 +232,34 @@ export function StepSuggestedAccounts() {
             ]}>
             <Loader size="xl" />
           </View>
-        ) : isError ? (
+        ) : isError || isEmpty ? (
           <View style={[a.flex_1, a.px_xl, a.pt_2xl]}>
-            <Admonition type="error">
-              <Trans>
-                An error occurred while fetching suggested accounts.
-              </Trans>
-            </Admonition>
-          </View>
-        ) : isEmpty ? (
-          <View style={[a.flex_1, a.px_xl, a.pt_2xl]}>
-            <Admonition type="apology">
-              <Trans>
-                Sorry, we're unable to load account suggestions at this time.
-              </Trans>
-            </Admonition>
+            {isTorahNetwork ? (
+              <View style={[a.p_md, a.rounded_md, t.atoms.bg_contrast_25]}>
+                <Text
+                  style={[
+                    a.text_md,
+                    {textAlign: 'right', writingDirection: 'rtl'},
+                  ]}>
+                  {isError
+                    ? 'לא ניתן לטעון המלצות כרגע. אפשר להמשיך ולהכיר משתמשים בהמשך.'
+                    : 'הרשת עדיין בתחילת דרכה. בהמשך יופיעו כאן משתמשים נוספים.'}
+                </Text>
+              </View>
+            ) : (
+              <Admonition type={isError ? 'error' : 'apology'}>
+                {isError ? (
+                  <Trans>
+                    An error occurred while fetching suggested accounts.
+                  </Trans>
+                ) : (
+                  <Trans>
+                    Sorry, we're unable to load account suggestions at this
+                    time.
+                  </Trans>
+                )}
+              </Admonition>
+            )}
           </View>
         ) : (
           <View
@@ -246,24 +270,26 @@ export function StepSuggestedAccounts() {
               t.atoms.border_contrast_low,
               IS_WEB && [a.border_x, a.rounded_sm, a.overflow_hidden],
             ]}>
-            {suggestedUsers?.actors.map((user, index) => (
-              <SuggestedProfileCard
-                key={user.did}
-                profile={user}
-                moderationOpts={moderationOpts}
-                position={index}
-                category={selectedInterest}
-                onSeen={onProfileSeen}
-                recSource={!useFullExperience ? 'Search' : undefined}
-                recId={suggestedUsers.recId}
-              />
-            ))}
+            {suggestedUsers?.actors
+              .filter(user => user.did !== currentAccount?.did)
+              .map((user, index) => (
+                <SuggestedProfileCard
+                  key={user.did}
+                  profile={user}
+                  moderationOpts={moderationOpts}
+                  position={index}
+                  category={selectedInterest}
+                  onSeen={onProfileSeen}
+                  recSource={!useFullExperience ? 'Search' : undefined}
+                  recId={suggestedUsers.recId}
+                />
+              ))}
           </View>
         )}
       </View>
 
       <OnboardingControls.Portal>
-        {isError ? (
+        {isError && !isTorahNetwork ? (
           <View style={[a.gap_md, gtMobile ? a.flex_row : a.flex_col]}>
             <Button
               disabled={isRefetching}
@@ -288,17 +314,19 @@ export function StepSuggestedAccounts() {
           </View>
         ) : (
           <View style={[a.gap_md, gtMobile ? a.flex_row : a.flex_col]}>
-            <Button
-              disabled={!canFollowAll}
-              color="secondary"
-              size="large"
-              label={_(msg`Follow all accounts`)}
-              onPress={() => followAll()}>
-              <ButtonText>
-                <Trans>Follow all</Trans>
-              </ButtonText>
-              <ButtonIcon icon={isFollowingAll ? Loader : PlusIcon} />
-            </Button>
+            {!isError && !isEmpty ? (
+              <Button
+                disabled={!canFollowAll}
+                color="secondary"
+                size="large"
+                label={_(msg`Follow all accounts`)}
+                onPress={() => followAll()}>
+                <ButtonText>
+                  <Trans>Follow all</Trans>
+                </ButtonText>
+                <ButtonIcon icon={isFollowingAll ? Loader : PlusIcon} />
+              </Button>
+            ) : null}
             <Button
               disabled={isFollowingAll}
               color="primary"

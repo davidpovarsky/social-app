@@ -1,6 +1,9 @@
 import {useMemo} from 'react'
+import {useQuery} from '@tanstack/react-query'
 
 import {useInterestsDisplayNames} from '#/lib/interests'
+import {useAppviewClient} from '#/state/session'
+import {app} from '#/lexicons'
 import {useActorSearch} from '#/state/queries/actor-search'
 import {useGetSuggestedOnboardingUsersQuery} from '#/state/queries/trending/useGetSuggestedOnboardingUsersQuery'
 
@@ -26,19 +29,48 @@ export function useSuggestedOnboardingUsers({
   overrideInterests: string[]
 }) {
   const interestsDisplayNames = useInterestsDisplayNames()
+  const client = useAppviewClient()
+  const isTorahNetwork =
+    process.env.EXPO_PUBLIC_TORAH_ISOLATED_NETWORK === 'true'
+  // Our AppView implements getSuggestions. The Bluesky-specific
+  // getSuggestedOnboardingUsers endpoint returns HTTP 501 in this network.
+  const local = useQuery({
+    queryKey: ['torah-social', 'onboarding', 'local-suggestions'],
+    enabled: isTorahNetwork,
+    staleTime: 60_000,
+    retry: 1,
+    queryFn: async () => {
+      const data = await client.call(app.bsky.actor.getSuggestions, {
+        limit: 50,
+      })
+      return {
+        actors: data.actors.filter(actor => !/^e2e-/i.test(actor.handle)),
+        recId: undefined,
+      }
+    },
+  })
   const curated = useGetSuggestedOnboardingUsersQuery({
-    enabled: !search,
+    enabled: !isTorahNetwork && !search,
     category,
     overrideInterests,
   })
   const searched = useActorSearch({
-    enabled: !!search,
+    enabled: !isTorahNetwork && !!search,
     // use user's app language translation for this value
     query: category ? interestsDisplayNames[category] : '',
     limit: 10,
   })
 
   return useMemo(() => {
+    if (isTorahNetwork) {
+      return {
+        data: local.data,
+        isLoading: local.isLoading,
+        error: local.error,
+        isRefetching: local.isRefetching,
+        refetch: local.refetch,
+      }
+    }
     if (search) {
       return {
         // we're not paginating right now
@@ -62,5 +94,5 @@ export function useSuggestedOnboardingUsers({
         refetch: curated.refetch,
       }
     }
-  }, [curated, searched, search])
+  }, [curated, searched, search, isTorahNetwork, local])
 }
