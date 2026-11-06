@@ -15,8 +15,10 @@ import {
   ChevronRight_Stroke2_Corner0_Rounded as ChevronRight,
 } from '#/components/icons/Chevron'
 import {Text} from '#/components/Typography'
+import {type app} from '#/lexicons'
 import {resolveTorahSource} from '../sefaria/api'
 import {type TorahSource} from '../sefaria/types'
+import {formatCanonicalHebrewRef} from '../util/bidi'
 import {SourceReaderDialog} from './SourceReaderDialog'
 import {hasNoImageParam, refFromSefariaUri} from './url'
 
@@ -24,12 +26,14 @@ export function TorahSourceCard({
   uri,
   fallbackTitle,
   fallbackDescription,
+  post,
   style,
   onOpen,
 }: {
   uri: string
   fallbackTitle?: string
   fallbackDescription?: string
+  post?: app.bsky.feed.defs.PostView
   style?: StyleProp<ViewStyle>
   onOpen?: () => void
 }) {
@@ -50,8 +54,14 @@ export function TorahSourceCard({
 
   if (!sourceRef) return null
 
-  const title = source?.heRef || fallbackTitle || sourceRef
-  const preview = source?.preview || fallbackDescription
+  const title = source
+    ? formatCanonicalHebrewRef(source.ref, source.heRef)
+    : fallbackTitle || sourceRef
+  const preview =
+    source?.preview ||
+    (fallbackDescription === 'מקור תורני ב־Sefaria'
+      ? undefined
+      : fallbackDescription)
   const allowImage = !hasNoImageParam(uri)
   const showImage = Boolean(allowImage && source?.imageUrl && !imageError)
   const ChevronIcon = I18nManager.isRTL ? ChevronLeft : ChevronRight
@@ -74,8 +84,14 @@ export function TorahSourceCard({
           t.atoms.border_contrast_low,
           {
             backgroundColor: t.name === 'dark' ? '#181714' : '#faf9f6',
-            borderRightWidth: 3,
-            borderRightColor: t.palette.primary_500,
+            borderRightWidth: I18nManager.isRTL ? 3 : 1,
+            borderLeftWidth: I18nManager.isRTL ? 1 : 3,
+            borderRightColor: I18nManager.isRTL
+              ? t.palette.primary_500
+              : t.atoms.border_contrast_low.borderColor,
+            borderLeftColor: I18nManager.isRTL
+              ? t.atoms.border_contrast_low.borderColor
+              : t.palette.primary_500,
             opacity: pressed ? 0.75 : 1,
           },
           style,
@@ -90,8 +106,8 @@ export function TorahSourceCard({
                   a.border,
                   t.atoms.border_contrast_low,
                   {
-                    width: 76,
-                    height: 76,
+                    width: 64,
+                    height: 64,
                     backgroundColor: t.palette.contrast_50,
                   },
                 ]}>
@@ -108,7 +124,7 @@ export function TorahSourceCard({
 
             <View style={[a.flex_1, a.gap_2xs]}>
               <Text
-                numberOfLines={1}
+                numberOfLines={2}
                 style={[
                   a.text_md,
                   a.font_semi_bold,
@@ -119,7 +135,7 @@ export function TorahSourceCard({
 
               {preview ? (
                 <Text
-                  numberOfLines={2}
+                  numberOfLines={3}
                   style={[
                     a.text_sm,
                     a.leading_snug,
@@ -161,7 +177,7 @@ export function TorahSourceCard({
           </View>
         </View>
       </Pressable>
-      <SourceReaderDialog control={reader} sourceRef={sourceRef} />
+      <SourceReaderDialog control={reader} sourceRef={sourceRef} post={post} />
     </>
   )
 }

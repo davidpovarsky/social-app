@@ -46,15 +46,31 @@ export function TabBar({
   const styles = gtMobile ? desktopStyles : mobileStyles
 
   useEffect(() => {
-    // On the web, the primary interaction is tapping.
-    // Scrolling under tap feels disorienting so only adjust the scroll offset
-    // when tapping on an item out of view--and we adjust by almost an entire page.
+    const child = itemRefs.current[selectedPage]
+    if (!child) {
+      return
+    }
+
+    // Modern browsers support scrollIntoView with inline options, which handles RTL natively and avoids manual coordinate math.
+    if (typeof child.scrollIntoView === 'function') {
+      try {
+        child.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'nearest',
+          block: 'nearest',
+        })
+        return
+      } catch {
+        // Fall back to manual calculation if browser rejects scrollIntoView options
+      }
+    }
+
     const parent = scrollElRef.current?.getScrollableNode?.() as unknown as
       HTMLElement | undefined
     if (!parent) {
       return
     }
-    const parentRect = parent.getBoundingClientRect()
+    const parentRect = parent.getBoundingClientRect?.()
     if (!parentRect) {
       return
     }
@@ -63,10 +79,6 @@ export function TabBar({
       right: parentRight,
       width: parentWidth,
     } = parentRect
-    const child = itemRefs.current[selectedPage]
-    if (!child) {
-      return
-    }
     const childRect = child.getBoundingClientRect?.()
     if (!childRect) {
       return
@@ -119,7 +131,7 @@ export function TabBar({
               testID={`${testID}-selector-${i}`}
               key={`${item}-${i}`}
               ref={node => {
-                itemRefs.current[i] = node as any
+                itemRefs.current[i] = node as unknown as Element
               }}
               style={[styles.item, align === 'left' && leftAlignedStyles.item]}
               hoverStyle={t.atoms.bg_contrast_25}

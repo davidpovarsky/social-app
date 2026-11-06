@@ -1,5 +1,5 @@
-import type {TorahSource} from '../sefaria/types'
-import {cleanSefariaUri} from './url'
+import {type TorahSource} from '../sefaria/types'
+import {cleanSefariaUri, normalizeSefariaRef} from './url'
 
 export const TORAH_QUOTE_REGEX =
   /(?:^|\n)>\s*(?:״([^״\n]+)״|"([^"\n]+)"|([^\n(]+))?\s*(?:\n|\s)*\(?(?:📖\s*)?([^·\n)]+)?(?:\s*·\s*)?(https?:\/\/(?:www\.)?sefaria\.org\/[^\s)]+)\)?/g
@@ -18,11 +18,61 @@ export type TorahBlockQuote = {
 
 export type TorahBlockItem = TorahBlockText | TorahBlockQuote
 
+/**
+ * A quote is prose; the tappable reference belongs in the separate external
+ * embed. Never paste a raw Sefaria URL into the post body automatically.
+ */
 export function formatTorahQuoteForInsertion(source: TorahSource): string {
-  const preview = source.preview ? `״${source.preview.trim()}״\n` : ''
-  const cleanUri = cleanSefariaUri(source.uri)
-  const ref = source.heRef || source.ref || 'מקור'
-  return `\n> ${preview}(📖 ${ref} · ${cleanUri})\n`
+  const excerpt = source.preview?.replace(/\s+/g, ' ').trim() ?? ''
+  const quote = excerpt.length > 140 ? `${excerpt.slice(0, 137)}…` : excerpt
+  const ref = source.heRef || source.ref || 'מקור תורני'
+  return quote ? `\n״${quote}״\n— ${ref}\n` : `\nמקור: ${ref}\n`
+}
+
+/**
+ * Prevent accidental repeated insertion from search, autocomplete, and auto-detection.
+ * Checks heRef, normalized English ref, clean URI, and URL pathname.
+ */
+export function isTorahQuoteAlreadyIncluded(
+  text: string,
+  source: TorahSource | {ref: string; heRef?: string; uri?: string},
+): boolean {
+  if (!text || !source) return false
+
+  const heRef = source.heRef?.trim()
+  if (
+    heRef &&
+    (text.includes(`— ${heRef}`) || text.includes(`מקור: ${heRef}`))
+  ) {
+    return true
+  }
+
+  const rawRef = source.ref?.trim()
+  if (rawRef) {
+    if (text.includes(`— ${rawRef}`) || text.includes(`מקור: ${rawRef}`)) {
+      return true
+    }
+    const norm = normalizeSefariaRef(rawRef)
+    if (
+      norm &&
+      text.toLowerCase().includes(norm) &&
+      (text.includes('—') || text.includes('מקור:'))
+    ) {
+      return true
+    }
+  }
+
+  if (source.uri) {
+    const clean = cleanSefariaUri(source.uri)
+    if (clean && text.includes(clean)) return true
+    try {
+      const url = new URL(clean)
+      const pathOnly = url.pathname.replace(/^\/+|\/+$/g, '')
+      if (pathOnly && text.includes(pathOnly)) return true
+    } catch {}
+  }
+
+  return false
 }
 
 export function hasTorahQuoteBlock(text: string): boolean {

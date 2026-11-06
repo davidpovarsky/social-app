@@ -14,7 +14,9 @@ The first Sefaria vertical slice keeps the permanent upstream diff deliberately 
 Composer integration is applied by `scripts/torah-isolate-client.mjs` during every isolated Torah build instead of being maintained as a permanent edit to the large upstream `Composer.tsx` file. The script injects two small hooks at checked anchors:
 
 - `TorahComposerSourceButton` in the media toolbar, immediately after GIF and before the web emoji picker
-- `TorahComposerExtensions` directly above the toolbar for automatic Sefaria reference suggestions
+- `TorahComposerExtensions` inside the scrollable post editor (not in the fixed keyboard footer) for automatic Sefaria reference suggestions
+
+The editor shows a compact removable source chip while drafting, and the full source card above published post text. The quote-to-text action inserts only readable Hebrew prose, never a duplicate raw URL.
 
 The patch uses required anchors and intentionally fails the build if an upstream merge moves either location. That makes upstream changes visible immediately instead of silently dropping Torah controls.
 

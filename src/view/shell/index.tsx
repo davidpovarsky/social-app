@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState} from 'react'
-import {BackHandler, useWindowDimensions, View} from 'react-native'
+import {BackHandler, I18nManager, useWindowDimensions, View} from 'react-native'
 import {Drawer} from 'react-native-drawer-layout'
 import {SystemBars} from 'react-native-edge-to-edge'
 import {Gesture} from 'react-native-gesture-handler'
@@ -134,6 +134,7 @@ function ShellInner() {
 
 function DrawerLayout({children}: {children: React.ReactNode}) {
   const t = useTheme()
+  const isRTL = I18nManager.isRTL
   const isDrawerOpen = useIsDrawerOpen()
   const setIsDrawerOpen = useSetDrawerOpen()
   const isDrawerSwipeDisabled = useIsDrawerSwipeDisabled()
@@ -158,6 +159,8 @@ function DrawerLayout({children}: {children: React.ReactNode}) {
   return (
     <Drawer
       renderDrawerContent={renderDrawerContent}
+      drawerPosition={isRTL ? 'right' : 'left'}
+      direction={isRTL ? 'rtl' : 'ltr'}
       drawerStyle={{width: Math.min(400, winDim.width * 0.8)}}
       configureGestureHandler={handler => {
         handler = handler.requireExternalGestureToFail(trendingScrollGesture)
@@ -166,22 +169,21 @@ function DrawerLayout({children}: {children: React.ReactNode}) {
           if (isDrawerOpen) {
             return handler.activeOffsetX([-1, 1])
           } else {
-            return (
-              handler
-                // Any movement to the left is a pager swipe
-                // so fail the drawer gesture immediately.
-                .failOffsetX(-1)
-                // Don't rush declaring that a movement to the right
-                // is a drawer swipe. It could be a vertical scroll, or a
-                // slow horizontal carousel swipe. On Android a child
-                // `blocksExternalGesture` only holds the drawer off once the
-                // native scroll has activated, which on a slow swipe doesn't
-                // happen until movement crosses the native touch slop
-                // (~8-16px). Activating the drawer below that lets a slow
-                // carousel swipe pop the drawer open (APP-2119), so require
-                // more travel before claiming on Android.
-                .activeOffsetX(IS_ANDROID ? 20 : 5)
-            )
+            return isRTL
+              ? handler
+                  // In RTL (drawer on right):
+                  // Any movement to the right (positive X) is a pager swipe away from the edge,
+                  // so fail the drawer gesture immediately.
+                  .failOffsetX(1)
+                  // Movement to the left (negative X) pulls the drawer open from the right edge.
+                  .activeOffsetX(IS_ANDROID ? -20 : -5)
+              : handler
+                  // In LTR (drawer on left):
+                  // Any movement to the left is a pager swipe
+                  // so fail the drawer gesture immediately.
+                  .failOffsetX(-1)
+                  // Movement to the right (positive X) pulls the drawer open from the left edge.
+                  .activeOffsetX(IS_ANDROID ? 20 : 5)
           }
         } else {
           // Fail the gesture immediately.

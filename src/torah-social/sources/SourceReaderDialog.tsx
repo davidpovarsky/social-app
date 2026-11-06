@@ -19,6 +19,7 @@ import {SquareArrowTopRight_Stroke2_Corner0_Rounded as ExternalLinkIcon} from '#
 import * as Menu from '#/components/Menu'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
+import {type app} from '#/lexicons'
 import {getManuscripts, getText, resolveTorahSource} from '../sefaria/api'
 import {
   type SefariaManuscript,
@@ -26,6 +27,8 @@ import {
   type SefariaVersion,
   type TorahSource,
 } from '../sefaria/types'
+import {formatCanonicalHebrewRef} from '../util/bidi'
+import {DockedPostPanel, PEEK_HEIGHT} from './DockedPostPanel'
 
 function flattenText(value: unknown): string[] {
   if (typeof value === 'string') {
@@ -60,9 +63,11 @@ function pickVersion(
 export function SourceReaderDialog({
   control,
   sourceRef,
+  post,
 }: {
   control: ReturnType<typeof Dialog.useDialogControl>
   sourceRef: string
+  post?: app.bsky.feed.defs.PostView
 }) {
   const t = useTheme()
   const [source, setSource] = useState<TorahSource>()
@@ -77,23 +82,33 @@ export function SourceReaderDialog({
   useEffect(() => {
     const abort = new AbortController()
 
-    void Promise.all([
+    // 1. Primary content: core metadata and text
+    Promise.all([
       resolveTorahSource(sourceRef, abort.signal),
       getText(sourceRef, abort.signal),
-      getManuscripts(sourceRef, abort.signal),
     ])
-      .then(([nextSource, nextText, nextManuscripts]) => {
+      .then(([nextSource, nextText]) => {
         if (abort.signal.aborted) return
         setError(undefined)
         setViewMode('text')
         setSource(nextSource)
         setText(nextText)
-        setManuscripts(nextManuscripts)
       })
       .catch(err => {
         if (abort.signal.aborted) return
         setError(err instanceof Error ? err.message : 'לא ניתן לטעון את המקור')
       })
+
+    // 2. Supplementary content: manuscripts (non-fatal, independent)
+    getManuscripts(sourceRef, abort.signal)
+      .then(nextManuscripts => {
+        if (abort.signal.aborted) return
+        setManuscripts(nextManuscripts || [])
+      })
+      .catch(() => {
+        // Non-fatal supplementary failure
+      })
+
     return () => abort.abort()
   }, [sourceRef])
 
@@ -111,7 +126,7 @@ export function SourceReaderDialog({
   )
 
   const currentLines = viewLanguage === 'he' ? hebrewLines : englishLines
-  const title = source?.heRef || sourceRef
+  const title = formatCanonicalHebrewRef(sourceRef, source?.heRef)
 
   const handleCopy = async () => {
     const linesToCopy = hebrewLines.length ? hebrewLines : englishLines
@@ -357,7 +372,11 @@ export function SourceReaderDialog({
 
           {/* Reader Body */}
           <ScrollView
-            contentContainerStyle={[a.p_lg, a.gap_md, {paddingBottom: 40}]}>
+            contentContainerStyle={[
+              a.p_lg,
+              a.gap_md,
+              {paddingBottom: post ? PEEK_HEIGHT + 36 : 40},
+            ]}>
             {!source && !error ? (
               <View style={[a.py_xl, a.align_center]}>
                 <ActivityIndicator />
@@ -528,6 +547,7 @@ export function SourceReaderDialog({
           </ScrollView>
         </View>
       </Dialog.ScrollableInner>
+      {post ? <DockedPostPanel post={post} /> : null}
     </Dialog.Outer>
   )
 }

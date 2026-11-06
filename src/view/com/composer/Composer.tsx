@@ -1398,15 +1398,6 @@ export const ComposePost = ({
         dispatch={composerDispatch}
         bottomBarAnimatedStyle={bottomBarAnimatedStyle}
       />
-      <TorahComposerExtensions
-        text={activePost.richtext.text}
-        hasExistingEmbed={Boolean(
-          activePost.embed.link || activePost.embed.media,
-        )}
-        onSelectUri={uri =>
-          dispatch({type: 'embed_add_uri', uri: uri as UriString})
-        }
-      />
       <ComposerFooter
         post={activePost}
         dispatch={dispatch}
@@ -1511,6 +1502,17 @@ export const ComposePost = ({
                   onPublish={onComposerPostPublish}
                   onError={setError}
                 />
+                {post.id === activePost.id && (
+                  <TorahComposerExtensions
+                    text={post.richtext.text}
+                    hasExistingEmbed={Boolean(
+                      post.embed.link || post.embed.media,
+                    )}
+                    onSelectUri={uri =>
+                      dispatch({type: 'embed_add_uri', uri: uri as UriString})
+                    }
+                  />
+                )}
                 {IS_WEBFooterSticky && post.id === activePost.id && (
                   <View style={styles.stickyFooterWeb}>{footer}</View>
                 )}
@@ -2286,6 +2288,7 @@ function ComposerFooter({
               />
               <SelectGifBtn onSelectGif={onSelectGif} disabled={!!media} />
               <TorahComposerSourceButton
+                text={post.richtext.text}
                 disabled={Boolean(media || post.embed.link)}
                 onSelectUri={uri =>
                   dispatch({type: 'embed_add_uri', uri: uri as UriString})
