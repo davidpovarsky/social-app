@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react'
-import {Pressable, View} from 'react-native'
+import {I18nManager, Pressable, View} from 'react-native'
 
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useTheme} from '#/alf'
@@ -10,6 +10,7 @@ import {
   formatTorahQuoteForInsertion,
   isTorahQuoteAlreadyIncluded,
 } from '../sources/quoteBlock'
+import {formatCanonicalHebrewRef} from '../util/bidi'
 
 export function DetectedTorahSources({
   text,
@@ -23,6 +24,7 @@ export function DetectedTorahSources({
   onSelectUri: (uri: string) => void
 }) {
   const t = useTheme()
+  const isRTL = I18nManager.isRTL
   const [items, setItems] = useState<DetectedTorahSource[]>([])
   const [expanded, setExpanded] = useState(false)
   const pendingInserts = useRef(new Set<string>())
@@ -89,170 +91,196 @@ export function DetectedTorahSources({
 
   return (
     <View style={[a.mt_sm, a.gap_xs]}>
-      {(expanded ? items : items.slice(0, 1)).map((item, index) => (
-        <View
-          key={`${item.ref}-${item.startChar}-${index}`}
-          style={[
-            a.p_sm,
-            a.rounded_sm,
-            a.border,
-            t.atoms.border_contrast_low,
-            {
-              backgroundColor: t.name === 'dark' ? '#181714' : '#faf9f6',
-              borderRightWidth: 3,
-              borderRightColor: t.palette.primary_500,
-            },
-          ]}>
+      {(expanded ? items : items.slice(0, 1)).map((item, index) => {
+        const title = formatCanonicalHebrewRef(item.ref, item.heRef)
+        return (
           <View
-            style={[a.flex_row, a.align_center, a.justify_between, a.gap_sm]}>
-            <View style={a.flex_1}>
-              <Text
-                numberOfLines={1}
-                style={[
-                  a.text_sm,
-                  a.font_semi_bold,
-                  {textAlign: 'right', writingDirection: 'rtl'},
-                ]}>
-                {item.heRef}
-              </Text>
-              <Text
-                numberOfLines={1}
-                style={[
-                  a.text_xs,
-                  t.atoms.text_contrast_medium,
-                  {textAlign: 'right'},
-                ]}>
-                זוהה מתוך: {item.matchedText}
-              </Text>
-            </View>
+            key={`${item.ref}-${item.startChar}-${index}`}
+            style={[
+              a.p_sm,
+              a.rounded_sm,
+              a.border,
+              t.atoms.border_contrast_low,
+              {
+                backgroundColor: t.name === 'dark' ? '#181714' : '#faf9f6',
+                borderRightWidth: isRTL ? 3 : 1,
+                borderLeftWidth: isRTL ? 1 : 3,
+                borderRightColor: isRTL
+                  ? t.palette.primary_500
+                  : t.atoms.border_contrast_low.borderColor,
+                borderLeftColor: isRTL
+                  ? t.atoms.border_contrast_low.borderColor
+                  : t.palette.primary_500,
+              },
+            ]}>
+            <View
+              style={[a.flex_row, a.align_center, a.justify_between, a.gap_sm]}>
+              <View style={a.flex_1}>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    a.text_sm,
+                    a.font_semi_bold,
+                    {
+                      textAlign: isRTL ? 'right' : 'left',
+                      writingDirection: isRTL ? 'rtl' : 'ltr',
+                    },
+                  ]}>
+                  {title}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    a.text_xs,
+                    t.atoms.text_contrast_medium,
+                    {
+                      textAlign: isRTL ? 'right' : 'left',
+                      writingDirection: isRTL ? 'rtl' : 'ltr',
+                    },
+                  ]}>
+                  זוהה מתוך: {item.matchedText}
+                </Text>
+              </View>
 
-            {item.ambiguous && item.candidateRefs?.length ? null : (
-              <View style={[a.flex_row, a.align_center, a.gap_2xs]}>
-                {!hasExistingEmbed ? (
+              {item.ambiguous && item.candidateRefs?.length ? null : (
+                <View style={[a.flex_row, a.align_center, a.gap_2xs]}>
+                  {!hasExistingEmbed ? (
+                    <Pressable
+                      testID="torahAttachSourceBtn"
+                      accessibilityRole="button"
+                      accessibilityLabel={`הצמד מקור ${title}`}
+                      accessibilityHint="מצמיד את המקור התורני להודעה"
+                      onPress={() => onSelectUri(item.uri)}
+                      style={({pressed}) => [
+                        a.px_sm,
+                        a.py_xs,
+                        a.rounded_xs,
+                        {
+                          backgroundColor: t.palette.primary_500,
+                          opacity: pressed ? 0.75 : 1,
+                        },
+                      ]}>
+                      <Text
+                        style={[
+                          a.text_xs,
+                          a.font_semi_bold,
+                          {color: '#FFFFFF'},
+                        ]}>
+                        הצמד
+                      </Text>
+                    </Pressable>
+                  ) : null}
+
                   <Pressable
-                    testID="torahAttachSourceBtn"
+                    testID="torahInsertTextBtn"
                     accessibilityRole="button"
-                    accessibilityLabel={`הצמד מקור ${item.heRef}`}
-                    accessibilityHint="מצמיד את המקור התורני להודעה"
-                    onPress={() => onSelectUri(item.uri)}
+                    accessibilityLabel={`הוסף ציטוט של ${title} לטקסט`}
+                    accessibilityHint="מוסיף ציטוט לתוך גוף ההודעה"
+                    disabled={isTorahQuoteAlreadyIncluded(text, item)}
+                    onPress={() => handleInsert(item)}
                     style={({pressed}) => [
                       a.px_sm,
                       a.py_xs,
                       a.rounded_xs,
-                      {
-                        backgroundColor: t.palette.primary_500,
-                        opacity: pressed ? 0.75 : 1,
-                      },
-                    ]}>
-                    <Text
-                      style={[a.text_xs, a.font_semi_bold, {color: '#FFFFFF'}]}>
-                      הצמד
-                    </Text>
-                  </Pressable>
-                ) : null}
-
-                <Pressable
-                  testID="torahInsertTextBtn"
-                  accessibilityRole="button"
-                  accessibilityLabel={`הוסף ציטוט של ${item.heRef} לטקסט`}
-                  accessibilityHint="מוסיף ציטוט לתוך גוף ההודעה"
-                  disabled={isTorahQuoteAlreadyIncluded(text, item)}
-                  onPress={() => handleInsert(item)}
-                  style={({pressed}) => [
-                    a.px_sm,
-                    a.py_xs,
-                    a.rounded_xs,
-                    a.border,
-                    t.atoms.border_contrast_low,
-                    {
-                      backgroundColor: t.atoms.bg.backgroundColor,
-                      opacity: pressed ? 0.75 : 1,
-                    },
-                  ]}>
-                  <Text
-                    style={[
-                      a.text_xs,
-                      a.font_semi_bold,
-                      t.atoms.text_contrast_high,
-                    ]}>
-                    הוסף לטקסט
-                  </Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
-
-          {/* Ambiguous candidates picker */}
-          {item.ambiguous && item.candidateRefs?.length ? (
-            <View
-              style={[
-                a.mt_xs,
-                a.pt_xs,
-                a.border_t,
-                t.atoms.border_contrast_low,
-                a.gap_xs,
-              ]}>
-              <Text
-                style={[
-                  a.text_2xs,
-                  t.atoms.text_contrast_medium,
-                  {textAlign: 'right'},
-                ]}>
-                זוהו מספר התאמות, בחר מקור:
-              </Text>
-              <View
-                style={[
-                  a.flex_row,
-                  a.flex_wrap,
-                  a.gap_2xs,
-                  {justifyContent: 'flex-end'},
-                ]}>
-                {item.candidateRefs.slice(0, 4).map(cand => (
-                  <Pressable
-                    key={cand.ref}
-                    accessibilityRole="button"
-                    onPress={() =>
-                      hasExistingEmbed
-                        ? handleInsert({
-                            ...item,
-                            ref: cand.ref,
-                            heRef: cand.heRef,
-                            uri: cand.uri,
-                          })
-                        : onSelectUri(cand.uri)
-                    }
-                    style={({pressed}) => [
-                      a.px_xs,
-                      a.py_2xs,
-                      a.rounded_xs,
                       a.border,
-                      t.atoms.border_contrast_medium,
+                      t.atoms.border_contrast_low,
                       {
                         backgroundColor: t.atoms.bg.backgroundColor,
-                        opacity: pressed ? 0.65 : 1,
+                        opacity: pressed ? 0.75 : 1,
                       },
                     ]}>
                     <Text
                       style={[
                         a.text_xs,
                         a.font_semi_bold,
-                        {textAlign: 'right'},
+                        t.atoms.text_contrast_high,
                       ]}>
-                      {cand.heRef}
+                      הוסף לטקסט
                     </Text>
                   </Pressable>
-                ))}
-              </View>
+                </View>
+              )}
             </View>
-          ) : null}
-        </View>
-      ))}
+
+            {/* Ambiguous candidates picker */}
+            {item.ambiguous && item.candidateRefs?.length ? (
+              <View
+                style={[
+                  a.mt_xs,
+                  a.pt_xs,
+                  a.border_t,
+                  t.atoms.border_contrast_low,
+                  a.gap_xs,
+                ]}>
+                <Text
+                  style={[
+                    a.text_2xs,
+                    t.atoms.text_contrast_medium,
+                    {
+                      textAlign: isRTL ? 'right' : 'left',
+                      writingDirection: isRTL ? 'rtl' : 'ltr',
+                    },
+                  ]}>
+                  זוהו מספר התאמות, בחר מקור:
+                </Text>
+                <View
+                  style={[
+                    a.flex_row,
+                    a.flex_wrap,
+                    a.gap_2xs,
+                    {justifyContent: isRTL ? 'flex-end' : 'flex-start'},
+                  ]}>
+                  {item.candidateRefs.slice(0, 4).map(cand => (
+                    <Pressable
+                      key={cand.ref}
+                      accessibilityRole="button"
+                      onPress={() =>
+                        hasExistingEmbed
+                          ? handleInsert({
+                              ...item,
+                              ref: cand.ref,
+                              heRef: cand.heRef,
+                              uri: cand.uri,
+                            })
+                          : onSelectUri(cand.uri)
+                      }
+                      style={({pressed}) => [
+                        a.px_xs,
+                        a.py_2xs,
+                        a.rounded_xs,
+                        a.border,
+                        t.atoms.border_contrast_medium,
+                        {
+                          backgroundColor: t.atoms.bg.backgroundColor,
+                          opacity: pressed ? 0.65 : 1,
+                        },
+                      ]}>
+                      <Text
+                        style={[
+                          a.text_xs,
+                          a.font_semi_bold,
+                          {
+                            textAlign: isRTL ? 'right' : 'left',
+                            writingDirection: isRTL ? 'rtl' : 'ltr',
+                          },
+                        ]}>
+                        {formatCanonicalHebrewRef(cand.ref, cand.heRef)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </View>
+        )
+      })}
       {items.length > 1 ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
             expanded ? 'הסתר מקורות נוספים' : 'הצג מקורות נוספים'
           }
+          accessibilityHint="מציג או מסתיר מקורות תורניים נוספים שזוהו בטקסט"
           onPress={() => setExpanded(value => !value)}
           style={[a.py_xs, a.align_center]}>
           <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>

@@ -1,5 +1,5 @@
-import type {TorahSource} from '../sefaria/types'
-import {cleanSefariaUri} from './url'
+import {type TorahSource} from '../sefaria/types'
+import {cleanSefariaUri, normalizeSefariaRef} from './url'
 
 export const TORAH_QUOTE_REGEX =
   /(?:^|\n)>\s*(?:״([^״\n]+)״|"([^"\n]+)"|([^\n(]+))?\s*(?:\n|\s)*\(?(?:📖\s*)?([^·\n)]+)?(?:\s*·\s*)?(https?:\/\/(?:www\.)?sefaria\.org\/[^\s)]+)\)?/g
@@ -29,18 +29,50 @@ export function formatTorahQuoteForInsertion(source: TorahSource): string {
   return quote ? `\n״${quote}״\n— ${ref}\n` : `\nמקור: ${ref}\n`
 }
 
-/** Prevent accidental repeated insertion from search and auto-detection. */
+/**
+ * Prevent accidental repeated insertion from search, autocomplete, and auto-detection.
+ * Checks heRef, normalized English ref, clean URI, and URL pathname.
+ */
 export function isTorahQuoteAlreadyIncluded(
   text: string,
-  source: TorahSource,
+  source: TorahSource | {ref: string; heRef?: string; uri?: string},
 ): boolean {
-  const ref = source.heRef || source.ref
-  if (!text || !ref) return false
-  return (
-    text.includes(`— ${ref}`) ||
-    text.includes(`מקור: ${ref}`) ||
-    (Boolean(source.uri) && text.includes(cleanSefariaUri(source.uri)))
-  )
+  if (!text || !source) return false
+
+  const heRef = source.heRef?.trim()
+  if (
+    heRef &&
+    (text.includes(`— ${heRef}`) || text.includes(`מקור: ${heRef}`))
+  ) {
+    return true
+  }
+
+  const rawRef = source.ref?.trim()
+  if (rawRef) {
+    if (text.includes(`— ${rawRef}`) || text.includes(`מקור: ${rawRef}`)) {
+      return true
+    }
+    const norm = normalizeSefariaRef(rawRef)
+    if (
+      norm &&
+      text.toLowerCase().includes(norm) &&
+      (text.includes('—') || text.includes('מקור:'))
+    ) {
+      return true
+    }
+  }
+
+  if (source.uri) {
+    const clean = cleanSefariaUri(source.uri)
+    if (clean && text.includes(clean)) return true
+    try {
+      const url = new URL(clean)
+      const pathOnly = url.pathname.replace(/^\/+|\/+$/g, '')
+      if (pathOnly && text.includes(pathOnly)) return true
+    } catch {}
+  }
+
+  return false
 }
 
 export function hasTorahQuoteBlock(text: string): boolean {

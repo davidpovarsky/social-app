@@ -9,12 +9,9 @@ import * as TextField from '#/components/forms/TextField'
 import {PageText_Stroke2_Corner0_Rounded as SourceIcon} from '#/components/icons/PageText'
 import {PlusLarge_Stroke2_Corner0_Rounded as PlusIcon} from '#/components/icons/Plus'
 import {Text} from '#/components/Typography'
-import {
-  formatHebrewRef,
-  resolveTorahSource,
-  searchTorahSources,
-} from '../sefaria/api'
+import {resolveTorahSource, searchTorahSources} from '../sefaria/api'
 import {type SefariaCompletion, type TorahSource} from '../sefaria/types'
+import {formatCanonicalHebrewRef} from '../util/bidi'
 import {
   formatTorahQuoteForInsertion,
   isTorahQuoteAlreadyIncluded,
@@ -129,13 +126,15 @@ export function SourcePickerDialog({
       <Dialog.ScrollableInner
         label="הוסף מקור תורני"
         style={[a.w_full, web({maxWidth: 600})]}
-        contentContainerStyle={{
-          width: '100%',
-          maxWidth: 540,
-          minWidth: 0,
-          alignSelf: 'center',
-        }}>
-        <View style={[a.gap_md, {width: '100%', minWidth: 0, flexShrink: 1}]}>
+        contentContainerStyle={[
+          a.w_full,
+          {
+            maxWidth: 540,
+            alignSelf: 'center',
+            paddingBottom: 48,
+          },
+        ]}>
+        <View style={[a.gap_md, a.w_full, {minWidth: 0, flexShrink: 1}]}>
           <View style={[a.flex_row, a.align_center, a.justify_between]}>
             <Text style={[a.text_xl, a.font_semi_bold, {flexShrink: 1}]}>
               הוסף מקור תורני
@@ -158,6 +157,7 @@ export function SourcePickerDialog({
 
               <TextField.Root>
                 <Dialog.Input
+                  testID="torahSourceQueryInput"
                   label="חיפוש מקור תורני"
                   autoFocus
                   value={query}
@@ -320,7 +320,10 @@ export function SourcePickerDialog({
                       a.font_semi_bold,
                       {textAlign: 'right', writingDirection: 'rtl'},
                     ]}>
-                    {formatHebrewRef(resolvedSource.ref, resolvedSource.heRef)}
+                    {formatCanonicalHebrewRef(
+                      resolvedSource.ref,
+                      resolvedSource.heRef,
+                    )}
                   </Text>
                 </View>
                 {resolvedSource.preview ? (
@@ -396,26 +399,38 @@ export function SourcePickerDialog({
               </Pressable>
 
               {/* Action Buttons */}
-              <View style={[a.gap_sm, a.pt_xs]}>
+              <View style={[a.gap_sm, a.pt_xs, a.w_full]}>
                 <Button
+                  testID="torahAttachSourceBtn"
                   label="הצמד מקור מעל ההודעה"
                   onPress={handleAttachSource}
                   variant="solid"
                   color="primary"
-                  size="large">
+                  size="large"
+                  style={[a.w_full]}>
                   <ButtonIcon icon={SourceIcon} />
-                  <ButtonText>הצמד מקור מעל ההודעה</ButtonText>
+                  <ButtonText
+                    numberOfLines={2}
+                    style={[a.flex_shrink, {writingDirection: 'rtl'}]}>
+                    הצמד מקור מעל ההודעה
+                  </ButtonText>
                 </Button>
 
                 <Button
-                  label="הכנס ציטוט לתוך הטקסט (איפה שהסמן)"
+                  testID="torahInsertQuoteBtn"
+                  label="הכנס ציטוט לתוך הטקסט"
                   disabled={isTorahQuoteAlreadyIncluded(text, resolvedSource)}
                   onPress={handleInsertIntoText}
                   variant="outline"
                   color="primary"
-                  size="large">
+                  size="large"
+                  style={[a.w_full]}>
                   <ButtonIcon icon={PlusIcon} />
-                  <ButtonText>הכנס ציטוט לתוך הטקסט (איפה שהסמן)</ButtonText>
+                  <ButtonText
+                    numberOfLines={2}
+                    style={[a.flex_shrink, {writingDirection: 'rtl'}]}>
+                    הכנס ציטוט לתוך הטקסט
+                  </ButtonText>
                 </Button>
 
                 <Button
@@ -423,7 +438,8 @@ export function SourcePickerDialog({
                   onPress={handleReset}
                   variant="ghost"
                   color="secondary"
-                  size="medium">
+                  size="medium"
+                  style={[a.w_full]}>
                   <ButtonText>חפש מקור אחר</ButtonText>
                 </Button>
               </View>

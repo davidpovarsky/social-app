@@ -15,8 +15,10 @@ import {
   ChevronRight_Stroke2_Corner0_Rounded as ChevronRight,
 } from '#/components/icons/Chevron'
 import {Text} from '#/components/Typography'
-import {formatHebrewRef, resolveTorahSource} from '../sefaria/api'
+import {type app} from '#/lexicons'
+import {resolveTorahSource} from '../sefaria/api'
 import {type TorahSource} from '../sefaria/types'
+import {formatCanonicalHebrewRef} from '../util/bidi'
 import {SourceReaderDialog} from './SourceReaderDialog'
 import {hasNoImageParam, refFromSefariaUri} from './url'
 
@@ -24,12 +26,14 @@ export function TorahSourceCard({
   uri,
   fallbackTitle,
   fallbackDescription,
+  post,
   style,
   onOpen,
 }: {
   uri: string
   fallbackTitle?: string
   fallbackDescription?: string
+  post?: app.bsky.feed.defs.PostView
   style?: StyleProp<ViewStyle>
   onOpen?: () => void
 }) {
@@ -51,7 +55,7 @@ export function TorahSourceCard({
   if (!sourceRef) return null
 
   const title = source
-    ? formatHebrewRef(source.ref, source.heRef)
+    ? formatCanonicalHebrewRef(source.ref, source.heRef)
     : fallbackTitle || sourceRef
   const preview =
     source?.preview ||
@@ -80,8 +84,14 @@ export function TorahSourceCard({
           t.atoms.border_contrast_low,
           {
             backgroundColor: t.name === 'dark' ? '#181714' : '#faf9f6',
-            borderRightWidth: 3,
-            borderRightColor: t.palette.primary_500,
+            borderRightWidth: I18nManager.isRTL ? 3 : 1,
+            borderLeftWidth: I18nManager.isRTL ? 1 : 3,
+            borderRightColor: I18nManager.isRTL
+              ? t.palette.primary_500
+              : t.atoms.border_contrast_low.borderColor,
+            borderLeftColor: I18nManager.isRTL
+              ? t.atoms.border_contrast_low.borderColor
+              : t.palette.primary_500,
             opacity: pressed ? 0.75 : 1,
           },
           style,
@@ -167,7 +177,7 @@ export function TorahSourceCard({
           </View>
         </View>
       </Pressable>
-      <SourceReaderDialog control={reader} sourceRef={sourceRef} />
+      <SourceReaderDialog control={reader} sourceRef={sourceRef} post={post} />
     </>
   )
 }

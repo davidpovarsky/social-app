@@ -1,5 +1,5 @@
 import {useMemo} from 'react'
-import {View} from 'react-native'
+import {I18nManager, View} from 'react-native'
 import {Gesture, type GestureType} from 'react-native-gesture-handler'
 import Animated, {
   clamp,
@@ -70,6 +70,11 @@ export function SwipeToReply({
   const playHaptic = useHaptics()
   const isReducedMotion = useReducedMotion()
 
+  const isRTL = I18nManager.isRTL
+  // In RTL, self messages are visually on the left, others' on the right.
+  // In LTR, self messages are visually on the right, others' on the left.
+  const isVisuallyOnRight = isRTL ? !isFromSelf : isFromSelf
+
   const transX = useSharedValue(0)
   const hit = useSharedValue(false)
   const iconScale = useSharedValue(1)
@@ -92,7 +97,7 @@ export function SwipeToReply({
         // Arm only on the inward axis; the outward direction is effectively
         // disabled so the bubble can't be dragged off its own edge.
         .activeOffsetX(
-          isFromSelf
+          isVisuallyOnRight
             ? [-10, EFFECTIVELY_DISABLED_OFFSET]
             : [-EFFECTIVELY_DISABLED_OFFSET, 10],
         )
@@ -102,7 +107,7 @@ export function SwipeToReply({
         ])
         .onChange(e => {
           'worklet'
-          const dir = isFromSelf
+          const dir = isVisuallyOnRight
             ? Math.min(e.translationX, 0)
             : Math.max(e.translationX, 0)
           transX.set(applyResistance(dir))
@@ -132,7 +137,7 @@ export function SwipeToReply({
         })
     )
   }, [
-    isFromSelf,
+    isVisuallyOnRight,
     enabled,
     onReply,
     playHaptic,
@@ -166,7 +171,9 @@ export function SwipeToReply({
           {top: 0, bottom: 0},
           // Centred roughly half the activation threshold in from the bubble's
           // resting edge, so it lands in the gap the bubble reveals.
-          isFromSelf ? {right: tokens.space.md} : {left: tokens.space.md},
+          isVisuallyOnRight
+            ? {right: tokens.space.md}
+            : {left: tokens.space.md},
           iconStyle,
         ]}>
         <View
@@ -177,7 +184,13 @@ export function SwipeToReply({
             t.atoms.bg_contrast_50,
             {width: ICON_DIAMETER, height: ICON_DIAMETER},
           ]}>
-          <ReplyIcon size="sm" style={t.atoms.text_contrast_medium} />
+          <ReplyIcon
+            size="sm"
+            style={[
+              t.atoms.text_contrast_medium,
+              isRTL && {transform: [{scaleX: -1}]},
+            ]}
+          />
         </View>
       </Animated.View>
       {/* Sized + aligned to the bubble so the consumer's GestureDetector (the

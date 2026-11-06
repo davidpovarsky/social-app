@@ -5,15 +5,38 @@ const SEFARIA_HOSTS = new Set([
   'www.sefaria.org.il',
 ])
 
-export function isSefariaSourceUri(uri: string) {
+export function isSefariaSourceUri(uri: string): boolean {
+  if (!uri || typeof uri !== 'string') return false
   try {
     const url = new URL(uri)
     if (!SEFARIA_HOSTS.has(url.hostname.toLowerCase())) return false
     if (url.pathname.startsWith('/api/')) return false
-    return url.pathname.length > 1
+    return url.pathname.replace(/^\/+|\/+$/g, '').length > 0
   } catch {
     return false
   }
+}
+
+/**
+ * Normalizes a Sefaria ref string for reliable comparison across representations
+ * (e.g. "Rosh_Hashanah.22b", "Rosh Hashanah 22b", "Rosh_Hashanah_22b").
+ */
+export function normalizeSefariaRef(ref: string): string {
+  if (!ref || typeof ref !== 'string') return ''
+  return decodeURIComponent(ref)
+    .replaceAll('_', ' ')
+    .replaceAll('.', ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+/**
+ * Compares two Sefaria references for semantic equality.
+ */
+export function areSefariaRefsEqual(a?: string, b?: string): boolean {
+  if (!a || !b) return false
+  return normalizeSefariaRef(a) === normalizeSefariaRef(b)
 }
 
 export function refFromSefariaUri(uri: string): string | undefined {
@@ -30,11 +53,34 @@ export function refFromSefariaUri(uri: string): string | undefined {
 }
 
 export function hasNoImageParam(uri: string): boolean {
+  if (!uri || typeof uri !== 'string') return false
   return uri.includes('#no-image') || uri.includes('noimg=1')
 }
 
+/**
+ * Cleans a Sefaria URI by normalizing scheme, hostname, stripping trailing slashes,
+ * query parameters, and image flags.
+ */
 export function cleanSefariaUri(uri: string): string {
-  return uri.replace(/#no-image/g, '').replace(/(\?|&)noimg=1/g, '')
+  if (!uri || typeof uri !== 'string') return ''
+  try {
+    const url = new URL(uri)
+    const cleanPath = url.pathname.replace(/^\/+|\/+$/g, '')
+    return `https://www.sefaria.org/${cleanPath}`
+  } catch {
+    return uri
+      .replace(/#no-image/g, '')
+      .replace(/(\?|&)noimg=1/g, '')
+      .replace(/\/+$/, '')
+  }
+}
+
+/**
+ * Checks if two Sefaria URIs refer to the same source.
+ */
+export function areSefariaUrisEqual(a?: string, b?: string): boolean {
+  if (!a || !b) return false
+  return cleanSefariaUri(a).toLowerCase() === cleanSefariaUri(b).toLowerCase()
 }
 
 export function buildSefariaSourceUri(
@@ -59,4 +105,3 @@ export function isSefariaEmbed(embed: unknown): boolean {
   }
   return false
 }
-

@@ -1,12 +1,13 @@
 import {useEffect, useState} from 'react'
-import {View} from 'react-native'
+import {I18nManager, View} from 'react-native'
 
-import {atoms as a, useTheme} from '#/alf'
-import {Text} from '#/components/Typography'
 import {ExternalEmbedRemoveBtn} from '#/view/com/composer/ExternalEmbedRemoveBtn'
 import {type EmbedDraft} from '#/view/com/composer/state/composer'
-import {formatHebrewRef, resolveTorahSource} from '../sefaria/api'
+import {atoms as a, useTheme} from '#/alf'
+import {Text} from '#/components/Typography'
+import {resolveTorahSource} from '../sefaria/api'
 import {isSefariaSourceUri, refFromSefariaUri} from '../sources/url'
+import {formatCanonicalHebrewRef} from '../util/bidi'
 
 /**
  * Published Torah cards are full-size. A compact attachment in the composer
@@ -20,6 +21,7 @@ export function TorahPostHeaderEmbed({
   onRemove: () => void
 }) {
   const t = useTheme()
+  const isRTL = I18nManager.isRTL
   const sourceRef =
     embed.link && isSefariaSourceUri(embed.link.uri)
       ? refFromSefariaUri(embed.link.uri)
@@ -33,7 +35,7 @@ export function TorahPostHeaderEmbed({
     void resolveTorahSource(sourceRef, abort.signal)
       .then(source => {
         if (!abort.signal.aborted) {
-          setHeRef(formatHebrewRef(source.ref, source.heRef))
+          setHeRef(formatCanonicalHebrewRef(source.ref, source.heRef))
         }
       })
       .catch(() => {})
@@ -45,29 +47,40 @@ export function TorahPostHeaderEmbed({
 
   return (
     <View
+      testID="torahPostHeaderEmbed"
       style={[
         a.relative,
-        a.mb_sm,
+        a.mb_xs,
         a.w_full,
         a.rounded_sm,
         a.border,
         t.atoms.border_contrast_low,
         {
           backgroundColor: t.name === 'dark' ? '#181714' : '#faf9f6',
-          borderRightWidth: 3,
-          borderRightColor: t.palette.primary_500,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          paddingRight: 52,
-          minHeight: 58,
+          borderRightWidth: isRTL ? 3 : 1,
+          borderLeftWidth: isRTL ? 1 : 3,
+          borderRightColor: isRTL
+            ? t.palette.primary_500
+            : t.atoms.border_contrast_low.borderColor,
+          borderLeftColor: isRTL
+            ? t.atoms.border_contrast_low.borderColor
+            : t.palette.primary_500,
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          paddingRight: isRTL ? 48 : 10,
+          paddingLeft: isRTL ? 10 : 48,
+          minHeight: 44,
           justifyContent: 'center',
         },
       ]}>
       <Text
         style={[
-          a.text_xs,
+          a.text_2xs,
           t.atoms.text_contrast_medium,
-          {textAlign: 'right', writingDirection: 'rtl'},
+          {
+            textAlign: isRTL ? 'right' : 'left',
+            writingDirection: isRTL ? 'rtl' : 'ltr',
+          },
         ]}>
         מקור תורני מצורף · ספריא
       </Text>
@@ -76,7 +89,10 @@ export function TorahPostHeaderEmbed({
         style={[
           a.text_sm,
           a.font_semi_bold,
-          {textAlign: 'right', writingDirection: 'rtl'},
+          {
+            textAlign: isRTL ? 'right' : 'left',
+            writingDirection: isRTL ? 'rtl' : 'ltr',
+          },
         ]}>
         {title}
       </Text>

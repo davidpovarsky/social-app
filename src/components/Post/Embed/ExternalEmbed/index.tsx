@@ -76,6 +76,7 @@ export const ExternalEmbed = ({
         fallbackTitle={link.title}
         fallbackDescription={link.description}
         onOpen={onOpen}
+        post={post}
         style={style}
       />
     )
