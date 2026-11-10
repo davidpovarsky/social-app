@@ -45,7 +45,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -53,10 +53,10 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -64,13 +64,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 11.21.0
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -78,13 +78,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -95,7 +95,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -106,7 +106,7 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -117,7 +117,7 @@ jobs:
         run: pnpm typecheck:ios
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -128,7 +128,7 @@ jobs:
         run: pnpm typecheck:android
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -139,7 +139,7 @@ jobs:
         run: pnpm typecheck:web
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -150,7 +150,7 @@ jobs:
         run: pnpm lint
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -162,7 +162,7 @@ jobs:
         continue-on-error: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -174,7 +174,7 @@ jobs:
 
       - name: Live Activity · refresh
         if: always()
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -183,7 +183,7 @@ jobs:
           github_token: ${{ github.token }}
       - name: 📊 Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results
           path: |
@@ -202,7 +202,7 @@ jobs:
     needs: static-checks
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -210,10 +210,10 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -221,13 +221,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 11.21.0
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -235,13 +235,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -252,7 +252,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -263,7 +263,7 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -274,7 +274,7 @@ jobs:
         run: node scripts/torah-isolate-client.mjs
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -285,7 +285,7 @@ jobs:
         run: pnpm build-web
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -293,7 +293,7 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🚀 Upload web build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-web-${{ github.sha }}
           path: web-build
@@ -311,7 +311,7 @@ jobs:
     if: always() && needs.static-checks.result == 'success' && needs.web-build.result == 'success'
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -319,10 +319,10 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -380,7 +380,7 @@ jobs:
     if: ${{ inputs.skip_e2e != 'true' }}
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -388,10 +388,10 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -418,7 +418,7 @@ jobs:
           swift --version
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -426,13 +426,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 11.21.0
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -440,13 +440,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -457,7 +457,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -468,7 +468,7 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -479,7 +479,7 @@ jobs:
         run: node scripts/torah-isolate-client.mjs
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -500,7 +500,7 @@ jobs:
           maestro --version || "$RUNNER_TEMP/maestro/bin/maestro" --version
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -542,7 +542,7 @@ jobs:
           echo "Booted: $udid"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -566,7 +566,7 @@ jobs:
           '
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -600,7 +600,7 @@ jobs:
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -613,7 +613,7 @@ jobs:
           echo "Installed app: $APP_PATH"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -626,7 +626,7 @@ jobs:
 
       - name: Live Activity · refresh
         if: always()
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -656,7 +656,7 @@ jobs:
 
       - name: Live Activity · refresh
         if: always()
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -665,7 +665,7 @@ jobs:
           github_token: ${{ github.token }}
       - name: 🚀 Upload E2E artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-e2e-ios-${{ github.run_id }}
           path: artifacts/ios
@@ -684,7 +684,7 @@ jobs:
     if: always() && needs.static-checks.result == 'success'
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -692,10 +692,10 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -721,7 +721,7 @@ jobs:
           xcodebuild -version
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -729,13 +729,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 11.21.0
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -743,13 +743,13 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -760,7 +760,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -771,7 +771,7 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -782,7 +782,7 @@ jobs:
         run: node scripts/torah-isolate-client.mjs
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -806,7 +806,7 @@ jobs:
           '
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -836,7 +836,7 @@ jobs:
             build
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -863,7 +863,7 @@ jobs:
           echo "IPA_NAME=$IPA_NAME" >> "$GITHUB_ENV"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -871,7 +871,7 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🚀 Upload unsigned IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-ipa-${{ github.sha }}
           path: ${{ runner.temp }}/${{ env.IPA_NAME }}

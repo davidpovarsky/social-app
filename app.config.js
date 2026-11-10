@@ -618,9 +618,10 @@ module.exports = function (_config) {
                             'com.apple.security.application-groups': [
                               'group.com.davidpovarsky.torahsocial',
                             ],
-                            'com.apple.developer.parent-application-identifiers': [
-                              '$(AppIdentifierPrefix)com.davidpovarsky.torahsocial',
-                            ],
+                            'com.apple.developer.parent-application-identifiers':
+                              [
+                                '$(AppIdentifierPrefix)com.davidpovarsky.torahsocial',
+                              ],
                             'com.apple.developer.associated-domains':
                               ASSOCIATED_DOMAINS,
                           },
