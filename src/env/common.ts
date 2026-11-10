@@ -28,6 +28,11 @@ export const TORAH_PDS_HOST: string =
   process.env.EXPO_PUBLIC_TORAH_PDS_HOST ||
   (TORAH_ISOLATED_NETWORK ? '' : 'https://bsky.social')
 
+/** Public website origin for share links, separate from AppView/PDS. */
+export const TORAH_WEB_HOST: string =
+  process.env.EXPO_PUBLIC_TORAH_WEB_HOST ||
+  'https://torah-130-110-238-163.nip.io'
+
 /**
  * Indicates whether the app is running in TestFlight
  */
