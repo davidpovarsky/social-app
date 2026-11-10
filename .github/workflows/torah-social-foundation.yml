@@ -6,6 +6,7 @@ on:
       - codex/torah-social-foundation
       - codex/torah-social-runtime-repair
       - codex/torah-social-rtl-docked-reader-20261106
+      - codex/torah-social-upstream-sync-20261110
   pull_request:
     branches:
       - main
@@ -21,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
       EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
       EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
@@ -48,7 +50,7 @@ jobs:
           github_token: ${{ github.token }}
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.21.0
+          version: 11.28.5
           run_install: false
       - name: Live Activity · refresh
         uses: davidpovarsky/github-automation/live-refresh@main
@@ -99,7 +101,12 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - run: pnpm typecheck:web
+      - name: Typecheck all platforms
+        run: pnpm typecheck
+      - name: Lint merged source
+        run: pnpm lint
+      - name: Run unit tests
+        run: pnpm test-ci
       - name: Live Activity · refresh
         uses: davidpovarsky/github-automation/live-refresh@main
         continue-on-error: true
@@ -126,9 +133,10 @@ jobs:
 
   ios:
     name: iOS and iPad unsigned IPA build
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 90
     env:
+      EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
       EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
       EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
@@ -154,24 +162,10 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: Select latest Xcode 16
-        run: |
-          for xcode_path in \
-            "/Applications/Xcode.app" \
-            "/Applications/Xcode_16.4.app" \
-            "/Applications/Xcode_16.4.0.app" \
-            "/Applications/Xcode_16.3.app" \
-            "/Applications/Xcode_16.2.app"; do
-            if [ -d "$xcode_path" ]; then
-              echo "Selecting Xcode at $xcode_path"
-              sudo xcode-select -s "$xcode_path"
-              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
-              break
-            fi
-          done
-          sudo xcodebuild -runFirstLaunch
-          xcodebuild -version
-          swift --version
+      - name: Select Xcode 27.1 (upstream iOS toolchain)
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '27.1'
       - name: Live Activity · refresh
         uses: davidpovarsky/github-automation/live-refresh@main
         continue-on-error: true
@@ -182,7 +176,7 @@ jobs:
           github_token: ${{ github.token }}
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.21.0
+          version: 11.28.5
           run_install: false
       - name: Live Activity · refresh
         uses: davidpovarsky/github-automation/live-refresh@main
@@ -213,10 +207,6 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: Ensure Swift tools compatibility for ExpoModulesJSI
-        run: |
-          rm -rf node_modules/expo-modules-jsi/apple/Products node_modules/expo-modules-jsi/apple/.build node_modules/expo-modules-jsi/apple/.DerivedData || true
-          node scripts/fix-expo-modules-jsi.mjs
       - name: Live Activity · refresh
         uses: davidpovarsky/github-automation/live-refresh@main
         continue-on-error: true
@@ -255,20 +245,6 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: Configure CocoaPods project build settings
-        run: |
-          node -e '
-            const fs = require("fs");
-            const pbx = "ios/Pods/Pods.xcodeproj/project.pbxproj";
-            if (fs.existsSync(pbx)) {
-              let c = fs.readFileSync(pbx, "utf8");
-              c = c.replace(/SWIFT_TREAT_WARNINGS_AS_ERRORS = YES/g, "SWIFT_TREAT_WARNINGS_AS_ERRORS = NO");
-              c = c.replace(/SWIFT_VERSION = 6\.0;/g, "SWIFT_VERSION = 5.0;");
-              c = c.replace(/SWIFT_STRICT_CONCURRENCY = complete;/g, "SWIFT_STRICT_CONCURRENCY = minimal;");
-              fs.writeFileSync(pbx, c, "utf8");
-              console.log("[Pods.xcodeproj] Configured SWIFT_TREAT_WARNINGS_AS_ERRORS = NO, SWIFT_VERSION = 5.0, SWIFT_STRICT_CONCURRENCY = minimal");
-            }
-          '
       - name: Live Activity · refresh
         uses: davidpovarsky/github-automation/live-refresh@main
         continue-on-error: true

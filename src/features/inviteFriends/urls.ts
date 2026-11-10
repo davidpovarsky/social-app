@@ -18,7 +18,12 @@ function stripLeadingAt(handle: string): string {
 export function getInviteShareUrl(handle: string): string {
   const bare = stripLeadingAt(handle)
   if (!bare) return ''
-  return `https://bsky.app/profile/${bare}`
+  const host =
+    process.env.EXPO_PUBLIC_TORAH_ISOLATED_NETWORK === 'true'
+      ? process.env.EXPO_PUBLIC_TORAH_WEB_HOST ||
+        'https://torah-130-110-238-163.nip.io'
+      : 'https://bsky.app'
+  return `${host}/profile/${bare}`
 }
 
 /**

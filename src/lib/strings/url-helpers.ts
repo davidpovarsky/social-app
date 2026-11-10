@@ -2,18 +2,20 @@ import {type AtIdentifierString, AtUri} from '@atproto/syntax'
 import {parse} from 'psl'
 import TLDs from 'tlds'
 
+import {TORAH_ISOLATED_NETWORK, TORAH_WEB_HOST} from '#/env'
 import {BSKY_SERVICE} from '#/lib/constants'
 import {isInvalidHandle} from '#/lib/strings/handles'
 import {startUriToStarterPackUri} from '#/lib/strings/starter-pack'
 import {logger} from '#/logger'
 
-export const BSKY_APP_HOST = 'https://bsky.app'
+export const BSKY_APP_HOST = TORAH_ISOLATED_NETWORK
+  ? TORAH_WEB_HOST
+  : 'https://bsky.app'
 export const BSKY_HOSTING_ENDSWITH = '.host.bsky.network'
 const BSKY_TRUSTED_HOSTS = [
-  'bsky\\.app',
-  'bsky\\.social',
-  'blueskyweb\\.xyz',
-  'blueskyweb\\.zendesk\\.com',
+  ...(TORAH_ISOLATED_NETWORK
+    ? [new URL(TORAH_WEB_HOST).host.replaceAll('.', '\\.')]
+    : ['bsky\\.app', 'bsky\\.social', 'blueskyweb\\.xyz', 'blueskyweb\\.zendesk\\.com']),
   ...(__DEV__ ? ['localhost:19006', 'localhost:8100'] : []),
 ]
 
@@ -66,7 +68,7 @@ export function toNiceDomain(url: string): string {
       `https://${urlp.host}` === BSKY_SERVICE ||
       `https://${urlp.host}` === 'https://bsky.social'
     ) {
-      return 'Bluesky Social'
+      return TORAH_ISOLATED_NETWORK ? 'Torah Social' : 'Bluesky Social'
     }
     return urlp.host ? urlp.host : url
   } catch (e) {
@@ -409,7 +411,7 @@ export function shortLinkToHref(url: string): string {
   try {
     const urlp = new URL(url)
 
-    // For now we only support starter packs, but in the future we should add additional paths to this check
+    // For now we only support Starter Packs, but in the future we should add additional paths to this check
     const parts = urlp.pathname.split('/').filter(Boolean)
     if (parts.length === 1) {
       return `/starter-pack-short/${parts[0]}`

@@ -1,7 +1,12 @@
+import {TORAH_ISOLATED_NETWORK} from '#/env'
 import {logger} from '#/logger'
 
 export function useShortenLink() {
   return async (inputUrl: string): Promise<{url: string}> => {
+    if (TORAH_ISOLATED_NETWORK) {
+      // Never send Torah users' share links to Bluesky's shortener.
+      return {url: inputUrl}
+    }
     const url = new URL(inputUrl)
     const res = await fetch('https://go.bsky.app/link', {
       method: 'POST',

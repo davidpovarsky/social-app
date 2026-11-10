@@ -71,6 +71,29 @@ constants = replaceRequired(
   'PUBLIC_APPVIEW',
 )
 
+// Never use Bluesky's messaging and embed services in our independent network.
+constants = replaceRequired(
+  constants,
+  "export const CHAT_SERVICE = 'https://api.bsky.chat'",
+  "export const CHAT_SERVICE = ''",
+  'CHAT_SERVICE',
+)
+constants = replaceRequired(
+  constants,
+  "export const EMBED_SERVICE = 'https://embed.bsky.app'",
+  "export const EMBED_SERVICE = ''",
+  'EMBED_SERVICE',
+)
+const torahWebHost =
+  process.env.EXPO_PUBLIC_TORAH_WEB_HOST ||
+  'https://torah-130-110-238-163.nip.io'
+constants = replaceRequired(
+  constants,
+  "export const BSKY_DOWNLOAD_URL = 'https://bsky.app/download'",
+  `export const BSKY_DOWNLOAD_URL = '${torahWebHost}'`,
+  'BSKY_DOWNLOAD_URL',
+)
+
 constants = replaceRequired(
   constants,
   "export const GIF_SERVICE = 'https://gifs.bsky.app'",
@@ -180,6 +203,8 @@ const forbiddenServices = [
   {target: 'https://ip.bsky.app', label: 'Bluesky Geolocation API'},
   {target: 'https://gifs.bsky.app', label: 'Bluesky GIF Service'},
   {target: 'https://video.bsky.app', label: 'Bluesky Video Service'},
+  {target: 'https://api.bsky.chat', label: 'Public Bluesky Chat Service'},
+  {target: 'https://embed.bsky.app', label: 'Public Bluesky Embed Service'},
 ]
 
 for (const {target, label} of forbiddenServices) {
