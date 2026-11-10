@@ -252,6 +252,8 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
+      - name: Apply narrow Expo JSI 58 Swift 6 actor compatibility fix
+        run: node scripts/patch-expo-jsi-concurrency.mjs
       - name: Generate native iOS project and install pods
         run: pnpm prebuild --platform ios
       - name: Live Activity · refresh
