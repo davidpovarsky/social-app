@@ -1309,11 +1309,6 @@
       "count": 2
     }
   },
-  "src/view/com/pager/TabBar.web.tsx": {
-    "typescript/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/view/com/post-thread/PostLikedBy.tsx": {
     "typescript/no-misused-promises": {
       "count": 2

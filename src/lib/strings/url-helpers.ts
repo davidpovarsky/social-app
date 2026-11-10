@@ -2,11 +2,11 @@ import {type AtIdentifierString, AtUri} from '@atproto/syntax'
 import {parse} from 'psl'
 import TLDs from 'tlds'
 
-import {TORAH_ISOLATED_NETWORK, TORAH_WEB_HOST} from '#/env'
 import {BSKY_SERVICE} from '#/lib/constants'
 import {isInvalidHandle} from '#/lib/strings/handles'
 import {startUriToStarterPackUri} from '#/lib/strings/starter-pack'
 import {logger} from '#/logger'
+import {TORAH_ISOLATED_NETWORK, TORAH_WEB_HOST} from '#/env'
 
 export const BSKY_APP_HOST = TORAH_ISOLATED_NETWORK
   ? TORAH_WEB_HOST
@@ -15,7 +15,12 @@ export const BSKY_HOSTING_ENDSWITH = '.host.bsky.network'
 const BSKY_TRUSTED_HOSTS = [
   ...(TORAH_ISOLATED_NETWORK
     ? [new URL(TORAH_WEB_HOST).host.replaceAll('.', '\\.')]
-    : ['bsky\\.app', 'bsky\\.social', 'blueskyweb\\.xyz', 'blueskyweb\\.zendesk\\.com']),
+    : [
+        'bsky\\.app',
+        'bsky\\.social',
+        'blueskyweb\\.xyz',
+        'blueskyweb\\.zendesk\\.com',
+      ]),
   ...(__DEV__ ? ['localhost:19006', 'localhost:8100'] : []),
 ]
 
