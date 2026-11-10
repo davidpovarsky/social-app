@@ -22,8 +22,14 @@ if (!fs.existsSync(sourcePath) || !fs.existsSync(helperPath)) {
 }
 
 const helper = fs.readFileSync(helperPath, 'utf8')
-if (!helper.includes('internal struct UncheckedSendable<Value>: @unchecked Sendable')) {
-  throw new Error('Expo UncheckedSendable API changed: do not apply an unverified compatibility patch.')
+if (
+  !helper.includes(
+    'internal struct UncheckedSendable<Value>: @unchecked Sendable',
+  )
+) {
+  throw new Error(
+    'Expo UncheckedSendable API changed: do not apply an unverified compatibility patch.',
+  )
 }
 
 let source = fs.readFileSync(sourcePath, 'utf8')
@@ -34,10 +40,13 @@ const afterSlot = [
   '    let sendableSlot = UncheckedSendable(slot)',
 ].join('\n')
 const beforeActor = '        try encode(JavaScriptValue.Slot(slot), runtime)'
-const afterActor = '        try encode(JavaScriptValue.Slot(sendableSlot.value), runtime)'
+const afterActor =
+  '        try encode(JavaScriptValue.Slot(sendableSlot.value), runtime)'
 
 if (source.includes(afterActor) && source.includes(afterSlot)) {
-  console.log('[expo-jsi-concurrency] Already patched; official Expo helpers retained.')
+  console.log(
+    '[expo-jsi-concurrency] Already patched; official Expo helpers retained.',
+  )
   process.exit(0)
 }
 if (!source.includes(beforeSlot) || !source.includes(beforeActor)) {
@@ -47,4 +56,6 @@ if (!source.includes(beforeSlot) || !source.includes(beforeActor)) {
 }
 source = source.replace(beforeSlot, afterSlot).replace(beforeActor, afterActor)
 fs.writeFileSync(sourcePath, source, 'utf8')
-console.log('[expo-jsi-concurrency] Wrapped synchronous JavaScript slot with Expo UncheckedSendable.')
+console.log(
+  '[expo-jsi-concurrency] Wrapped synchronous JavaScript slot with Expo UncheckedSendable.',
+)

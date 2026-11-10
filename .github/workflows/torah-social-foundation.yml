@@ -150,7 +150,10 @@ jobs:
 
   ios:
     name: iOS and iPad unsigned IPA build
-    runs-on: macos-15
+    # The hosted macOS 15 ARM64 pool intermittently fails to allocate a runner,
+    # cancelling queued jobs after about 15 min before any step executes.
+    # Use the separate Intel/macOS 26 pool; its image includes Xcode 26.3.
+    runs-on: macos-26-intel
     timeout-minutes: 90
     env:
       EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
@@ -179,7 +182,7 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: Select Xcode 26.3 (installed on GitHub macOS 15)
+      - name: Select Xcode 26.3 (GitHub-hosted macOS 26 Intel)
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: '26.3'
