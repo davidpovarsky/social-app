@@ -142,13 +142,15 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-web
-          path: web-build
+          # Expo exports to dist/, then post-web-build.js stages deployable
+          # server assets in bskyweb/. The old web-build/ path never existed.
+          path: bskyweb/
           if-no-files-found: error
           retention-days: 7
 
   ios:
     name: iOS and iPad unsigned IPA build
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 90
     env:
       EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
@@ -177,10 +179,10 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: Select available Xcode 26.6 (GitHub hosted macOS 26)
+      - name: Select Xcode 26.3 (installed on GitHub macOS 15)
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
-          xcode-version: '26.6'
+          xcode-version: '26.3'
       - name: Live Activity · refresh
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true

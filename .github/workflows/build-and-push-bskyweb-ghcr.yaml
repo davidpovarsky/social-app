@@ -56,6 +56,16 @@ jobs:
           file: ${{ matrix.file }}
           platforms: linux/amd64
           push: false
+          # Test-only public endpoints: keep isolation enabled rather than
+          # weakening the Dockerfile's fail-closed network requirements.
+          # Unused build arguments are harmless for other matrix images.
+          build-args: |
+            EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true
+            EXPO_PUBLIC_TORAH_WEB_HOST=https://torah-130-110-238-163.nip.io
+            EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-130-110-238-163.nip.io
+            EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+            EXPO_PUBLIC_TORAH_PDS_DID=did:web:pds-130-110-238-163.nip.io
+            EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-130-110-238-163.nip.io
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
