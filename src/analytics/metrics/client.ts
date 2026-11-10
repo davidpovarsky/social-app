@@ -72,7 +72,10 @@ export class MetricsClient<M extends Record<string, any>> {
   }
 
   flush() {
-    if (!env.METRICS_API_HOST) {
+    // Disable telemetry only in our isolated network when no independent
+    // metrics service is configured. Preserve upstream behavior in normal
+    // builds and in tests that mock only the public environment contract.
+    if (env.TORAH_ISOLATED_NETWORK && !env.METRICS_API_HOST) {
       this.queue.length = 0
       return
     }

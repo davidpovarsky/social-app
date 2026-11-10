@@ -12,6 +12,10 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
   group: torah-social-foundation-${{ github.ref }}
   cancel-in-progress: true
