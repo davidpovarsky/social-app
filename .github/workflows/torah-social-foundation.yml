@@ -290,7 +290,11 @@ jobs:
           fi
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
 
-          node scripts/fix-expo-modules-jsi.mjs
+          # Expo Modules JSI 58.0.22 already uses
+          # expo.RuntimeScheduler.create() factories and private C++ constructors.
+          # The legacy Xcode 16 shim injects free factory functions that call
+          # private constructors and breaks the current upstream SDK.
+          # Do not run scripts/fix-expo-modules-jsi.mjs for this toolchain.
           echo "Building app scheme for iOS device: $SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
