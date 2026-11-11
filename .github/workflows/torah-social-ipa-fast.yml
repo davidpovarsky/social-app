@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: torah-ipa-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   ipa:
@@ -21,6 +21,7 @@ jobs:
     env:
       # Preserve patched React Native native source; cache compiler results instead.
       USE_CCACHE: '1'
+      TORAH_IOS_CCACHE: 'true'
       CCACHE_DIR: ${{ runner.temp }}/torah-ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_COMPILERCHECK: content
