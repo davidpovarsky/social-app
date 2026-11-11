@@ -17,8 +17,15 @@ jobs:
   ipa:
     name: Unsigned iPhone and iPad IPA only
     runs-on: macos-26-intel
-    timeout-minutes: 115
+    timeout-minutes: 112
     env:
+      # Preserve patched React Native native source; cache compiler results instead.
+      USE_CCACHE: '1'
+      CCACHE_DIR: ${{ runner.temp }}/torah-ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
+      CCACHE_COMPRESS: '1'
+      CCACHE_MAXSIZE: 3G
       EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
       EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
@@ -57,6 +64,23 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Restore native C/C++ compilation cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/torah-ccache
+          key: torah-ios-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-${{ github.run_id }}
+          restore-keys: |
+            torah-ios-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-
+            torah-ios-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-
+      - name: Enable native compiler cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ccache >/dev/null 2>&1; then brew install ccache; fi
+          ccache --set-config=max_size=3G
+          ccache --set-config=compiler_check=content
+          ccache --set-config=base_dir="$GITHUB_WORKSPACE"
+          ccache --show-stats
       - name: Install pinned dependencies
         run: pnpm install --frozen-lockfile
       - name: Compile locale catalogs
@@ -68,6 +92,8 @@ jobs:
       - name: Generate iOS project and install CocoaPods
         run: pnpm prebuild --platform ios
       - name: Compile unsigned iOS Release app
+        # Leave enough headroom to upload ccache even when compilation times out.
+        timeout-minutes: 91
         shell: bash
         run: |
           set -euo pipefail
@@ -78,7 +104,7 @@ jobs:
           SCHEME="$(printf '%s' "$SCHEMES_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); target=sys.argv[1]; names=d["workspace"]["schemes"]; print(target if target in names else "")' "$APP_SCHEME")"
           test -n "$SCHEME" || { echo "Missing app scheme $APP_SCHEME" >&2; exit 1; }
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
-          xcodebuild \
+          xcodebuild -quiet \
             -workspace "$WORKSPACE" -scheme "$SCHEME" \
             -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -103,6 +129,17 @@ jobs:
           test -s "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
           unzip -tq "$RUNNER_TEMP/TorahSocial-unsigned.ipa" | tail -n 1
           ls -lh "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
+      - name: Log compiler cache statistics
+        if: always()
+        shell: bash
+        run: |
+          if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
+      - name: Save compiler cache even if native compilation fails
+        if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/torah-ccache
+          key: torah-ios-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-${{ github.run_id }}
       - name: Upload unsigned IPA artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
