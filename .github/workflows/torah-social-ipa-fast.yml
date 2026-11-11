@@ -1,0 +1,112 @@
+name: Torah Social IPA Fast Build
+# Only iOS IPA. Full QA, Web, lint and tests remain in Foundation.
+on:
+  push:
+    branches:
+      - codex/torah-social-upstream-sync-20261110
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: torah-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ipa:
+    name: Unsigned iPhone and iPad IPA only
+    runs-on: macos-26
+    timeout-minutes: 115
+    env:
+      EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
+      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+      EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"
+      EXPO_PUBLIC_ENV: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Select Xcode 26.6 (Expo SDK 58 compatible)
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '26.6'
+      - name: Verify required iOS SDK before dependency installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+          python3 - "$IOS_SDK" <<'PY'
+          import sys
+          v = tuple(int(x) for x in sys.argv[1].split('.')[:2])
+          if v < (26, 4):
+              raise SystemExit(f"Expo SDK 58 needs iOS SDK >= 26.4; got {sys.argv[1]}")
+          print(f"Compatible iOS SDK: {sys.argv[1]}")
+          PY
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.28.5
+          run_install: false
+      - name: Set up Node and dependency cache
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install pinned dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Compile locale catalogs
+        run: pnpm intl:compile
+      - name: Enforce Torah-only network endpoints
+        run: node scripts/torah-isolate-client.mjs
+      - name: Apply Expo JSI Swift concurrency compatibility patch
+        run: node scripts/patch-expo-jsi-concurrency.mjs
+      - name: Generate iOS project and install CocoaPods
+        run: pnpm prebuild --platform ios
+      - name: Compile unsigned iOS Release app
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          test -n "$WORKSPACE" || { echo 'Missing Xcode workspace' >&2; exit 1; }
+          APP_SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          SCHEMES_JSON="$(xcodebuild -workspace "$WORKSPACE" -list -json)"
+          SCHEME="$(printf '%s' "$SCHEMES_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); target=sys.argv[1]; names=d["workspace"]["schemes"]; print(target if target in names else "")' "$APP_SCHEME")"
+          test -n "$SCHEME" || { echo "Missing app scheme $APP_SCHEME" >&2; exit 1; }
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          xcodebuild \
+            -workspace "$WORKSPACE" -scheme "$SCHEME" \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+            build
+      - name: Package and verify unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 3 -type d -name "$SCHEME.app" -print -quit)"
+          if [ -z "$APP" ]; then
+            APP="$(find "$RUNNER_TEMP/DerivedData/Build/Products" -path '*Release-iphoneos*' -name '*.app' -print -quit)"
+          fi
+          test -n "$APP" || { echo 'No Release iOS app found' >&2; exit 1; }
+          mkdir -p "$RUNNER_TEMP/torah-ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/torah-ipa/Payload/"
+          cd "$RUNNER_TEMP/torah-ipa"
+          zip -qry "$RUNNER_TEMP/TorahSocial-unsigned.ipa" Payload
+          test -s "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
+          unzip -tq "$RUNNER_TEMP/TorahSocial-unsigned.ipa" | tail -n 1
+          ls -lh "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: torah-social-unsigned-ipa
+          path: ${{ runner.temp }}/TorahSocial-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

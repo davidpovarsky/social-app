@@ -6,7 +6,6 @@ on:
       - codex/torah-social-foundation
       - codex/torah-social-runtime-repair
       - codex/torah-social-rtl-docked-reader-20261106
-      - codex/torah-social-upstream-sync-20261110
   pull_request:
     branches:
       - main
