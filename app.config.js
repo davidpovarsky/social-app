@@ -290,8 +290,8 @@ module.exports = function (_config) {
         [
           'expo-widgets',
           {
-            bundleIdentifier: 'xyz.blueskyweb.app.BlueskyWidgets',
-            groupIdentifier: 'group.app.bsky',
+            bundleIdentifier: 'com.davidpovarsky.torahsocial.TorahWidgets',
+            groupIdentifier: 'group.com.davidpovarsky.torahsocial',
             enableAndroid: true,
             widgets: [
               {
