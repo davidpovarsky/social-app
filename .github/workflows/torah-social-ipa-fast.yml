@@ -16,7 +16,7 @@ concurrency:
 jobs:
   ipa:
     name: Unsigned iPhone and iPad IPA only
-    runs-on: macos-26
+    runs-on: macos-26-intel
     timeout-minutes: 115
     env:
       EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
