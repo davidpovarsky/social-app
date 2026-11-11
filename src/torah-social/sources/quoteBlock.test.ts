@@ -1,4 +1,4 @@
-import type {TorahSource} from '../sefaria/types'
+import {type TorahSource} from '../sefaria/types'
 import {
   formatTorahQuoteForInsertion,
   hasTorahQuoteBlock,

@@ -6,7 +6,6 @@ on:
 
 # The push to the internal repo uses the app token below, not the GITHUB_TOKEN
 permissions:
-  actions: read
   contents: read
 
 jobs:
@@ -14,14 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'bluesky-social/social-app'
     steps:
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
+      # Temporary until fixed runner images roll out:
+      # https://github.com/actions/runner-images/issues/15018
+      - name: Update Ubuntu CA certificates
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --only-upgrade --no-install-recommends -y ca-certificates
+
       - name: ⬇️ Checkout public repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -29,17 +27,9 @@ jobs:
           # Don't persist the checkout auth header; the push below authenticates
           # with the app token embedded in the remote URL instead
           persist-credentials: false
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
       - name: 🔑 Generate GitHub App Token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.SYNC_INTERNAL_APP_ID }}
           private-key: ${{ secrets.SYNC_INTERNAL_PK }}
@@ -50,14 +40,6 @@ jobs:
           # .github/workflows/, which GitHub refuses to push without it.
           permission-contents: write
           permission-workflows: write
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
       - name: 🚀 Push to internal repo
         env:
           TOKEN: ${{ steps.app-token.outputs.token }}

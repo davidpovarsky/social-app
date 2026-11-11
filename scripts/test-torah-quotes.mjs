@@ -111,14 +111,23 @@ console.log('Parsed blocks count:', blocks.length)
 if (blocks.length !== 3) throw new Error('Expected 3 blocks')
 if (blocks[1].type !== 'quote') throw new Error('Block 1 must be quote')
 if (blocks[1].refName !== 'בראשית א׳:א׳') throw new Error('Unexpected refName')
-if (blocks[1].uri !== 'https://www.sefaria.org/Genesis.1.1') throw new Error('Unexpected uri')
+if (blocks[1].uri !== 'https://www.sefaria.org/Genesis.1.1')
+  throw new Error('Unexpected uri')
 
 // 2. Test URL image toggle functions
-const uriWithImg = buildSefariaSourceUri('https://www.sefaria.org/Genesis.1.1', true)
-const uriNoImg = buildSefariaSourceUri('https://www.sefaria.org/Genesis.1.1', false)
-if (hasNoImageParam(uriWithImg)) throw new Error('uriWithImg should not have no-image')
+const uriWithImg = buildSefariaSourceUri(
+  'https://www.sefaria.org/Genesis.1.1',
+  true,
+)
+const uriNoImg = buildSefariaSourceUri(
+  'https://www.sefaria.org/Genesis.1.1',
+  false,
+)
+if (hasNoImageParam(uriWithImg))
+  throw new Error('uriWithImg should not have no-image')
 if (!hasNoImageParam(uriNoImg)) throw new Error('uriNoImg must have no-image')
-if (cleanSefariaUri(uriNoImg) !== 'https://www.sefaria.org/Genesis.1.1') throw new Error('cleanSefariaUri failed')
+if (cleanSefariaUri(uriNoImg) !== 'https://www.sefaria.org/Genesis.1.1')
+  throw new Error('cleanSefariaUri failed')
 
 // 3. Test isSefariaEmbed
 const sefariaEmbed = {
@@ -129,7 +138,9 @@ const normalEmbed = {
   $type: 'app.bsky.embed.external#view',
   external: {uri: 'https://nytimes.com/article'},
 }
-if (!isSefariaEmbed(sefariaEmbed)) throw new Error('sefariaEmbed must be recognized')
-if (isSefariaEmbed(normalEmbed)) throw new Error('normalEmbed must not be recognized')
+if (!isSefariaEmbed(sefariaEmbed))
+  throw new Error('sefariaEmbed must be recognized')
+if (isSefariaEmbed(normalEmbed))
+  throw new Error('normalEmbed must not be recognized')
 
 console.log('ALL EXTENDED TORAH QUOTE AND EMBED TESTS PASSED!')

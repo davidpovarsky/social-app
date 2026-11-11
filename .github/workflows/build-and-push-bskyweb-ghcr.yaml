@@ -24,7 +24,6 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
     strategy:
       fail-fast: false
@@ -39,41 +38,34 @@ jobs:
           - image: embedr
             file: Dockerfile.embedr
     steps:
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
+      # Temporary until fixed runner images roll out:
+      # https://github.com/actions/runner-images/issues/15018
+      - name: Update Ubuntu CA certificates
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --only-upgrade --no-install-recommends -y ca-certificates
+
       - name: ⬇️ Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
       - name: 🔧 Setup Docker buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build ${{ matrix.image }}
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ${{ matrix.file }}
           platforms: linux/amd64
           push: false
+          # Test-only public endpoints: keep isolation enabled rather than
+          # weakening the Dockerfile's fail-closed network requirements.
+          # Unused build arguments are harmless for other matrix images.
+          build-args: |
+            EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true
+            EXPO_PUBLIC_TORAH_WEB_HOST=https://torah-130-110-238-163.nip.io
+            EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-130-110-238-163.nip.io
+            EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+            EXPO_PUBLIC_TORAH_PDS_DID=did:web:pds-130-110-238-163.nip.io
+            EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-130-110-238-163.nip.io
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
@@ -86,36 +78,19 @@ jobs:
       id-token: write
 
     steps:
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
+      # Temporary until fixed runner images roll out:
+      # https://github.com/actions/runner-images/issues/15018
+      - name: Update Ubuntu CA certificates
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --only-upgrade --no-install-recommends -y ca-certificates
+
       - name: ⬇️ Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
       - name: 🔧 Setup Docker buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
       - name: 🔑 Log into registry ${{ env.REGISTRY }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -123,14 +98,6 @@ jobs:
           username: ${{ env.USERNAME }}
           password: ${{ env.PASSWORD }}
 
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
       - name: 🏷️ Extract Docker metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -140,17 +107,9 @@ jobs:
           tags: |
             type=sha,enable=true,priority=100,prefix=bskyweb:,suffix=,format=long
 
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
       - name: 🚀 Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}

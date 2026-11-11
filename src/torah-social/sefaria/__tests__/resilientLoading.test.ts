@@ -32,7 +32,7 @@ describe('Torah Social — Resilient Sefaria Loading', () => {
     }
 
     // Supplementary call that fails (e.g. 500 error or network timeout)
-    const failingManuscripts = Promise.reject(
+    const failingManuscripts: Promise<unknown> = Promise.reject(
       new Error('Manuscript service unavailable (500)'),
     )
 

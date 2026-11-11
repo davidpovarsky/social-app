@@ -11,9 +11,9 @@ WORKDIR /app
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CI=1
-ENV NODE_OPTIONS="--max-old-space-size=6144"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 
-RUN npm install --global pnpm@11.21.0 && \
+RUN npm install --global pnpm@11.28.5 && \
   node --version && \
   pnpm --version
 
@@ -31,16 +31,18 @@ ENV EXPO_PUBLIC_RELEASE_VERSION=$EXPO_PUBLIC_RELEASE_VERSION
 ARG EXPO_PUBLIC_BUNDLE_IDENTIFIER
 # If not set by GitHub workflows, we're probably in Render
 ENV EXPO_PUBLIC_BUNDLE_IDENTIFIER=${EXPO_PUBLIC_BUNDLE_IDENTIFIER:-$RENDER_GIT_COMMIT}
+ARG EXPO_PUBLIC_TORAH_WEB_HOST
+ENV EXPO_PUBLIC_TORAH_WEB_HOST=${EXPO_PUBLIC_TORAH_WEB_HOST:-https://torah-130-110-238-163.nip.io}
 ARG EXPO_PUBLIC_TORAH_PDS_HOST
-ENV EXPO_PUBLIC_TORAH_PDS_HOST=${EXPO_PUBLIC_TORAH_PDS_HOST:-https://bsky.social}
+ENV EXPO_PUBLIC_TORAH_PDS_HOST=${EXPO_PUBLIC_TORAH_PDS_HOST:-}
 ARG EXPO_PUBLIC_TORAH_PDS_DID
-ENV EXPO_PUBLIC_TORAH_PDS_DID=${EXPO_PUBLIC_TORAH_PDS_DID:-did:web:bsky.social}
+ENV EXPO_PUBLIC_TORAH_PDS_DID=${EXPO_PUBLIC_TORAH_PDS_DID:-}
 ARG EXPO_PUBLIC_TORAH_APPVIEW_HOST
-ENV EXPO_PUBLIC_TORAH_APPVIEW_HOST=${EXPO_PUBLIC_TORAH_APPVIEW_HOST:-https://api.bsky.app}
+ENV EXPO_PUBLIC_TORAH_APPVIEW_HOST=${EXPO_PUBLIC_TORAH_APPVIEW_HOST:-}
 ARG EXPO_PUBLIC_BLUESKY_PROXY_DID
-ENV EXPO_PUBLIC_BLUESKY_PROXY_DID=${EXPO_PUBLIC_BLUESKY_PROXY_DID:-did:web:api.bsky.app}
+ENV EXPO_PUBLIC_BLUESKY_PROXY_DID=${EXPO_PUBLIC_BLUESKY_PROXY_DID:-}
 ARG EXPO_PUBLIC_TORAH_ISOLATED_NETWORK
-ENV EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=${EXPO_PUBLIC_TORAH_ISOLATED_NETWORK:-false}
+ENV EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=${EXPO_PUBLIC_TORAH_ISOLATED_NETWORK:-true}
 
 #
 # Sentry
@@ -57,6 +59,7 @@ RUN echo "Using bundle identifier: $EXPO_PUBLIC_BUNDLE_IDENTIFIER" && \
   echo "EXPO_PUBLIC_RELEASE_VERSION=$EXPO_PUBLIC_RELEASE_VERSION" >> .env && \
   echo "EXPO_PUBLIC_BUNDLE_IDENTIFIER=$EXPO_PUBLIC_BUNDLE_IDENTIFIER" >> .env && \
   echo "EXPO_PUBLIC_BUNDLE_DATE=$(date -u +"%y%m%d%H")" >> .env && \
+  echo "EXPO_PUBLIC_TORAH_WEB_HOST=$EXPO_PUBLIC_TORAH_WEB_HOST" >> .env && \
   echo "EXPO_PUBLIC_TORAH_PDS_HOST=$EXPO_PUBLIC_TORAH_PDS_HOST" >> .env && \
   echo "EXPO_PUBLIC_TORAH_PDS_DID=$EXPO_PUBLIC_TORAH_PDS_DID" >> .env && \
   echo "EXPO_PUBLIC_TORAH_APPVIEW_HOST=$EXPO_PUBLIC_TORAH_APPVIEW_HOST" >> .env && \
@@ -78,15 +81,20 @@ RUN pnpm intl:build 2>&1 | tee i18n.log && \
   if grep -q "invalid syntax" "i18n.log"; then echo "\n\nFound compilation errors!\n\n" && exit 1; else echo "\n\nNo compile errors!\n\n"; fi
 
 RUN SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN \
-    SENTRY_RELEASE=$EXPO_PUBLIC_RELEASE_VERSION \
+    SENTRY_RELEASE="com.davidpovarsky.torahsocial@${EXPO_PUBLIC_RELEASE_VERSION:-unset}" \
     SENTRY_DIST=$EXPO_PUBLIC_BUNDLE_IDENTIFIER \
-    NODE_OPTIONS="--max-old-space-size=6144" \
+    NODE_OPTIONS="--max-old-space-size=8192" \
     pnpm build-web
 
 #
 # Stage 2: build the bskyweb Go binary, embedding the assets from stage 1.
 #
-FROM golang:1.26-bookworm AS go-build
+# post-web-build.js (run by `pnpm build-web`) writes the bundled JS/CSS/media
+# into bskyweb/static/* and regenerates bskyweb/templates/scripts.html, so
+# copying the bskyweb/ tree from stage 1 is enough for go:embed to find
+# everything.
+#
+FROM golang:1.26.10-bookworm AS go-build
 
 WORKDIR /usr/src/social-app
 
@@ -97,6 +105,7 @@ ENV GOEXPERIMENT="loopvar"
 
 COPY --from=web-build /app/bskyweb ./bskyweb
 
+# DEBUG
 RUN find ./bskyweb/static
 
 RUN cd bskyweb/ && \
@@ -105,7 +114,7 @@ RUN cd bskyweb/ && \
 
 RUN cd bskyweb/ && \
   go build \
-    -v \
+    -v  \
     -trimpath \
     -tags timetzdata \
     -o /bskyweb \
@@ -129,10 +138,10 @@ ENTRYPOINT ["dumb-init", "--"]
 WORKDIR /bskyweb
 COPY --from=go-build /bskyweb /usr/bin/bskyweb
 
-CMD ["/usr/bin/bskyweb", "serve"]
+CMD ["/usr/bin/bskyweb"]
 
 LABEL org.opencontainers.image.source=https://github.com/davidpovarsky/social-app
-LABEL org.opencontainers.image.description="Torah Social Web App"
+LABEL org.opencontainers.image.description="bsky.app Web App"
 LABEL org.opencontainers.image.licenses=MIT
 
 # NOOP

@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useEffectEvent, useState} from 'react'
 import {type ListRenderItemInfo, View} from 'react-native'
-import * as Contacts from 'expo-contacts'
+import * as Contacts from 'expo-contacts/legacy'
 import {type DidString} from '@atproto/syntax'
 import {type ModerationOpts} from '@bsky/sdk/moderation'
 import {msg} from '@lingui/core/macro'
@@ -13,7 +13,7 @@ import {wait} from '#/lib/async/wait'
 import {HITSLOP_10, urls} from '#/lib/constants'
 import {isBlockedOrBlocking, isMuted} from '#/lib/moderation/blocked-and-muted'
 import {
-  type AllNavigatorParams,
+  type CommonNavigatorParams,
   type NativeStackScreenProps,
 } from '#/lib/routes/types'
 import {cleanError, isNetworkError} from '#/lib/strings/errors'
@@ -53,7 +53,10 @@ import {app} from '#/lexicons'
 import type * as bsky from '#/types/bsky'
 import {bulkWriteFollows} from '../Onboarding/util'
 
-type Props = NativeStackScreenProps<AllNavigatorParams, 'FindContactsSettings'>
+type Props = NativeStackScreenProps<
+  CommonNavigatorParams,
+  'FindContactsSettings'
+>
 export function FindContactsSettingsScreen({}: Props) {
   const {_} = useLingui()
   const ax = useAnalytics()
@@ -61,12 +64,17 @@ export function FindContactsSettingsScreen({}: Props) {
   const {data, error, refetch} = useContactsSyncStatusQuery()
 
   const isFocused = useIsFocused()
+
+  const logPresented = useEffectEvent(() => {
+    ax.metric('contacts:settings:presented', {
+      hasPreviouslySynced: !!data?.syncStatus,
+      matchCount: data?.syncStatus?.matchesCount,
+    })
+  })
+
   useEffect(() => {
     if (data && isFocused) {
-      ax.metric('contacts:settings:presented', {
-        hasPreviouslySynced: !!data.syncStatus,
-        matchCount: data.syncStatus?.matchesCount,
-      })
+      logPresented()
     }
   }, [data, isFocused])
 
