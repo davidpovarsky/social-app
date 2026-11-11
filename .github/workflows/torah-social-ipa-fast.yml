@@ -22,7 +22,7 @@ jobs:
       # Preserve patched React Native native source; cache compiler results instead.
       USE_CCACHE: '1'
       TORAH_IOS_CCACHE: 'true'
-      CCACHE_DIR: ${{ runner.temp }}/torah-ccache
+      CCACHE_DIR: ${{ github.workspace }}/.torah-ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_COMPILERCHECK: content
       CCACHE_COMPRESS: '1'
@@ -68,7 +68,7 @@ jobs:
       - name: Restore native C/C++ compilation cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: ${{ runner.temp }}/torah-ccache
+          path: ${{ github.workspace }}/.torah-ccache
           key: torah-ios-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-${{ github.run_id }}
           restore-keys: |
             torah-ios-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-
@@ -139,7 +139,7 @@ jobs:
         if: always()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: ${{ runner.temp }}/torah-ccache
+          path: ${{ github.workspace }}/.torah-ccache
           key: torah-ios-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-${{ github.run_id }}
       - name: Upload unsigned IPA artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
