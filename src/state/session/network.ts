@@ -1,23 +1,29 @@
+import {getPageSignal, pageLifecycleFetch} from '#/lib/page-lifecycle-fetch'
+import {
+  getRequestSignal,
+  isRequestAborted,
+  markRequestAborted,
+} from '#/lib/request-cancellation'
 import {emitNetworkConfirmed, emitNetworkLost} from '#/state/events'
-
-/*
- * Captured once at module load so the wrapper below is immune to later
- * monkey-patching of globalThis.fetch.
- */
-const realFetch = globalThis.fetch
 
 /**
  * Fetch wrapper that reports network reachability to the app-wide event bus.
- * Any resolved response (including HTTP errors) confirms the network is up; a
- * thrown error (DNS failure, timeout, offline) reports it as lost.
+ * Resolved HTTP responses confirm connectivity; deliberate cancellation and
+ * requests from a discarded document do not change its reachability state.
  */
 export const networkAwareFetch: typeof fetch = async (...args) => {
+  const pageSignal = getPageSignal()
+  const callerSignal = getRequestSignal(...args)
   try {
-    const res = await realFetch(...args)
-    emitNetworkConfirmed()
+    const res = await pageLifecycleFetch(...args)
+    if (!pageSignal?.aborted) emitNetworkConfirmed()
     return res
   } catch (e) {
-    emitNetworkLost()
+    if (pageSignal?.aborted || callerSignal?.aborted || isRequestAborted(e)) {
+      markRequestAborted(e)
+    } else {
+      emitNetworkLost()
+    }
     throw e
   }
 }

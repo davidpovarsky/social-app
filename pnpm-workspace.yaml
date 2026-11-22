@@ -14,6 +14,7 @@ trustPolicy: 'no-downgrade' # default: off
 trustPolicyIgnoreAfter: 10080 # 7 days, default: undefined
 pmOnFail: download # run the pnpm version pinned in devEngines; package.json keeps onFail: warn because npm/npx read it too
 overrides:
+  '@expo/cli': '58.1.19'
   '@react-native/babel-preset': '0.88.1'
   '@react-native/normalize-colors': '0.88.1'
   '@expo/image-utils': '0.12.6'

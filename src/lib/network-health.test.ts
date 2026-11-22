@@ -1,3 +1,12 @@
+import {createPageLifecycleFetch} from '#/lib/page-lifecycle-fetch/web'
+
+let mockTransport: ReturnType<typeof createPageLifecycleFetch> | undefined
+jest.mock('#/lib/page-lifecycle-fetch', () => ({
+  getPageSignal: () => mockTransport?.getSignal(),
+  pageLifecycleFetch: (...args: Parameters<typeof fetch>) =>
+    mockTransport ? mockTransport.fetch(...args) : globalThis.fetch(...args),
+}))
+
 import {checkServiceHealth} from './network-health'
 
 const service = 'https://appview.torah.test'
@@ -6,8 +15,47 @@ beforeEach(() => {
   jest.useFakeTimers()
 })
 afterEach(() => {
+  mockTransport?.dispose()
+  mockTransport = undefined
   jest.restoreAllMocks()
   jest.useRealTimers()
+})
+
+it('cancels a pending response body on pagehide, releases its timer, and recovers after pageshow', async () => {
+  const page = new EventTarget()
+  let signal: AbortSignal | null | undefined
+  let started!: () => void
+  const bodyStarted = new Promise<void>(resolve => {
+    started = resolve
+  })
+  const fetchMock = jest.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+    signal = init?.signal
+    return Promise.resolve({
+      ok: true,
+      json: () =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(signal?.reason))
+          started()
+        }),
+    } as Response)
+  })
+  mockTransport = createPageLifecycleFetch(page, fetchMock)
+  const pending = checkServiceHealth(service)
+  await bodyStarted
+  page.dispatchEvent(new Event('pagehide'))
+  await expect(pending).resolves.toBe(false)
+  expect(signal?.aborted).toBe(true)
+  expect(jest.getTimerCount()).toBe(0)
+  await expect(checkServiceHealth(service)).resolves.toBe(false)
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  expect(jest.getTimerCount()).toBe(0)
+  page.dispatchEvent(new Event('pageshow'))
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: () => Promise.resolve({version: 'restored'}),
+  } as Response)
+  await expect(checkServiceHealth(service)).resolves.toBe(true)
+  expect(jest.getTimerCount()).toBe(0)
 })
 
 it('uses the configured AppView and releases the timeout after success', async () => {

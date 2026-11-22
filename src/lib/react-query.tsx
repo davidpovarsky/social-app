@@ -14,6 +14,7 @@ import {
 
 import {PUBLIC_BSKY_SERVICE} from '#/lib/constants'
 import {checkServiceHealth} from '#/lib/network-health'
+import {getPageSignal} from '#/lib/page-lifecycle-fetch'
 import {createPersistedQueryStorage} from '#/lib/persisted-query-storage'
 import {listenNetworkConfirmed, listenNetworkLost} from '#/state/events'
 import {isQueryPersisted} from '#/state/queries/util'
@@ -50,28 +51,32 @@ listenNetworkConfirmed(() => {
 })
 
 let checkPromise: Promise<void> | undefined
+let checkPageSignal: AbortSignal | undefined
 function checkIsOnlineIfNeeded() {
-  if (checkPromise) {
+  const pageSignal = getPageSignal()
+  if (pageSignal?.aborted || (checkPromise && checkPageSignal === pageSignal)) {
     return
   }
+  checkPageSignal = pageSignal
   receivedNetworkLost = false
   receivedNetworkConfirmed = false
-  checkPromise = checkIsOnline().then(nextIsOnline => {
+  const currentCheck: Promise<void> = checkIsOnline().then(nextIsOnline => {
+    // A BFCache restoration can start a fresh check before this one settles.
+    if (checkPromise !== currentCheck) return
     checkPromise = undefined
-    if (nextIsOnline && receivedNetworkLost) {
-      isNetworkStateUnclear = true
-    }
-    if (!nextIsOnline && receivedNetworkConfirmed) {
-      isNetworkStateUnclear = true
-    }
+    if (pageSignal?.aborted) return
+    isNetworkStateUnclear =
+      (nextIsOnline && receivedNetworkLost) ||
+      (!nextIsOnline && receivedNetworkConfirmed)
     if (!isNetworkStateUnclear) {
       onlineManager.setOnline(nextIsOnline)
     }
   })
+  checkPromise = currentCheck
 }
 
 setInterval(() => {
-  if (AppState.currentState === 'active') {
+  if (!getPageSignal()?.aborted && AppState.currentState === 'active') {
     if (!onlineManager.isOnline() || isNetworkStateUnclear) {
       checkIsOnlineIfNeeded()
     }

@@ -127,7 +127,9 @@ jobs:
       - name: Install pinned browser test tools
         shell: bash
         run: |
-          npm install --prefix "$RUNNER_TEMP/torah-browser" --no-audit --no-fund playwright@1.65.1
+          mkdir -p "$RUNNER_TEMP/torah-browser"
+          cp scripts/torah-browser-qa/package.json scripts/torah-browser-qa/package-lock.json "$RUNNER_TEMP/torah-browser/"
+          npm ci --prefix "$RUNNER_TEMP/torah-browser" --ignore-scripts --no-audit --no-fund
           "$RUNNER_TEMP/torah-browser/node_modules/.bin/playwright" install --with-deps chromium webkit
       - name: Verify Hebrew, English, content and responsive layout
         shell: bash

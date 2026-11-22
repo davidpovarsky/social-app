@@ -147,8 +147,7 @@ jobs:
         env:
           BASE_COMMIT: ${{ steps.base-commit.outputs.base-commit }}
         run: |
-          git reset "$BASE_COMMIT"
-          git restore .
+          git reset --hard "$BASE_COMMIT"
           # Measure both builds with the PR's script, even when the base
           # predates support for gzip measurements.
           cp "$RUNNER_TEMP/measure-web-bundle.js" scripts/measure-web-bundle.js

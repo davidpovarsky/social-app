@@ -41,6 +41,8 @@ AUTH_PHASES = [
     ("08-discard-draft", "home"),
 ]
 SECRETS = set()
+COLD_BOOT_DEVICES = set()
+COLD_START_ALLOWANCE_SECONDS = 300
 JWT = re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
 
 
@@ -118,11 +120,12 @@ def sanitize_artifacts():
 def run(args, log, timeout=120):
     """Capture every command, retain its output, and propagate nonzero exits."""
     log.parent.mkdir(parents=True, exist_ok=True)
-    command = " ".join(map(str, args))
+    args = list(map(str, args))
+    command = " ".join(args)
     print("Running:", redact(command), flush=True)
     try:
         result = subprocess.run(
-            list(map(str, args)), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
             timeout=timeout, check=False, cwd=REPO,
         )
     except subprocess.TimeoutExpired as error:
@@ -135,7 +138,34 @@ def run(args, log, timeout=120):
             f"Command exited {result.returncode}: {redact(command)}\n"
             f"{output[-6000:]}"
         )
+    if args[:3] == ["xcrun", "simctl", "boot"] and len(args) == 4:
+        # Every successful new boot invalidates the driver's warm state, even
+        # when a future authenticated phase introduces another reboot.
+        COLD_BOOT_DEVICES.add(args[3])
     return output
+
+
+def run_maestro(args, udid, folder, flow_budget):
+    """Keep cold CLI/XCTest startup separate from unchanged UI assertions."""
+    folder.mkdir(parents=True, exist_ok=True)
+    cold = udid in COLD_BOOT_DEVICES
+    COLD_BOOT_DEVICES.discard(udid)
+    allowance = COLD_START_ALLOWANCE_SECONDS if cold else 0
+    timing = {
+        "flow_process_budget_seconds": flow_budget,
+        "cold_start_allowance_seconds": allowance,
+        "process_timeout_seconds": flow_budget + allowance,
+        "first_test_after_boot": cold,
+        "status": "failed",
+    }
+    started = time.monotonic()
+    try:
+        output = run(args, folder / "maestro.log", flow_budget + allowance)
+        timing["status"] = "passed"
+        return output
+    finally:
+        timing["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        (folder / "process-timing.json").write_text(json.dumps(timing, indent=2))
 
 
 def hierarchy(udid, folder):
@@ -358,6 +388,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
     folder = OUT / family.lower()
     folder.mkdir(parents=True, exist_ok=True)
     result = {"family": family, "type": device_type["name"], "phases": [], "status": "failed"}
+    started = time.monotonic()
     udid = None
     try:
         udid = run([
@@ -383,13 +414,13 @@ def exercise_device(family, device_type, runtime, app, executable, account):
                 result["phases"].append(phase)
                 phase_dir = folder / fixture / name
                 flow_name = "01-legacy-hebrew-login" if fixture == "legacy" and name == "01-hebrew-login" else name
-                run([
-                    "maestro", "--device", udid, "test", "--format", "junit",
+                run_maestro([
+                    "maestro", "--device", udid, "test", "--no-reinstall-driver", "--format", "junit",
                     "--output", phase_dir / "junit.xml",
                     "--debug-output", phase_dir / "debug",
                     "--test-output-dir", phase_dir / "artifacts",
                     "-e", f"APP_ID={APP_ID}", FLOWS / f"{flow_name}.yml",
-                ], phase_dir / "maestro.log", 300)
+                ], udid, phase_dir, 300)
                 tree = hierarchy(udid, phase_dir)
                 layout = assert_login_layout(tree, language)
                 (phase_dir / "layout-bounds.json").write_text(json.dumps(layout, ensure_ascii=False, indent=2))
@@ -409,7 +440,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
             result["phases"].append(phase)
             phase_dir = folder / "authenticated" / name
             args = [
-                "maestro", "--device", udid, "test", "--format", "junit",
+                "maestro", "--device", udid, "test", "--no-reinstall-driver", "--format", "junit",
                 "--output", phase_dir / "junit.xml",
                 "--debug-output", phase_dir / "debug",
                 "--test-output-dir", phase_dir / "artifacts",
@@ -426,7 +457,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
                     args.extend(["-e", f"{key}={value}"])
             args.append(FLOWS / f"{name}.yml")
             try:
-                run(args, phase_dir / "maestro.log", 360)
+                run_maestro(args, udid, phase_dir, 360)
             finally:
                 # Maestro's own debug JSON may include resolved env values.
                 sanitize_artifacts()
@@ -453,6 +484,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
                 except (OSError, RuntimeError, subprocess.SubprocessError) as error:
                     result.setdefault("diagnostic_errors", []).append(redact(error))
                     result["status"] = "failed"
+        result["elapsed_seconds"] = round(time.monotonic() - started, 3)
         (folder / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
         sanitize_artifacts()
     return result
@@ -474,14 +506,23 @@ def main():
         raise RuntimeError("No available iOS simulator runtime >= 26.4")
     runtime = max(runtimes, key=lambda item: version(item["version"]))
     results = []
-    report = {"sha": os.environ.get("GITHUB_SHA"), "runtime": runtime["name"], "app_id": APP_ID, "started": time.time(), "devices": results}
+    report = {
+        "sha": os.environ.get("TORAH_SIMULATOR_SOURCE_SHA", os.environ.get("GITHUB_SHA")),
+        "harness_sha": os.environ.get("GITHUB_SHA"),
+        "runtime": runtime["name"], "app_id": APP_ID,
+        "started": time.time(), "devices": results,
+    }
     for family in ("iPhone", "iPad"):
         results.append(exercise_device(family, select_device_type(inventory, runtime, family), runtime, app, info["CFBundleExecutable"], account))
+        timings = [json.loads(path.read_text()) for path in OUT.glob("*/**/process-timing.json")]
+        report["elapsed_seconds"] = round(time.time() - report["started"], 3)
+        report["cold_start_allowances_used"] = sum(item["first_test_after_boot"] for item in timings)
+        report["maestro_process_seconds"] = round(sum(item["elapsed_seconds"] for item in timings), 3)
         (OUT / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
             summary.write("## Native repair QA\n\n")
-            summary.write(f"Source: `{report['sha']}`; runtime: {runtime['name']}; Maestro 2.12.1.\n\n")
+            summary.write(f"Compiled app source: `{report['sha']}`; harness source: `{report['harness_sha']}`; runtime: {runtime['name']}; Maestro 2.12.1.\n\n")
             for result in results:
                 summary.write(f"- **{result['family']} ({result['type']}): {result['status']}**\n")
             summary.write("\nBoth fresh installation and persisted legacy RTL flags are exercised on each device. Logged-out launch, actual in-app Hebrew/English selection, auth navigation, relaunch persistence, field bounds and back-button side are checked. An existing project test account must then authenticate, load visible feed text, open an unsaved mixed-language composer, open the source picker and discard the draft. The default provider is exercised by using a bare username (no handle autodetection and no manual provider override); its initial indicator is also captured. Composer and source field bounds are measured. Screenshots and sanitized logs are in the artifact; typography still requires screenshot review. Publishing, saved drafts, replies, reactions, messages and physical-device behavior are outside this suite.\n")

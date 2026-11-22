@@ -1,8 +1,14 @@
 import {timeout} from '#/lib/async/timeout'
+import {getPageSignal} from '#/lib/page-lifecycle-fetch'
+import {isRequestAborted} from '#/lib/request-cancellation'
 import {isNetworkError, shouldRetryError} from '#/lib/strings/errors'
 
 export function isRetryableRequestError(error: unknown) {
-  return isNetworkError(error) || shouldRetryError(error)
+  return (
+    !isRequestAborted(error) &&
+    !getPageSignal()?.aborted &&
+    (isNetworkError(error) || shouldRetryError(error))
+  )
 }
 
 export async function retry<P>(
@@ -35,5 +41,16 @@ export async function networkRetry<P>(
   fn: () => Promise<P>,
   delay?: number,
 ): Promise<P> {
-  return retry(retries, isNetworkError, fn, delay)
+  const pageSignal = getPageSignal()
+  return retry(
+    retries,
+    error =>
+      !pageSignal?.aborted && !isRequestAborted(error) && isNetworkError(error),
+    () => {
+      // A retry delayed before pagehide still belongs to the old lifecycle.
+      if (pageSignal?.aborted) return Promise.reject(pageSignal.reason)
+      return fn()
+    },
+    delay,
+  )
 }
