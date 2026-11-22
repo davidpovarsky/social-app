@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Run native QA against one Release build on two fresh simulators.
+"""DIAGNOSTIC ONLY: one iPhone secure login through the native Paste menu.
+
+This derivative is not the full acceptance driver and must not be merged as one.
+It intentionally returns failure even when login succeeds; inspect diagnostic_outcome.
 
 Reuse an existing test account for read-only feed and unsaved composer checks.
 Never create accounts, publish posts, save drafts, react, reply or send messages.
@@ -16,6 +19,7 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from urllib.parse import quote, urlparse
 from urllib.request import urlopen
@@ -43,6 +47,7 @@ AUTH_PHASES = [
 ]
 SECRETS = set()
 COLD_BOOT_DEVICES = set()
+OWNED_SIMULATOR_DEVICES = set()
 COLD_START_ALLOWANCE_SECONDS = 300
 SIMULATOR_BOOT_TIMEOUT_SECONDS = 900
 JWT = re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
@@ -125,6 +130,78 @@ def redact(value, *, json_required=False):
             return json.dumps(scrubbed, indent=2, ensure_ascii=False) if scrubbed != document else text
     return redact_text(text)
 
+
+
+def require_owned_simulator(udid):
+    if udid not in OWNED_SIMULATOR_DEVICES or not re.fullmatch(
+        r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", udid
+    ):
+        raise RuntimeError("Pasteboard access requires this run's owned simulator")
+
+
+def simulator_pasteboard_command(udid, operation, payload=None):
+    """Keep pasteboard contents out of argv, logs and exception messages."""
+    require_owned_simulator(udid)
+    if operation not in ("pbcopy", "pbpaste"):
+        raise ValueError("Unsupported simulator pasteboard operation")
+    if (operation == "pbcopy" and not isinstance(payload, bytes)) or (
+        operation == "pbpaste" and payload is not None
+    ):
+        raise ValueError("Pasteboard payload must be private copy stdin or absent for readback")
+    try:
+        process = subprocess.run(
+            ["xcrun", "simctl", operation, udid],
+            input=payload,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        raise RuntimeError("Owned simulator pasteboard command failed") from None
+    if process.returncode != 0 or not isinstance(process.stdout, bytes):
+        raise RuntimeError("Owned simulator pasteboard command failed")
+    return process.stdout
+
+
+@contextmanager
+def simulator_password_pasteboard(udid, password, folder):
+    """Verify an exact private copy, then clear and verify it even on failure."""
+    require_owned_simulator(udid)
+    if not isinstance(password, str) or not password:
+        raise ValueError("A nonempty existing fixture password is required")
+    folder.mkdir(parents=True, exist_ok=True)
+    encoded = password.encode("utf-8")
+    audit = {
+        "expected_length": len(password),
+        "expected_utf8_bytes": len(encoded),
+        "readback_utf8_bytes": None,
+        "readback_matches": False,
+        "cleanup_attempted": False,
+        "cleanup_verified": False,
+    }
+    try:
+        simulator_pasteboard_command(udid, "pbcopy", encoded)
+        readback = simulator_pasteboard_command(udid, "pbpaste")
+        audit["readback_utf8_bytes"] = len(readback)
+        audit["readback_matches"] = readback == encoded
+        if not audit["readback_matches"]:
+            raise RuntimeError("Owned simulator pasteboard readback did not match")
+        del readback
+        yield
+    finally:
+        audit["cleanup_attempted"] = True
+        try:
+            simulator_pasteboard_command(udid, "pbcopy", b"")
+            audit["cleanup_verified"] = (
+                simulator_pasteboard_command(udid, "pbpaste") == b""
+            )
+            if not audit["cleanup_verified"]:
+                raise RuntimeError("Owned simulator pasteboard cleanup did not verify")
+        finally:
+            (folder / "password-pasteboard.json").write_text(
+                json.dumps(audit, indent=2), encoding="utf-8"
+            )
 
 def fixture_password(handle):
     match = re.fullmatch(r"e2e-a-([0-9]+)\.[A-Za-z0-9.-]+", handle)
@@ -517,6 +594,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
             device_type["identifier"], runtime["identifier"],
         ], folder / "create.log").strip()
         result["udid"] = udid
+        OWNED_SIMULATOR_DEVICES.add(udid)
         run(["xcrun", "simctl", "boot", udid], folder / "boot.log")
         wait_for_boot(udid, folder / "bootstatus.log", "initial")
         run(["xcrun", "simctl", "spawn", udid, "defaults", "write", "NSGlobalDomain", "AppleLanguages", "-array", "he", "en"], folder / "set-languages.log")
@@ -527,10 +605,10 @@ def exercise_device(family, device_type, runtime, app, executable, account):
         wait_for_boot(udid, folder / "locale-bootstatus.log", "locale")
         run(["xcrun", "simctl", "spawn", udid, "defaults", "read", "NSGlobalDomain", "AppleLanguages"], folder / "device-languages.log")
         run(["xcrun", "simctl", "install", udid, app], folder / "install.log")
-        for fixture in ("fresh", "legacy"):
+        for fixture in ("fresh",):
             if fixture == "legacy":
                 seed_legacy_flags(udid, folder / "legacy-fixture")
-            for name, language in PHASES:
+            for name, language in PHASES[:1]:
                 phase = {"name": name, "fixture": fixture, "language": language, "status": "failed"}
                 result["phases"].append(phase)
                 phase_dir = folder / fixture / name
@@ -556,7 +634,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
         native_sidebar = uses_native_sidebar(provider_tree, family)
         (provider_dir / "default-provider.json").write_text(json.dumps(provider, indent=2))
         run(["xcrun", "simctl", "io", udid, "screenshot", provider_dir / "initial-provider.png"], provider_dir / "screenshot.log")
-        for name, screen_name in AUTH_PHASES:
+        for name, screen_name in AUTH_PHASES[:1]:
             phase = {"name": name, "fixture": "existing-account", "screen": screen_name, "status": "failed"}
             result["phases"].append(phase)
             phase_dir = folder / "authenticated" / name
@@ -568,17 +646,24 @@ def exercise_device(family, device_type, runtime, app, executable, account):
                 "-e", f"APP_ID={APP_ID}",
                 "-e", f"NATIVE_SIDEBAR={str(native_sidebar).lower()}",
             ]
-            # Supply credentials only to the login flow. No shell evaluation and
-            # no account/session HTTP request or token persistence in this harness.
-            if screen_name == "home" and name.startswith("05-"):
+            # Only the public username and expected length go to Maestro.
+            # The secret uses the owned simulator pasteboard through private stdin.
+            # Authentication still happens through the real secure field and UI.
+            is_login_phase = screen_name == "home" and name.startswith("05-")
+            if is_login_phase:
                 for key, value in {
                     "FIXTURE_USERNAME": account["handle"].split(".", 1)[0],
-                    "FIXTURE_PASSWORD": account["password"],
+                    "FIXTURE_PASSWORD_LENGTH": len(account["password"]),
                 }.items():
                     args.extend(["-e", f"{key}={value}"])
             args.append(FLOWS / f"{name}.yml")
             try:
-                run_maestro(args, udid, phase_dir, 360)
+                pasteboard = (
+                    simulator_password_pasteboard(udid, account["password"], phase_dir)
+                    if is_login_phase else nullcontext()
+                )
+                with pasteboard:
+                    run_maestro(args, udid, phase_dir, 360)
             finally:
                 # Maestro's own debug JSON may include resolved env values.
                 sanitize_artifacts()
@@ -605,6 +690,8 @@ def exercise_device(family, device_type, runtime, app, executable, account):
                 except (OSError, RuntimeError, subprocess.SubprocessError) as error:
                     result.setdefault("diagnostic_errors", []).append(redact(error))
                     result["status"] = "failed"
+        if udid:
+            OWNED_SIMULATOR_DEVICES.discard(udid)
         result["elapsed_seconds"] = round(time.monotonic() - started, 3)
         (folder / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2))
         sanitize_artifacts()
@@ -631,23 +718,30 @@ def main():
         "sha": os.environ.get("TORAH_SIMULATOR_SOURCE_SHA", os.environ.get("GITHUB_SHA")),
         "harness_sha": os.environ.get("GITHUB_SHA"),
         "runtime": runtime["name"], "app_id": APP_ID,
+        "mode": "diagnostic-only-native-password-paste",
+        "acceptance_eligible": False,
+        "expected_flow_executions": 2,
         "started": time.time(), "devices": results,
     }
-    for family in ("iPhone", "iPad"):
+    for family in ("iPhone",):
         results.append(exercise_device(family, select_device_type(inventory, runtime, family), runtime, app, info["CFBundleExecutable"], account))
         timings = [json.loads(path.read_text()) for path in OUT.glob("*/**/process-timing.json")]
+        report["diagnostic_outcome"] = "login_succeeded" if all(item["status"] == "passed" for item in results) else "login_not_confirmed"
+        report["attempted_flow_phases"] = sum(len(item["phases"]) for item in results)
+        report["passed_flow_phases"] = sum(phase["status"] == "passed" for item in results for phase in item["phases"])
         report["elapsed_seconds"] = round(time.time() - report["started"], 3)
         report["cold_start_allowances_used"] = sum(item["first_test_after_boot"] for item in timings)
         report["maestro_process_seconds"] = round(sum(item["elapsed_seconds"] for item in timings), 3)
         (OUT / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-            summary.write("## Native repair QA\n\n")
+            summary.write("## DIAGNOSTIC ONLY: native secure login paste\n\n")
             summary.write(f"Compiled app source: `{report['sha']}`; harness source: `{report['harness_sha']}`; runtime: {runtime['name']}; Maestro 2.12.1.\n\n")
             for result in results:
                 summary.write(f"- **{result['family']} ({result['type']}): {result['status']}**\n")
-            summary.write("\nBoth fresh installation and persisted legacy RTL flags are exercised on each device. Logged-out launch, actual in-app Hebrew/English selection, auth navigation, relaunch persistence, field bounds and back-button side are checked. An existing project test account must then authenticate, load visible feed text, open an unsaved mixed-language composer, open the source picker and discard the draft. The default provider is exercised by using a bare username (no handle autodetection and no manual provider override); its initial indicator is also captured. Composer and source field bounds are measured. Screenshots and sanitized logs are in the artifact; typography still requires screenshot review. Publishing, saved drafts, replies, reactions, messages and physical-device behavior are outside this suite.\n")
-    return 0 if all(result["status"] == "passed" for result in results) else 1
+            summary.write("\nThis disposable diagnostic runs only fresh Hebrew login layout and the existing authenticated-home flow on one iPhone. It preserves their UI assertions and time budgets, but does not exercise the full language, legacy, iPad, composer, source or discard matrix. Read diagnostic_outcome in summary.json. This driver is not eligible for Native acceptance or merging as the full suite, and exits nonzero even when login succeeds.\n")
+    print(f"DIAGNOSTIC ONLY: {report['diagnostic_outcome']}; full Native acceptance not evaluated", flush=True)
+    return 1  # A successful experiment must never be mistaken for full acceptance.
 
 
 if __name__ == "__main__":

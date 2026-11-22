@@ -1,6 +1,9 @@
 appId: ${APP_ID}
 name: Existing fixture logs in through the default Torah provider and loads real posts
 ---
+# Diagnostic only: fresh01 may leave the native swipe-typing introduction open.
+# Use the existing strict iOS keyboard dismissal before any credential input.
+- hideKeyboard
 # This is deliberately a bare username. Full handles could auto-detect a PDS
 # and hide a wrong-default regression. Never open or override the provider.
 - assertVisible:
@@ -15,24 +18,26 @@ name: Existing fixture logs in through the default Torah provider and loads real
     label: Enter existing project fixture username
 - tapOn:
     id: loginPasswordInput
-# The field stays secure. Maestro debug output is scrubbed before any upload.
-# Maestro 2.12.1 types the remainder of a multi-character input at 30 chars/s.
-# Enter each character once through its awaited slow path, then check the secure
-# field's masked accessibility value before submitting. No reveal or retry.
-- evalScript: ${output.passwordCharacter = 0}
-- repeat:
-    times: ${FIXTURE_PASSWORD.length}
-    commands:
-      - inputText:
-          text: ${FIXTURE_PASSWORD.charAt(output.passwordCharacter)}
-          label: Enter one secure fixture-password character
-      - evalScript: ${output.passwordCharacter += 1}
+# The driver populated only this simulator's pasteboard and verified it privately.
+# This is the native iOS Paste menu; Maestro pasteText would type characters.
+# Never reveal the field or put the password in Maestro environment/arguments.
+- longPressOn:
+    id: loginPasswordInput
+- assertVisible: '^(הדבק|Paste)$'
+- tapOn: '^(הדבק|Paste)$'
+- copyTextFrom:
+    id: loginPasswordInput
+- evalScript: ${console.log("TORAH_QA_SECURE_MASK_BEFORE_HIDE_LENGTH=" + maestro.copiedText.length)}
+- assertTrue:
+    condition: ${maestro.copiedText.length === Number(FIXTURE_PASSWORD_LENGTH) && maestro.copiedText.replace(/[\u2022\u25cf]/g, '').length === 0}
+    label: 'Secure field before keyboard dismissal has ${maestro.copiedText.length} masked characters; expected ${FIXTURE_PASSWORD_LENGTH}'
 - hideKeyboard
 - copyTextFrom:
     id: loginPasswordInput
+- evalScript: ${console.log("TORAH_QA_SECURE_MASK_AFTER_HIDE_LENGTH=" + maestro.copiedText.length)}
 - assertTrue:
-    condition: ${/^[\u2022\u25cf]+$/.test(maestro.copiedText) && maestro.copiedText.length === FIXTURE_PASSWORD.length}
-    label: Secure password field has the expected masked character count
+    condition: ${maestro.copiedText.length === Number(FIXTURE_PASSWORD_LENGTH) && maestro.copiedText.replace(/[\u2022\u25cf]/g, '').length === 0}
+    label: 'Secure field after keyboard dismissal has ${maestro.copiedText.length} masked characters; expected ${FIXTURE_PASSWORD_LENGTH}'
 - tapOn:
     id: loginNextButton
 - extendedWaitUntil:
