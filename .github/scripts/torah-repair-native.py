@@ -43,6 +43,7 @@ AUTH_PHASES = [
 SECRETS = set()
 COLD_BOOT_DEVICES = set()
 COLD_START_ALLOWANCE_SECONDS = 300
+SIMULATOR_BOOT_TIMEOUT_SECONDS = 900
 JWT = re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
 
 
@@ -143,6 +144,33 @@ def run(args, log, timeout=120):
         # when a future authenticated phase introduces another reboot.
         COLD_BOOT_DEVICES.add(args[3])
     return output
+
+
+def wait_for_boot(udid, log, phase, timeout=SIMULATOR_BOOT_TIMEOUT_SECONDS):
+    """Keep OS migration readiness separate from app/UI process budgets."""
+    log.parent.mkdir(parents=True, exist_ok=True)
+    timing_path = log.with_name(log.stem + "-timing.json")
+    timing = {
+        "category": "simulator-setup", "phase": phase, "status": "running",
+        "timeout_seconds": timeout,
+        "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    started = time.monotonic()
+    timing_path.write_text(json.dumps(timing, indent=2))
+    print(f"Waiting for {phase} simulator boot readiness (budget {timeout}s)", flush=True)
+    try:
+        output = run(["xcrun", "simctl", "bootstatus", udid, "-b"], log, timeout)
+        timing["status"] = "passed"
+        return output
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        timing.update({"status": "failed", "error": redact(error)})
+        raise
+    finally:
+        timing["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        if log.is_file():
+            timing["progress_tail"] = redact(log.read_text(encoding="utf-8"))[-2000:]
+        timing_path.write_text(json.dumps(timing, indent=2))
+        print("Simulator boot readiness:", json.dumps(timing), flush=True)
 
 
 def run_maestro(args, udid, folder, flow_budget):
@@ -381,7 +409,7 @@ def seed_legacy_flags(udid, folder):
         raise AssertionError("Legacy RTL preferences were not persisted")
     (folder / "seeded-rtl-flags.json").write_text(json.dumps(fixture, indent=2))
     run(["xcrun", "simctl", "boot", udid], folder / "boot.log")
-    run(["xcrun", "simctl", "bootstatus", udid, "-b"], folder / "bootstatus.log", 240)
+    wait_for_boot(udid, folder / "bootstatus.log", "legacy", timeout=240)
 
 
 def exercise_device(family, device_type, runtime, app, executable, account):
@@ -397,13 +425,13 @@ def exercise_device(family, device_type, runtime, app, executable, account):
         ], folder / "create.log").strip()
         result["udid"] = udid
         run(["xcrun", "simctl", "boot", udid], folder / "boot.log")
-        run(["xcrun", "simctl", "bootstatus", udid, "-b"], folder / "bootstatus.log", 240)
+        wait_for_boot(udid, folder / "bootstatus.log", "initial")
         run(["xcrun", "simctl", "spawn", udid, "defaults", "write", "NSGlobalDomain", "AppleLanguages", "-array", "he", "en"], folder / "set-languages.log")
         run(["xcrun", "simctl", "spawn", udid, "defaults", "write", "NSGlobalDomain", "AppleLocale", "-string", "he_IL"], folder / "set-locale.log")
         # Restart SpringBoard with the language configured before the first app launch.
         run(["xcrun", "simctl", "shutdown", udid], folder / "locale-shutdown.log")
         run(["xcrun", "simctl", "boot", udid], folder / "locale-boot.log")
-        run(["xcrun", "simctl", "bootstatus", udid, "-b"], folder / "locale-bootstatus.log", 240)
+        wait_for_boot(udid, folder / "locale-bootstatus.log", "locale")
         run(["xcrun", "simctl", "spawn", udid, "defaults", "read", "NSGlobalDomain", "AppleLanguages"], folder / "device-languages.log")
         run(["xcrun", "simctl", "install", udid, app], folder / "install.log")
         for fixture in ("fresh", "legacy"):
