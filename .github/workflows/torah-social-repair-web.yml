@@ -74,7 +74,7 @@ jobs:
           cd ..
           cp Dockerfile.torah-runtime release/Dockerfile
           printf '%s\n' "$GITHUB_SHA" > release/COMMIT
-          sha256sum release/bskyweb > release/SHA256SUMS
+          (cd release && sha256sum bskyweb > SHA256SUMS)
       - name: Install pinned browser test tools
         shell: bash
         run: |

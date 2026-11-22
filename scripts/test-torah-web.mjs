@@ -227,7 +227,7 @@ for (const [engineName, engine] of [
             passed: false,
             phase,
             authenticated,
-            error: String(error),
+            error: String(error).replaceAll(testPassword, '[redacted]'),
           })
         } finally {
           await context.close()
