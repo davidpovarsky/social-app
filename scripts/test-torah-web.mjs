@@ -206,6 +206,39 @@ async function withinLocatorViewport(page, locator, name) {
     name + ' overflows the end edge: ' + JSON.stringify(box),
   )
 }
+async function inspectCenterBorders(page) {
+  if (page.viewportSize().width < 800) return {applicable: false}
+  const borders = page
+    .locator('[data-testid="layoutCenterBorders"]:visible')
+    .last()
+  const banner = page
+    .getByTestId('profileView')
+    .locator(
+      '[data-testid="userBannerFallback"], [data-testid="userBannerImage"]',
+    )
+    .first()
+  await borders.waitFor({state: 'visible'})
+  await banner.waitFor({state: 'visible'})
+  const frame = await borders.boundingBox()
+  const content = await banner.boundingBox()
+  assert.ok(
+    frame && content && content.width > 0,
+    'Profile column geometry must be measurable',
+  )
+  assert.ok(
+    Math.abs(frame.x - content.x) <= 2,
+    'Start border must frame the content column: ' +
+      JSON.stringify({frame, content}),
+  )
+  assert.ok(
+    Math.abs(frame.x + frame.width - content.x - content.width) <= 2,
+    'End border must frame the content column: ' +
+      JSON.stringify({frame, content}),
+  )
+  await withinLocatorViewport(page, borders, 'layoutCenterBorders')
+  return {applicable: true, frame, content}
+}
+
 async function noHorizontalOverflow(page) {
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -410,7 +443,9 @@ scenarioMatrix: for (const [engineName, engine] of [
         page.on('request', request => {
           const url = new URL(request.url())
           if (
-            /(^|\.)bsky\.(app|social|network)$/.test(url.hostname) &&
+            /(^|\.)(bsky\.(app|social|network)|growthbook\.io)$/.test(
+              url.hostname,
+            ) &&
             ['fetch', 'xhr', 'websocket'].includes(request.resourceType())
           ) {
             forbidden.push({scenario: name, url: url.origin + url.pathname})
@@ -504,6 +539,7 @@ scenarioMatrix: for (const [engineName, engine] of [
         })
 
         let readerEvidence
+        let columnEvidence
         let errorRecoveryEvidence
         let authenticated = false
         let phase = 'welcome'
@@ -560,6 +596,7 @@ scenarioMatrix: for (const [engineName, engine] of [
           await withinViewport(page, 'profileView')
           await withinViewport(page, 'postText')
           await noHorizontalOverflow(page)
+          columnEvidence = await inspectCenterBorders(page)
           await capture(page, name + '-profile')
 
           if ([390, 820, 1280].includes(width)) {
@@ -635,6 +672,7 @@ scenarioMatrix: for (const [engineName, engine] of [
             name,
             passed: true,
             authenticated,
+            columnEvidence,
             readerEvidence,
             errorRecoveryEvidence,
           })
@@ -667,6 +705,9 @@ scenarioMatrix: for (const [engineName, engine] of [
             visibleTestIds,
             phase,
             authenticated,
+            columnEvidence,
+            readerEvidence,
+            errorRecoveryEvidence,
             error: String(error).replaceAll(testPassword, '[redacted]'),
           })
           if (
@@ -723,5 +764,5 @@ assert.equal(errors.length, 0, 'Client JavaScript errors occurred')
 assert.equal(
   forbidden.length,
   0,
-  'Client contacted a public Bluesky runtime service',
+  'Client contacted a public Bluesky or remote feature-flag service',
 )
