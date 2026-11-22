@@ -50,6 +50,18 @@ COLD_BOOT_DEVICES = set()
 OWNED_SIMULATOR_DEVICES = set()
 COLD_START_ALLOWANCE_SECONDS = 300
 SIMULATOR_BOOT_TIMEOUT_SECONDS = 900
+# Auxiliary hierarchy starts its own CLI/session. Pinned Maestro 2.12.1 allows
+# 180s configured readiness and a 200s snapshot HTTP request. The additional
+# 60s is our finite CLI/device-selection/serialization policy, not an upstream
+# guarantee that every nested operation receives its full maximum.
+HIERARCHY_DRIVER_STARTUP_TIMEOUT_MS = 180_000
+HIERARCHY_REQUEST_TIMEOUT_SECONDS = 200
+HIERARCHY_CLI_OVERHEAD_SECONDS = 60
+HIERARCHY_PROCESS_TIMEOUT_SECONDS = (
+    HIERARCHY_DRIVER_STARTUP_TIMEOUT_MS // 1000
+    + HIERARCHY_REQUEST_TIMEOUT_SECONDS
+    + HIERARCHY_CLI_OVERHEAD_SECONDS
+)
 JWT = re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
 # Pinned Maestro logs both whole input and separate first-character/rest payloads.
 # Redact these records, not each password character throughout unrelated output.
@@ -350,16 +362,112 @@ def run_maestro(args, udid, folder, flow_budget):
 
 
 def hierarchy(udid, folder):
-    result = subprocess.run(
-        ["maestro", "--device", udid, "hierarchy", "--no-reinstall-driver"],
-        capture_output=True, text=True, timeout=120, check=False,
-    )
-    stdout, stderr = redact(result.stdout), redact(result.stderr)
-    (folder / "hierarchy.json").write_text(stdout, encoding="utf-8")
-    (folder / "hierarchy-stderr.log").write_text(stderr, encoding="utf-8")
-    if result.returncode:
-        raise RuntimeError(f"Maestro hierarchy failed ({result.returncode}): {stderr[-3000:]}")
-    return application_root(json.loads(stdout))
+    """Collect raw geometry with a bounded CLI budget and safe failure evidence."""
+    folder.mkdir(parents=True, exist_ok=True)
+    subprocess_env = {
+        **os.environ,
+        "MAESTRO_DRIVER_STARTUP_TIMEOUT": str(HIERARCHY_DRIVER_STARTUP_TIMEOUT_MS),
+    }
+    # Pin and record the effective child value; a changed parent env cannot
+    # silently invalidate this auxiliary process budget.
+    timing = {
+        "category": "auxiliary-hierarchy",
+        "driver_startup_timeout_ms": subprocess_env["MAESTRO_DRIVER_STARTUP_TIMEOUT"],
+        "snapshot_request_timeout_seconds": HIERARCHY_REQUEST_TIMEOUT_SECONDS,
+        "cli_overhead_allowance_seconds": HIERARCHY_CLI_OVERHEAD_SECONDS,
+        "process_timeout_seconds": HIERARCHY_PROCESS_TIMEOUT_SECONDS,
+        "status": "failed",
+        "failure_stage": "process",
+        "timed_out": False,
+        "returncode": None,
+    }
+
+    def sanitized_capture(value):
+        text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+        stripped = text.lstrip()
+        # Do not reinterpret truncated JSON/AX output as an ordinary log.
+        # A partial secure-field value may not contain the full registered secret.
+        structured = stripped.startswith(("{", "[")) or re.search(
+            r'"[^"\r\n]*"\s*:|loginPasswordInput|inputTextCommand|XCUIElementTypeSecureTextField',
+            text,
+        )
+        return redact(text, json_required=bool(structured))
+
+    stdout = stderr = ""
+    started = time.monotonic()
+    try:
+        try:
+            result = subprocess.run(
+                ["maestro", "--device", udid, "hierarchy", "--no-reinstall-driver"],
+                capture_output=True, text=True,
+                timeout=HIERARCHY_PROCESS_TIMEOUT_SECONDS, check=False,
+                env=subprocess_env,
+            )
+        except subprocess.TimeoutExpired as error:
+            stdout, stderr = error.stdout or "", error.stderr or ""
+            timing["timed_out"] = True
+            raise RuntimeError(
+                f"Maestro hierarchy timed out after {HIERARCHY_PROCESS_TIMEOUT_SECONDS}s"
+            ) from None
+        stdout, stderr = result.stdout or "", result.stderr or ""
+        timing["returncode"] = result.returncode
+        timing["failure_stage"] = "output-sanitization"
+        safe_stdout, safe_stderr = sanitized_capture(stdout), sanitized_capture(stderr)
+        timing["failure_stage"] = "process-exit"
+        if result.returncode:
+            raise RuntimeError(
+                f"Maestro hierarchy failed ({result.returncode}): {safe_stderr[-3000:]}"
+            )
+        timing["failure_stage"] = "json-parse"
+        tree = json.loads(safe_stdout)
+        timing["failure_stage"] = "application-root"
+        root = application_root(tree)
+        timing["status"] = "passed"
+        timing.pop("failure_stage")
+        return root
+    finally:
+        timing["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        capture_refused = False
+        try:
+            captures = {}
+            for stream, value in (("stdout", stdout), ("stderr", stderr)):
+                timing[f"{stream}_bytes"] = (
+                    len(value) if isinstance(value, bytes) else len(str(value).encode("utf-8"))
+                )
+                try:
+                    captures[stream] = sanitized_capture(value)
+                    timing[f"{stream}_capture_status"] = "retained"
+                except (RuntimeError, ValueError):
+                    # Withhold uncertain payloads, never their parser input/error.
+                    captures[stream] = "[WITHHELD_UNSAFE_HIERARCHY_CAPTURE]\n"
+                    timing[f"{stream}_capture_status"] = "withheld"
+                    capture_refused = True
+            timing["capture_refused"] = capture_refused
+            (folder / "hierarchy-stdout.log").write_text(captures["stdout"], encoding="utf-8")
+            (folder / "hierarchy-stderr.log").write_text(captures["stderr"], encoding="utf-8")
+            timing["stdout_complete_json"] = False
+            if timing["stdout_capture_status"] == "retained":
+                try:
+                    json.loads(captures["stdout"])
+                except json.JSONDecodeError:
+                    pass
+                else:
+                    timing["stdout_complete_json"] = True
+                    (folder / "hierarchy.json").write_text(captures["stdout"], encoding="utf-8")
+            if capture_refused:
+                timing["status"] = "failed"
+                timing["failure_stage"] = "capture-sanitization"
+                raise RuntimeError("Cannot safely retain hierarchy capture; payload withheld") from None
+        except Exception:
+            timing["status"] = "failed"
+            if not capture_refused:
+                timing["failure_stage"] = "artifact-output"
+            raise
+        finally:
+            # A distinct filename preserves the existing flow/cold aggregates.
+            (folder / "hierarchy-timing.json").write_text(
+                json.dumps(timing, indent=2), encoding="utf-8"
+            )
 
 
 def version(value):
