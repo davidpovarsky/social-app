@@ -58,14 +58,16 @@ async function runTests() {
 
   console.log('4. Testing searchTorahSources("ברכות ב")...')
   const resBerakhot2 = await (async () => {
-    const refLabels = new Map([
-      ['ברכות ב', 'parent-daf'],
-      ['Berakhot 2a', 'amud-a'],
-      ['Berakhot 2b', 'amud-b'],
-    ].map(([ref, label]) => [
-      'https://www.sefaria.org/api/ref/' + encodeURIComponent(ref),
-      label,
-    ]))
+    const refLabels = new Map(
+      [
+        ['ברכות ב', 'parent-daf'],
+        ['Berakhot 2a', 'amud-a'],
+        ['Berakhot 2b', 'amud-b'],
+      ].map(([ref, label]) => [
+        'https://www.sefaria.org/api/ref/' + encodeURIComponent(ref),
+        label,
+      ]),
+    )
     const safeRef = value =>
       typeof value === 'string' &&
       /^[\p{L}\p{N}][\p{L}\p{N}\p{M} _.'״׳:(),\/-]{0,159}$/u.test(value) &&
@@ -99,7 +101,9 @@ async function runTests() {
         content_type:
           contentType == null ||
           (contentType.length <= 160 &&
-            /^[a-z0-9.+-]+\/[a-z0-9.+-]+(?:;\s*charset=(?:"[a-z0-9_.-]+"|[a-z0-9_.-]+))?$/i.test(contentType))
+            /^[a-z0-9.+-]+\/[a-z0-9.+-]+(?:;\s*charset=(?:"[a-z0-9_.-]+"|[a-z0-9_.-]+))?$/i.test(
+              contentType,
+            ))
             ? contentType
             : '[unavailable-content-type]',
       })
@@ -116,7 +120,9 @@ async function runTests() {
               record({
                 ref: label,
                 phase: 'json',
-                canonical_ref: safeRef(data?.normalized || data?.ref || data?.url_ref),
+                canonical_ref: safeRef(
+                  data?.normalized || data?.ref || data?.url_ref,
+                ),
                 is_ref: typeof data?.is_ref === 'boolean' ? data.is_ref : null,
               })
               return data
@@ -128,13 +134,21 @@ async function runTests() {
                 if (ownJson) Object.defineProperty(response, 'json', ownJson)
                 else delete response.json
               } catch {
-                record({ref: label, phase: 'observer', error: 'json_restore_error'})
+                record({
+                  ref: label,
+                  phase: 'observer',
+                  error: 'json_restore_error',
+                })
               }
             }
           },
         })
       } catch {
-        record({ref: label, phase: 'observer', error: 'json_observer_unavailable'})
+        record({
+          ref: label,
+          phase: 'observer',
+          error: 'json_observer_unavailable',
+        })
       }
       return response
     }
