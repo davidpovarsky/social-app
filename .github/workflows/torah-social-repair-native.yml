@@ -17,7 +17,7 @@ jobs:
   simulator:
     name: Hebrew and English on iPhone and iPad
     runs-on: macos-26-intel
-    timeout-minutes: 160
+    timeout-minutes: 180
     env:
       CI: '1'
       USE_CCACHE: '1'
@@ -142,9 +142,13 @@ jobs:
           APP="$RUNNER_TEMP/TorahSimulatorDerivedData/Build/Products/Release-iphonesimulator/$SCHEME.app"
           test -d "$APP" || { echo "Missing simulator app: $APP" >&2; exit 1; }
           echo "TORAH_SIMULATOR_APP=$APP" >> "$GITHUB_ENV"
-      - name: Run real Hebrew and English UI flows on iPhone and iPad
-        timeout-minutes: 45
+      - name: Run language, real login, feed and unsaved composer flows on both devices
+        timeout-minutes: 55
         run: python3 .github/scripts/torah-repair-native.py
+      - name: Sanitize test credentials and tokens before artifact upload
+        id: sanitize
+        if: always()
+        run: python3 .github/scripts/torah-repair-native.py --sanitize-artifacts
       - name: Save compiler cache
         if: always()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -152,7 +156,7 @@ jobs:
           path: ${{ github.workspace }}/.torah-simulator-ccache
           key: torah-simulator-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-${{ github.run_id }}
       - name: Upload screenshots, hierarchy bounds, JUnit and simulator logs
-        if: always()
+        if: always() && steps.sanitize.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-native-qa-${{ github.sha }}

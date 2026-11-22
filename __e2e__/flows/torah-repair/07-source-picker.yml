@@ -1,0 +1,15 @@
+appId: ${APP_ID}
+name: Torah source picker query fits on screen without attaching or publishing
+---
+- tapOn: 'הוסף מקור תורני'
+- extendedWaitUntil:
+    visible:
+      id: torahSourceQueryInput
+    timeout: 15000
+- tapOn:
+    id: torahSourceQueryInput
+- inputText:
+    text: Genesis 1
+    label: Enter a read-only source search
+- assertVisible: 'סגור'
+- takeScreenshot: 23-source-picker-query

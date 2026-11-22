@@ -1,0 +1,23 @@
+appId: ${APP_ID}
+name: Close source picker and discard the unsaved composer without any publication
+---
+- tapOn: 'סגור'
+- extendedWaitUntil:
+    visible:
+      id: composePostView
+    timeout: 15000
+- tapOn: 'ביטול'
+- extendedWaitUntil:
+    visible: 'בטל'
+    timeout: 15000
+# Discard, not Save draft. No account record or post is created by this suite.
+- tapOn: 'בטל'
+- extendedWaitUntil:
+    visible:
+      id: HomeScreen
+    timeout: 15000
+- assertNotVisible:
+    id: composePostView
+- assertVisible:
+    id: postText
+- takeScreenshot: 24-feed-after-discard
