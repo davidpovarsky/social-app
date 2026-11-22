@@ -3,14 +3,60 @@ import {describe, expect, it} from '@jest/globals'
 
 import {flatten} from '#/alf/util/flatten'
 import {
+  getInterfaceTextDirectionStyle,
   getPhysicalTextAlignStyle,
   getRichTextDirectionStyle,
   isRTLText,
 } from '../text-direction.native'
 import {
+  getInterfaceTextDirectionStyle as getWebInterfaceTextDirectionStyle,
   getPhysicalTextAlignStyle as getWebPhysicalTextAlignStyle,
   getRichTextDirectionStyle as getWebRichTextDirectionStyle,
 } from '../text-direction.web'
+
+describe('native interface text defaults', () => {
+  it('updates the reading edge and typing direction through both language transitions', () => {
+    expect(
+      (['rtl', 'ltr', 'rtl'] as const).map(direction =>
+        getInterfaceTextDirectionStyle(direction, {}),
+      ),
+    ).toEqual([
+      {direction: 'ltr', textAlign: 'right', writingDirection: 'rtl'},
+      {direction: 'ltr', textAlign: 'left', writingDirection: 'ltr'},
+      {direction: 'ltr', textAlign: 'right', writingDirection: 'rtl'},
+    ])
+  })
+
+  it.each<TextStyle>([
+    {textAlign: 'center'},
+    {textAlign: 'right'},
+    {textAlign: 'left'},
+    {textAlign: 'auto'},
+    {writingDirection: 'ltr'},
+    {writingDirection: 'rtl'},
+    {writingDirection: 'auto'},
+    {direction: 'ltr'},
+    {direction: 'rtl'},
+    {direction: 'inherit'},
+  ])('preserves caller-controlled paragraph styles %p', style => {
+    expect(getInterfaceTextDirectionStyle('rtl', style)).toBeUndefined()
+    expect(getInterfaceTextDirectionStyle('ltr', style)).toBeUndefined()
+  })
+
+  it.each(['English עברית', 'עברית English'])(
+    'preserves rich-text direction for %p',
+    text => {
+      const style = getRichTextDirectionStyle(text)
+      expect(getInterfaceTextDirectionStyle('rtl', style)).toBeUndefined()
+      expect(getInterfaceTextDirectionStyle('ltr', style)).toBeUndefined()
+    },
+  )
+
+  it('leaves browser text and input defaults unchanged in both languages', () => {
+    expect(getWebInterfaceTextDirectionStyle('rtl', {})).toBeUndefined()
+    expect(getWebInterfaceTextDirectionStyle('ltr', {})).toBeUndefined()
+  })
+})
 
 describe('isRTLText', () => {
   it('recognizes right-to-left text', () => {

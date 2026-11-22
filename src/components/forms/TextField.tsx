@@ -11,6 +11,8 @@ import {
 
 import {HITSLOP_20} from '#/lib/constants'
 import {mergeRefs} from '#/lib/merge-refs'
+import {getInterfaceTextDirectionStyle} from '#/lib/strings/text-direction'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {
   applyFonts,
   atoms as a,
@@ -185,6 +187,7 @@ export function createInput(Component: typeof TextInput) {
   }: InputProps) {
     const t = useTheme()
     const {fonts} = useAlf()
+    const appDirection = useAppLayoutDirection()
     const ctx = useContext(Context)
     const withinRoot = Boolean(ctx.inputRef)
 
@@ -240,6 +243,10 @@ export function createInput(Component: typeof TextInput) {
     }
 
     applyFonts(flattened, fonts.family)
+    const directionStyle = getInterfaceTextDirectionStyle(
+      appDirection,
+      flattened,
+    )
 
     if (flattened.fontSize) {
       flattened.fontSize = Math.round(
@@ -277,7 +284,7 @@ export function createInput(Component: typeof TextInput) {
           }
           placeholderTextColor={t.palette.contrast_500}
           keyboardAppearance={t.name === 'light' ? 'light' : 'dark'}
-          style={flattened}
+          style={directionStyle ? {...flattened, ...directionStyle} : flattened}
         />
 
         <View

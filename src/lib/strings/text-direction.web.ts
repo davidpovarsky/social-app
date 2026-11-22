@@ -1,3 +1,13 @@
+import {type TextStyle} from 'react-native'
+
+/** Keep browser paragraph direction and input defaults unchanged. */
+export function getInterfaceTextDirectionStyle(
+  _appDirection: 'ltr' | 'rtl',
+  _style: Pick<TextStyle, 'direction' | 'writingDirection' | 'textAlign'>,
+): Pick<TextStyle, 'direction' | 'writingDirection' | 'textAlign'> | undefined {
+  return undefined
+}
+
 /**
  * React Native Web sets `dir="auto"` on root Text elements, so the browser
  * handles direction detection without JavaScript.

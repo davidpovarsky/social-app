@@ -1,6 +1,27 @@
+import {type TextStyle} from 'react-native'
 import bidiFactory from 'bidi-js'
 
 const bidi = bidiFactory()
+
+/**
+ * UIKit's natural paragraph direction can keep following the device language
+ * after the app language changes. Give otherwise unspecified interface text
+ * an explicit physical reading edge. Caller-controlled paragraphs and nested
+ * spans keep their existing alignment and inheritance.
+ */
+export function getInterfaceTextDirectionStyle(
+  appDirection: 'ltr' | 'rtl',
+  style: Pick<TextStyle, 'direction' | 'writingDirection' | 'textAlign'>,
+): Pick<TextStyle, 'direction' | 'writingDirection' | 'textAlign'> | undefined {
+  if (style.direction || style.writingDirection || style.textAlign) {
+    return undefined
+  }
+
+  return {
+    ...getPhysicalTextAlignStyle(appDirection === 'rtl' ? 'right' : 'left'),
+    writingDirection: appDirection,
+  }
+}
 
 /**
  * Checks the first strong directional character, matching HTML `dir="auto"`.
