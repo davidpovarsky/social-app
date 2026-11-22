@@ -16,6 +16,7 @@ import {
   invalidateJoinLinkPreviewsForConvo,
 } from '#/state/queries/join-links'
 import {useChatClient, useSession} from '#/state/session'
+import {CHAT_ENABLED} from '#/env'
 import {chat} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 import {
@@ -123,7 +124,7 @@ export function useListConvosQuery({
   const client = useChatClient()
 
   return useInfiniteQuery({
-    enabled,
+    enabled: CHAT_ENABLED && (enabled ?? true),
     queryKey: RQKEY(status ?? 'all', readState, kind, lockStatus, limit),
     queryFn: async ({pageParam}) => {
       return await client.call(chat.bsky.convo.listConvos, {
@@ -910,8 +911,8 @@ export function useUnreadMessageCount(): {
   hasNew: boolean
 } {
   const {data} = useUnreadCountsQuery()
-  const accepted = data?.unreadAcceptedConvos ?? 0
-  const request = data?.unreadRequestConvos ?? 0
+  const accepted = CHAT_ENABLED ? (data?.unreadAcceptedConvos ?? 0) : 0
+  const request = CHAT_ENABLED ? (data?.unreadRequestConvos ?? 0) : 0
 
   if (accepted > 0) {
     return {

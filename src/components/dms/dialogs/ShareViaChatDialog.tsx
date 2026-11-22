@@ -8,9 +8,11 @@ import {useCreateGroupChat} from '#/state/queries/messages/create-group-chat'
 import {useGetConvoForMembers} from '#/state/queries/messages/get-convo-for-members'
 import * as Dialog from '#/components/Dialog'
 import {SearchablePeopleList} from '#/components/dialogs/SearchablePeopleList'
+import {ChatUnavailableDialogContent} from '#/components/dms/ChatUnavailable'
 import {InitiateChatFlow} from '#/components/dms/InitiateChatFlow'
 import * as Toast from '#/components/Toast'
 import {useAnalytics} from '#/analytics'
+import {CHAT_ENABLED} from '#/env'
 import {chat} from '#/lexicons'
 
 export function SendViaChatDialog({
@@ -30,11 +32,15 @@ export function SendViaChatDialog({
       nativeOptions={{fullHeight: true}}
       onClose={onClose}>
       <Dialog.Handle />
-      <SendViaChatDialogInner
-        control={control}
-        flowKey={flowKey}
-        onSelectChat={onSelectChat}
-      />
+      {CHAT_ENABLED ? (
+        <SendViaChatDialogInner
+          control={control}
+          flowKey={flowKey}
+          onSelectChat={onSelectChat}
+        />
+      ) : (
+        <ChatUnavailableDialogContent />
+      )}
     </Dialog.Outer>
   )
 }

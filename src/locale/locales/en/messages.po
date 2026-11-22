@@ -18016,3 +18016,11 @@ msgstr "Your username and password will be shared with <0>{host}</0>. If you don
 #: src/components/verification/VerificationsDialog.tsx:67
 msgid "Your verifications"
 msgstr ""
+
+#: src/components/dms/ChatUnavailable.tsx
+msgid "Chats are not available on this network"
+msgstr "Chats are not available on this network"
+
+#: src/components/dms/ChatUnavailable.tsx
+msgid "You can still read posts, reply, and share links."
+msgstr "You can still read posts, reply, and share links."

@@ -38,6 +38,7 @@ import {SubtleHover} from '#/components/SubtleHover'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
 import {type Metrics} from '#/analytics'
+import {CHAT_ENABLED} from '#/env'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 import {AVATAR_SIZE} from './Avatar'
@@ -255,7 +256,9 @@ export function SayHelloButton({
   profile: bsky.profile.AnyProfileView
 }) {
   const {currentAccount, hasSession} = useSession()
-  if (!hasSession || profile.did === currentAccount?.did) return null
+  if (!CHAT_ENABLED || !hasSession || profile.did === currentAccount?.did) {
+    return null
+  }
   return <SayHelloButtonInner profile={profile} />
 }
 

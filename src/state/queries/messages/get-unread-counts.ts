@@ -2,6 +2,7 @@ import {useQuery} from '@tanstack/react-query'
 
 import {useChatClient, useSession} from '#/state/session'
 import {useAgeAssurance} from '#/ageAssurance'
+import {CHAT_ENABLED} from '#/env'
 import {chat} from '#/lexicons'
 import {STALE} from '..'
 
@@ -31,6 +32,6 @@ export function useUnreadCountsQuery() {
       })
     },
     staleTime: STALE.SECONDS.FIFTEEN,
-    enabled: hasSession,
+    enabled: CHAT_ENABLED && hasSession,
   })
 }

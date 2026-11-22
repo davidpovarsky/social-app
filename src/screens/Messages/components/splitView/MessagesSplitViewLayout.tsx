@@ -12,6 +12,7 @@ import {type NativeStackNavigationOptionsWithAuth} from '#/view/shell/createNati
 import {LEFT_NAV_MINIMAL_WIDTH} from '#/view/shell/desktop/LeftNav'
 import {atoms as a, useLayoutBreakpoints, useTheme, web} from '#/alf'
 import {useDialogControl} from '#/components/Dialog'
+import {ChatAvailability} from '#/components/dms/ChatAvailability'
 import {NewChat} from '#/components/dms/dialogs/NewChatDialog'
 import {CENTER_COLUMN_WIDTH} from '#/components/Layout'
 import {getShellLayout} from '#/components/Layout/direction'
@@ -40,7 +41,11 @@ type LayoutProps = ScreenLayoutArgs<
   >
 >
 export function renderMessagesSplitViewLayout(props: LayoutProps) {
-  return <MessagesSplitViewLayout {...props} />
+  return (
+    <ChatAvailability>
+      <MessagesSplitViewLayout {...props} />
+    </ChatAvailability>
+  )
 }
 
 function MessagesSplitViewLayout({children, ...props}: LayoutProps) {

@@ -33,6 +33,7 @@ import {AgeRestrictedScreen} from '#/components/ageAssurance/AgeRestrictedScreen
 import {useAgeAssuranceCopy} from '#/components/ageAssurance/useAgeAssuranceCopy'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
 import {type DialogControlProps, useDialogControl} from '#/components/Dialog'
+import {ChatUnavailableScreen} from '#/components/dms/ChatUnavailable'
 import {NewChat} from '#/components/dms/dialogs/NewChatDialog'
 import {useRefreshOnFocus} from '#/components/hooks/useRefreshOnFocus'
 import {ArrowRotateCounterClockwise_Stroke2_Corner0_Rounded as RetryIcon} from '#/components/icons/ArrowRotate'
@@ -55,7 +56,7 @@ import * as Menu from '#/components/Menu'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
 import {useAgeAssurance} from '#/ageAssurance'
-import {IS_NATIVE, IS_WEB} from '#/env'
+import {CHAT_ENABLED, IS_NATIVE, IS_WEB} from '#/env'
 import {type chat} from '#/lexicons'
 import {ChatDisabled} from './components/ChatDisabled'
 import {ChatListItem} from './components/ChatListItem'
@@ -85,6 +86,8 @@ export function MessagesScreen(props: Props) {
   const {t: l} = useLingui()
   const aaCopy = useAgeAssuranceCopy()
   const aa = useAgeAssurance()
+
+  if (!CHAT_ENABLED) return <ChatUnavailableScreen />
 
   return (
     <AgeRestrictedScreen

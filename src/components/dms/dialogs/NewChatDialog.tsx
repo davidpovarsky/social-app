@@ -12,10 +12,12 @@ import {FAB} from '#/view/com/util/fab/FAB'
 import {useTheme} from '#/alf'
 import * as Dialog from '#/components/Dialog'
 import {SearchablePeopleList} from '#/components/dialogs/SearchablePeopleList'
+import {ChatUnavailableDialogContent} from '#/components/dms/ChatUnavailable'
 import {InitiateChatFlow} from '#/components/dms/InitiateChatFlow'
 import {MessagePlus_Stroke2_Corner0_Rounded as NewChatIcon} from '#/components/icons/Message'
 import * as Toast from '#/components/Toast'
 import {useAnalytics} from '#/analytics'
+import {CHAT_ENABLED} from '#/env'
 import {chat} from '#/lexicons'
 
 export function NewChat({
@@ -153,7 +155,7 @@ export function NewChat({
 
   return (
     <>
-      {!chatDisabled && (
+      {CHAT_ENABLED && !chatDisabled && (
         <FAB
           testID="newChatFAB"
           onPress={wrappedOnPress}
@@ -169,7 +171,9 @@ export function NewChat({
         nativeOptions={{fullHeight: true}}
         onClose={onClose}>
         <Dialog.Handle />
-        {isGroupChatEnabled ? (
+        {!CHAT_ENABLED ? (
+          <ChatUnavailableDialogContent />
+        ) : isGroupChatEnabled ? (
           <InitiateChatFlow
             // remount when the entry mode changes so the flow re-seeds its
             // initial step (the children stay mounted across open/close)
