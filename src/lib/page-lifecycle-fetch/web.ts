@@ -76,7 +76,8 @@ export function createPageLifecycleFetch(
     if (keepalive) return fetchImpl(input, init)
 
     const signal = controller.signal
-    if (signal.aborted) return Promise.reject(signal.reason)
+    // This document controller only aborts with our AbortError.
+    if (signal.aborted) return Promise.reject(signal.reason as Error)
     const caller = getRequestSignal(input, init)
     return fetchImpl(input, {
       ...init,

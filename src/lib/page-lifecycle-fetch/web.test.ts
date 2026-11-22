@@ -3,17 +3,22 @@ import {createPageLifecycleFetch} from './web'
 
 const url = 'https://appview.torah.test/xrpc/app.bsky.actor.getProfile'
 
+// These fixtures abort only with Error or DOMException reasons.
 function pendingFetch(): jest.MockedFunction<typeof fetch> {
   return jest.fn(
     (_input: RequestInfo | URL, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
         const signal = init?.signal
         if (signal?.aborted) {
-          reject(signal.reason)
+          reject(signal.reason as Error)
         } else {
-          signal?.addEventListener('abort', () => reject(signal.reason), {
-            once: true,
-          })
+          signal?.addEventListener(
+            'abort',
+            () => reject(signal.reason as Error),
+            {
+              once: true,
+            },
+          )
         }
       }),
   )
@@ -82,7 +87,7 @@ describe('document-owned fetch', () => {
           new Promise((_resolve, reject) => {
             requestSignal?.addEventListener(
               'abort',
-              () => reject(requestSignal?.reason),
+              () => reject(requestSignal?.reason as Error),
               {once: true},
             )
           }),

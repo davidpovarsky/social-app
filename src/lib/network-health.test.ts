@@ -9,6 +9,7 @@ jest.mock('#/lib/page-lifecycle-fetch', () => ({
 
 import {checkServiceHealth} from './network-health'
 
+// The abort fixtures below use Error or DOMException reasons.
 const service = 'https://appview.torah.test'
 
 beforeEach(() => {
@@ -34,7 +35,9 @@ it('cancels a pending response body on pagehide, releases its timer, and recover
       ok: true,
       json: () =>
         new Promise((_resolve, reject) => {
-          signal?.addEventListener('abort', () => reject(signal?.reason))
+          signal?.addEventListener('abort', () =>
+            reject(signal?.reason as Error),
+          )
           started()
         }),
     } as Response)

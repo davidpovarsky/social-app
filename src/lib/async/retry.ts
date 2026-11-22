@@ -48,7 +48,8 @@ export async function networkRetry<P>(
       !pageSignal?.aborted && !isRequestAborted(error) && isNetworkError(error),
     () => {
       // A retry delayed before pagehide still belongs to the old lifecycle.
-      if (pageSignal?.aborted) return Promise.reject(pageSignal.reason)
+      // This document controller only aborts with our AbortError.
+      if (pageSignal?.aborted) return Promise.reject(pageSignal.reason as Error)
       return fn()
     },
     delay,

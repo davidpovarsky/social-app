@@ -17,6 +17,7 @@ jest.mock('#/state/events', () => ({
 
 import {networkAwareFetch} from './network'
 
+// The abort fixtures below use Error or DOMException reasons.
 const url = 'https://appview.torah.test/xrpc/app.bsky.actor.getProfile'
 
 beforeEach(() => {
@@ -47,7 +48,7 @@ it('cancels navigation work without reporting lost connectivity or confirming st
     (_input: RequestInfo | URL, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () =>
-          reject(init?.signal?.reason),
+          reject(init?.signal?.reason as Error),
         )
       }),
   )
@@ -68,7 +69,7 @@ it('preserves an explicit caller abort reason and identifies it through XRPC wra
     (_input: RequestInfo | URL, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () =>
-          reject(init?.signal?.reason),
+          reject(init?.signal?.reason as Error),
         )
       }),
   )
