@@ -129,6 +129,7 @@ jobs:
           xcodebuild -workspace "$WORKSPACE" -list -json > "$QA_ARTIFACTS/schemes.json"
           SCHEME="$(python3 -c 'import json,sys; names=json.load(open(sys.argv[1]))["workspace"]["schemes"]; print(sys.argv[2] if sys.argv[2] in names else "")' "$QA_ARTIFACTS/schemes.json" "$APP_SCHEME")"
           test -n "$SCHEME" || { echo "Missing app scheme $APP_SCHEME" >&2; exit 1; }
+          TORAH_CCACHE_BINARY="$(command -v ccache)"
           xcodebuild -quiet \
             -workspace "$WORKSPACE" -scheme "$SCHEME" \
             -configuration Release -sdk iphonesimulator \
@@ -138,6 +139,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" AD_HOC_CODE_SIGNING_ALLOWED=YES \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+            CCACHE_DIR="$CCACHE_DIR" CCACHE_BINARY="$TORAH_CCACHE_BINARY" \
             build 2>&1 | tee "$QA_ARTIFACTS/xcodebuild.log"
           APP="$RUNNER_TEMP/TorahSimulatorDerivedData/Build/Products/Release-iphonesimulator/$SCHEME.app"
           test -d "$APP" || { echo "Missing simulator app: $APP" >&2; exit 1; }
@@ -149,6 +151,16 @@ jobs:
         id: sanitize
         if: always()
         run: python3 .github/scripts/torah-repair-native.py --sanitize-artifacts
+      - name: Log compiler cache statistics and directories
+        if: always()
+        shell: bash
+        run: |
+          if command -v ccache >/dev/null 2>&1; then
+            echo "Selected cache_dir: $(ccache --get-config cache_dir)"
+            ccache --show-stats --verbose
+            echo "Default cache_dir: $(env -u CCACHE_DIR ccache --get-config cache_dir)"
+            env -u CCACHE_DIR ccache --show-stats --verbose
+          fi
       - name: Save compiler cache
         if: always()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830

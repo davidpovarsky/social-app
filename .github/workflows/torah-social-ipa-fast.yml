@@ -107,6 +107,7 @@ jobs:
           SCHEME="$(printf '%s' "$SCHEMES_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); target=sys.argv[1]; names=d["workspace"]["schemes"]; print(target if target in names else "")' "$APP_SCHEME")"
           test -n "$SCHEME" || { echo "Missing app scheme $APP_SCHEME" >&2; exit 1; }
           echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          TORAH_CCACHE_BINARY="$(command -v ccache)"
           xcodebuild -quiet \
             -workspace "$WORKSPACE" -scheme "$SCHEME" \
             -configuration Release -sdk iphoneos \
@@ -115,6 +116,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" AD_HOC_CODE_SIGNING_ALLOWED=YES \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+            CCACHE_DIR="$CCACHE_DIR" CCACHE_BINARY="$TORAH_CCACHE_BINARY" \
             build
       - name: Package and verify unsigned IPA
         shell: bash
@@ -132,11 +134,16 @@ jobs:
           test -s "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
           unzip -tq "$RUNNER_TEMP/TorahSocial-unsigned.ipa" | tail -n 1
           ls -lh "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
-      - name: Log compiler cache statistics
+      - name: Log compiler cache statistics and directories
         if: always()
         shell: bash
         run: |
-          if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
+          if command -v ccache >/dev/null 2>&1; then
+            echo "Selected cache_dir: $(ccache --get-config cache_dir)"
+            ccache --show-stats --verbose
+            echo "Default cache_dir: $(env -u CCACHE_DIR ccache --get-config cache_dir)"
+            env -u CCACHE_DIR ccache --show-stats --verbose
+          fi
       - name: Save compiler cache even if native compilation fails
         if: always()
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
