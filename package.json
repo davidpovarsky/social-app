@@ -345,6 +345,7 @@
   },
   "jest": {
     "preset": "jest-expo/ios",
+    "resolver": "<rootDir>/jest/resolver.js",
     "setupFilesAfterEnv": [
       "./jest/jestSetup.js"
     ],
