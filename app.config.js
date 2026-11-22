@@ -275,14 +275,11 @@ module.exports = function (_config) {
         [
           'expo-localization',
           {
-            /*
-             * React Native 0.88 fixed Android RTL detection, which until then
-             * always reported LTR. Opt out so Android keeps rendering LTR like
-             * iOS, until RTL layouts get a proper QA pass.
-             */
-            supportsRTL: false,
+            // The selected app language controls direction on every platform.
+            supportsRTL: true,
           },
         ],
+        './plugins/withNativeLayoutDirection.js',
         'expo-web-browser',
         'expo-background-task',
         // edits expo-widgets' output, and mods run in reverse order
