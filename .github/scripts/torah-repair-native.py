@@ -167,34 +167,77 @@ def require_owned_simulator(udid):
         raise RuntimeError("Pasteboard access requires this run's owned simulator")
 
 
-def simulator_pasteboard_command(udid, operation, payload=None):
+class SimulatorPasteboardCommandError(RuntimeError):
+    """A fixed message and coarse status; never retain command output here."""
+
+    def __init__(self, status):
+        if status not in ("timeout", "nonzero_exit", "os_error", "contract_error"):
+            raise ValueError("Unsupported pasteboard failure status")
+        super().__init__("Owned simulator pasteboard command failed")
+        self.status = status
+
+
+def simulator_pasteboard_command(udid, operation, payload=None, *, stage, attempt, operations):
     """Keep pasteboard contents out of argv, logs and exception messages."""
     require_owned_simulator(udid)
-    if operation not in ("pbcopy", "pbpaste"):
-        raise ValueError("Unsupported simulator pasteboard operation")
+    stages = {
+        "setup_copy": "pbcopy", "setup_readback": "pbpaste",
+        "cleanup_clear": "pbcopy", "cleanup_verify": "pbpaste",
+    }
+    if operation not in ("pbcopy", "pbpaste") or stages.get(stage) != operation:
+        raise ValueError("Unsupported simulator pasteboard operation or stage")
     if (operation == "pbcopy" and not isinstance(payload, bytes)) or (
         operation == "pbpaste" and payload is not None
     ):
         raise ValueError("Pasteboard payload must be private copy stdin or absent for readback")
+    if type(attempt) is not int or attempt not in (1, 2) or (
+        stage.startswith("cleanup_") and attempt != 1
+    ) or not isinstance(operations, list):
+        raise ValueError("Unsupported pasteboard attempt or telemetry container")
+    event = {
+        "stage": stage, "operation": operation, "attempt": attempt,
+        "timeout_seconds": 60, "status": "contract_error",
+        "returncode": None, "errno": None,
+    }
+    started = time.monotonic()
     try:
-        process = subprocess.run(
-            ["xcrun", "simctl", operation, udid],
-            input=payload,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=60,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        raise RuntimeError("Owned simulator pasteboard command failed") from None
-    if process.returncode != 0 or not isinstance(process.stdout, bytes):
-        raise RuntimeError("Owned simulator pasteboard command failed")
-    return process.stdout
+        try:
+            process = subprocess.run(
+                ["xcrun", "simctl", operation, udid],
+                input=payload,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=60,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            event["status"] = "timeout"
+            raise SimulatorPasteboardCommandError("timeout") from None
+        except OSError as error:
+            event["status"] = "os_error"
+            event["errno"] = error.errno if type(error.errno) is int else None
+            raise SimulatorPasteboardCommandError("os_error") from None
+        except subprocess.SubprocessError:
+            raise SimulatorPasteboardCommandError("contract_error") from None
+        code = getattr(process, "returncode", None)
+        event["returncode"] = code if type(code) is int else None
+        if type(code) is not int:
+            raise SimulatorPasteboardCommandError("contract_error")
+        if code != 0:
+            event["status"] = "nonzero_exit"
+            raise SimulatorPasteboardCommandError("nonzero_exit")
+        if not isinstance(process.stdout, bytes):
+            raise SimulatorPasteboardCommandError("contract_error")
+        event["status"] = "passed"
+        return process.stdout
+    finally:
+        event["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        operations.append(event)
 
 
 @contextmanager
 def simulator_password_pasteboard(udid, password, folder):
-    """Verify an exact private copy, then clear and verify it even on failure."""
+    """Verify private input; allow one failed setup-command recovery, always clear."""
     require_owned_simulator(udid)
     if not isinstance(password, str) or not password:
         raise ValueError("A nonempty existing fixture password is required")
@@ -207,25 +250,60 @@ def simulator_password_pasteboard(udid, password, folder):
         "readback_matches": False,
         "cleanup_attempted": False,
         "cleanup_verified": False,
+        "setup_recovery_limit": 1,
+        "setup_recoveries_used": 0,
+        "setup_status": "failed",
+        "body_status": "not_started",
+        "cleanup_status": "not_started",
+        "operations": [],
     }
+
+    def setup_command(operation, payload=None):
+        stage = "setup_copy" if operation == "pbcopy" else "setup_readback"
+        try:
+            return simulator_pasteboard_command(
+                udid, operation, payload, stage=stage, attempt=1, operations=audit["operations"]
+            )
+        except SimulatorPasteboardCommandError as error:
+            if error.status not in ("timeout", "nonzero_exit") or audit["setup_recoveries_used"]:
+                raise
+            # Repeat only this idempotent command, once across the entire setup.
+            # No UI/login command has started, and semantic failures never retry.
+            audit["setup_recoveries_used"] = 1
+            return simulator_pasteboard_command(
+                udid, operation, payload, stage=stage, attempt=2, operations=audit["operations"]
+            )
+
     try:
-        simulator_pasteboard_command(udid, "pbcopy", encoded)
-        readback = simulator_pasteboard_command(udid, "pbpaste")
+        setup_command("pbcopy", encoded)
+        readback = setup_command("pbpaste")
         audit["readback_utf8_bytes"] = len(readback)
         audit["readback_matches"] = readback == encoded
         if not audit["readback_matches"]:
             raise RuntimeError("Owned simulator pasteboard readback did not match")
         del readback
-        yield
+        audit["setup_status"] = "passed"
+        audit["body_status"] = "running"
+        try:
+            yield
+        except BaseException:
+            audit["body_status"] = "failed"
+            raise
+        else:
+            audit["body_status"] = "passed"
     finally:
         audit["cleanup_attempted"] = True
+        audit["cleanup_status"] = "failed"
         try:
-            simulator_pasteboard_command(udid, "pbcopy", b"")
-            audit["cleanup_verified"] = (
-                simulator_pasteboard_command(udid, "pbpaste") == b""
+            simulator_pasteboard_command(
+                udid, "pbcopy", b"", stage="cleanup_clear", attempt=1, operations=audit["operations"]
             )
+            audit["cleanup_verified"] = simulator_pasteboard_command(
+                udid, "pbpaste", stage="cleanup_verify", attempt=1, operations=audit["operations"]
+            ) == b""
             if not audit["cleanup_verified"]:
                 raise RuntimeError("Owned simulator pasteboard cleanup did not verify")
+            audit["cleanup_status"] = "passed"
         finally:
             (folder / "password-pasteboard.json").write_text(
                 json.dumps(audit, indent=2), encoding="utf-8"

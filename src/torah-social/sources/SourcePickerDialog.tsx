@@ -51,6 +51,7 @@ export function SourcePickerDialog({
       setIsSearching(true)
       void searchTorahSources(value, abort.signal)
         .then(items => {
+          if (abort.signal.aborted) return
           setSuggestions(items)
           setError(undefined)
         })

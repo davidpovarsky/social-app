@@ -1,7 +1,12 @@
 appId: ${APP_ID}
 name: Change English to Hebrew in the app without restarting
 ---
+- hideKeyboard
 - tapOn: "Go back"
+- extendedWaitUntil:
+    visible:
+      id: createAccountButton
+    timeout: 30000
 - tapOn:
     id: createAccountButton
 - extendedWaitUntil:
