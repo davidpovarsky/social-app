@@ -63,6 +63,7 @@ module.exports = function (_config) {
       userInterfaceStyle: 'automatic',
       primaryColor: '#006AFF',
       ios: {
+        buildNumber: process.env.BSKY_IOS_BUILD_NUMBER ?? '1',
         supportsTablet: true,
         bundleIdentifier: 'com.davidpovarsky.torahsocial',
         appleTeamId: process.env.EXPO_APPLE_TEAM_ID,

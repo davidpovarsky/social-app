@@ -34,7 +34,7 @@ jobs:
       EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
-      EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"
+      EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: 'true'
       EXPO_PUBLIC_ENV: production
       EXPO_PUBLIC_BUNDLE_IDENTIFIER: ${{ github.sha }}
     steps:
@@ -67,6 +67,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Check iOS build-number generation and IPA verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test plugins/iosBuildNumber.test.cjs
+          python3 -m unittest discover -s scripts/tests -p test_unsigned_ipa.py
       - name: Restore native C/C++ compilation cache
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
@@ -133,6 +139,10 @@ jobs:
           zip -qry "$RUNNER_TEMP/TorahSocial-unsigned.ipa" Payload
           test -s "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
           unzip -tq "$RUNNER_TEMP/TorahSocial-unsigned.ipa" | tail -n 1
+          python3 "$GITHUB_WORKSPACE/scripts/verify-unsigned-ipa.py" verify \
+            "$RUNNER_TEMP/TorahSocial-unsigned.ipa" \
+            --source-commit "$GITHUB_SHA" --source-run "$GITHUB_RUN_ID" \
+            --report "$RUNNER_TEMP/TorahSocial-unsigned-verification.json"
           ls -lh "$RUNNER_TEMP/TorahSocial-unsigned.ipa"
       - name: Log compiler cache statistics and directories
         if: always()
@@ -154,6 +164,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-unsigned-ipa
-          path: ${{ runner.temp }}/TorahSocial-unsigned.ipa
+          path: |
+            ${{ runner.temp }}/TorahSocial-unsigned.ipa
+            ${{ runner.temp }}/TorahSocial-unsigned-verification.json
           if-no-files-found: error
           retention-days: 14
