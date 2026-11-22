@@ -21,6 +21,7 @@ env:
   EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
   EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
   EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+  EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
 jobs:
   validate-build:
     runs-on: ubuntu-latest
