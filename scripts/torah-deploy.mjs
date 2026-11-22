@@ -82,7 +82,7 @@ if (sshKeyPath && fs.existsSync(sshKeyPath)) {
       '--build-arg EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-' +
       oracleHost.replaceAll('.', '-') +
       '.nip.io ' +
-      '--build-arg EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H ' +
+      '--build-arg EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H ' +
       '--build-arg EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true ' +
       '--build-arg EXPO_PUBLIC_ENV=production ' +
       '-t torah-social-web:latest /opt/torah-social/social-app',

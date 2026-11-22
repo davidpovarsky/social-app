@@ -12,6 +12,8 @@ import {
   PersistQueryClientProvider,
 } from '@tanstack/react-query-persist-client'
 
+import {PUBLIC_BSKY_SERVICE} from '#/lib/constants'
+import {checkServiceHealth} from '#/lib/network-health'
 import {createPersistedQueryStorage} from '#/lib/persisted-query-storage'
 import {listenNetworkConfirmed, listenNetworkLost} from '#/state/events'
 import {isQueryPersisted} from '#/state/queries/util'
@@ -29,25 +31,8 @@ declare global {
   }
 }
 
-async function checkIsOnline(): Promise<boolean> {
-  try {
-    const controller = new AbortController()
-    setTimeout(() => {
-      controller.abort()
-    }, 15e3)
-    const res = await fetch('https://public.api.bsky.app/xrpc/_health', {
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-    const json = await res.json()
-    if (json.version) {
-      return true
-    } else {
-      return false
-    }
-  } catch (e) {
-    return false
-  }
+function checkIsOnline(): Promise<boolean> {
+  return checkServiceHealth(PUBLIC_BSKY_SERVICE)
 }
 
 let receivedNetworkLost = false

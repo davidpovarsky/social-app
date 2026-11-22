@@ -13,7 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV CI=1
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 
-RUN npm install --global pnpm@11.28.5 && \
+RUN npm install --global pnpm@12.16.1 && \
   node --version && \
   pnpm --version
 
@@ -127,6 +127,7 @@ FROM debian:bookworm-slim
 
 ENV GODEBUG=netdns=go
 ENV TZ=Etc/UTC
+ENV FEATURE_GATE_BOOTSTRAP=false
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install --yes \
@@ -138,7 +139,7 @@ ENTRYPOINT ["dumb-init", "--"]
 WORKDIR /bskyweb
 COPY --from=go-build /bskyweb /usr/bin/bskyweb
 
-CMD ["/usr/bin/bskyweb"]
+CMD ["/usr/bin/bskyweb", "serve"]
 
 LABEL org.opencontainers.image.source=https://github.com/davidpovarsky/social-app
 LABEL org.opencontainers.image.description="bsky.app Web App"

@@ -1,0 +1,106 @@
+name: Torah Social Repair Web Validation
+on:
+  push:
+    branches:
+      - codex/torah-social-repair-20261122
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: torah-repair-web-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CI: '1'
+  NODE_OPTIONS: --max-old-space-size=6144
+  EXPO_PUBLIC_ENV: production
+  EXPO_PUBLIC_BUNDLE_IDENTIFIER: ${{ github.sha }}
+  EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: 'true'
+  EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
+  EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
+  EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
+  EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
+  EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+jobs:
+  validate-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 12.16.1
+          run_install: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Compile translations
+        run: pnpm intl:compile
+      - name: Verify independent-network build contract
+        run: node scripts/test-torah-isolation.mjs
+      - name: Unit and regression tests
+        run: pnpm test-ci --maxWorkers=2
+      - name: Apply Torah network configuration
+        run: node scripts/torah-isolate-client.mjs
+      - name: Typecheck iOS, Android and web
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Build production web assets
+        run: pnpm build-web
+      - name: Verify supported browser syntax
+        run: pnpm check-web-browser-support
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: bskyweb/go.mod
+          cache-dependency-path: bskyweb/go.sum
+      - name: Build actual web server and ARM64 deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/web release
+          cd bskyweb
+          go mod verify
+          CGO_ENABLED=0 go build -trimpath -tags timetzdata -o ../artifacts/web/bskyweb-host ./cmd/bskyweb
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -tags timetzdata -o ../release/bskyweb ./cmd/bskyweb
+          cd ..
+          cp Dockerfile.torah-runtime release/Dockerfile
+          printf '%s\n' "$GITHUB_SHA" > release/COMMIT
+          sha256sum release/bskyweb > release/SHA256SUMS
+      - name: Install pinned browser test tools
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/torah-browser" --no-audit --no-fund playwright@1.65.1
+          "$RUNNER_TEMP/torah-browser/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Verify Hebrew, English, content and responsive layout
+        shell: bash
+        env:
+          TORAH_BROWSER_TOOLS: ${{ runner.temp }}/torah-browser
+          TORAH_TEST_BASE_URL: http://127.0.0.1:8100
+        run: |
+          set -euo pipefail
+          FEATURE_GATE_BOOTSTRAP=false ATP_APPVIEW_HOST="$EXPO_PUBLIC_TORAH_APPVIEW_HOST" HTTP_ADDRESS=127.0.0.1:8100 ROBOTS_DISALLOW_ALL=true artifacts/web/bskyweb-host serve > artifacts/web/server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node scripts/test-torah-web.mjs
+      - name: Package verified ARM64 release
+        run: tar -czf artifacts/torah-social-web-arm64.tar.gz -C release .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: torah-social-web-evidence-${{ github.sha }}
+          path: |
+            artifacts/web/*.json
+            artifacts/web/*.png
+            artifacts/web/*.log
+            junit.xml
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: torah-social-web-arm64-${{ github.sha }}
+          path: artifacts/torah-social-web-arm64.tar.gz
+          if-no-files-found: error
+          retention-days: 14

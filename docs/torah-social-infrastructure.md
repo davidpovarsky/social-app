@@ -57,7 +57,7 @@
 
 ### Torah Social AppView
 - **URL**: https://appview-130-110-238-163.nip.io
-- **AppView DID הנוכחי**: `did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H`
+- **AppView DID הנוכחי**: `did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H`
 
 ---
 
@@ -111,7 +111,7 @@ Torah Social PostgreSQL (port 5432)
 EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-130-110-238-163.nip.io
 EXPO_PUBLIC_TORAH_PDS_DID=did:web:pds-130-110-238-163.nip.io
 EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-130-110-238-163.nip.io
-EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
 EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true
 ```
 

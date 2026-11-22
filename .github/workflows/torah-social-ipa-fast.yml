@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/torah-social-upstream-sync-20261110
+      - codex/torah-social-repair-20261122
   workflow_dispatch:
 
 permissions:
@@ -35,6 +36,7 @@ jobs:
       EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
       EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: "true"
       EXPO_PUBLIC_ENV: production
+      EXPO_PUBLIC_BUNDLE_IDENTIFIER: ${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -58,7 +60,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.28.5
+          version: 12.16.1
           run_install: false
       - name: Set up Node and dependency cache
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
