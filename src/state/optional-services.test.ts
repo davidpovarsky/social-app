@@ -98,7 +98,10 @@ describe('configured optional workers', () => {
         exceptions: [{did: 'did:plc:fixture', allow: []}],
       },
     }
-    mockFetch.mockResolvedValue({ok: true, json: async () => response})
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(response),
+    })
     const {prefetchAppConfig} = await import('#/state/appConfig')
     await prefetchAppConfig()
 
@@ -126,7 +129,10 @@ describe('configured optional workers', () => {
         },
       ],
     }
-    mockFetch.mockResolvedValue({ok: true, json: async () => response})
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(response),
+    })
     const {prefetchLiveEvents} = await import('#/features/liveEvents/context')
     await prefetchLiveEvents()
 
@@ -137,7 +143,10 @@ describe('configured optional workers', () => {
 
   it('preserves actual location returned by a configured service', async () => {
     const response = {countryCode: 'US', regionCode: 'CA', city: 'Oakland'}
-    mockFetch.mockResolvedValue({ok: true, json: async () => response})
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(response),
+    })
     const {resolve} = await import('#/geolocation/service')
     await resolve()
 
