@@ -77,7 +77,7 @@ jobs:
       - name: 📦 Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
@@ -245,7 +245,7 @@ jobs:
       - name: 📦 Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
@@ -324,7 +324,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-web-${{ github.sha }}
-          path: web-build
+          path: bskyweb/
           if-no-files-found: error
           retention-days: 7
 
@@ -333,11 +333,11 @@ jobs:
   # backup, health-check and rollback procedure in docs/torah-social-infrastructure.md.
 
   # -----------------------------------------------------------------------
-  # Job 3: iOS Simulator E2E (macos-15, resilient orchestrator)
+  # Job 3: iOS Simulator E2E (macos-26, resilient orchestrator)
   # -----------------------------------------------------------------------
   ios-simulator-e2e:
     name: iOS Simulator E2E (Maestro)
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 180
     needs: static-checks
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_production_mutating_e2e }}
@@ -363,24 +363,23 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: 🛠️ Select Xcode 16
+      - name: Select Xcode 26.6 (Expo SDK 58 compatible)
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '26.6'
+      - name: Verify required iOS simulator SDK before dependency installation
+        shell: bash
         run: |
-          for xcode_path in \
-            "/Applications/Xcode.app" \
-            "/Applications/Xcode_16.4.app" \
-            "/Applications/Xcode_16.4.0.app" \
-            "/Applications/Xcode_16.3.app" \
-            "/Applications/Xcode_16.2.app"; do
-            if [ -d "$xcode_path" ]; then
-              echo "Selecting Xcode at $xcode_path"
-              sudo xcode-select -s "$xcode_path"
-              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
-              break
-            fi
-          done
-          sudo xcodebuild -runFirstLaunch
+          set -euo pipefail
           xcodebuild -version
-          swift --version
+          IOS_SDK="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          python3 - "$IOS_SDK" <<'PY'
+          import sys
+          v = tuple(int(x) for x in sys.argv[1].split('.')[:2])
+          if v < (26, 4):
+              raise SystemExit(f"Expo SDK 58 needs iOS SDK >= 26.4; got {sys.argv[1]}")
+          print(f"Compatible iOS SDK: {sys.argv[1]}")
+          PY
 
       - name: Live Activity · refresh
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
@@ -394,7 +393,7 @@ jobs:
       - name: 📦 Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
@@ -523,20 +522,11 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🏗️ Generate iOS project and install pods
+        shell: bash
         run: |
-          node scripts/fix-expo-modules-jsi.mjs || true
-          pnpm exec expo prebuild --platform ios --skip-dependency-update '*' 2>&1 | tail -20
-          node -e '
-            const fs=require("fs");
-            const pbx="ios/Pods/Pods.xcodeproj/project.pbxproj";
-            if(fs.existsSync(pbx)){
-              let c=fs.readFileSync(pbx,"utf8");
-              c=c.replace(/SWIFT_TREAT_WARNINGS_AS_ERRORS = YES/g,"SWIFT_TREAT_WARNINGS_AS_ERRORS = NO");
-              c=c.replace(/SWIFT_VERSION = 6\.0;/g,"SWIFT_VERSION = 5.0;");
-              c=c.replace(/SWIFT_STRICT_CONCURRENCY = complete;/g,"SWIFT_STRICT_CONCURRENCY = minimal;");
-              fs.writeFileSync(pbx,c,"utf8");
-            }
-          '
+          set -euo pipefail
+          node scripts/patch-expo-jsi-concurrency.mjs
+          pnpm prebuild --platform ios
 
       - name: Live Activity · refresh
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
@@ -654,7 +644,7 @@ jobs:
   # -----------------------------------------------------------------------
   ios-device-ipa:
     name: iOS unsigned device IPA
-    runs-on: macos-15
+    runs-on: macos-26-intel
     timeout-minutes: 90
     needs: static-checks
     if: always() && needs.static-checks.result == 'success'
@@ -680,23 +670,23 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: 🛠️ Select Xcode 16
+      - name: Select Xcode 26.6 (Expo SDK 58 compatible)
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '26.6'
+      - name: Verify required iOS device SDK before dependency installation
+        shell: bash
         run: |
-          for xcode_path in \
-            "/Applications/Xcode.app" \
-            "/Applications/Xcode_16.4.app" \
-            "/Applications/Xcode_16.4.0.app" \
-            "/Applications/Xcode_16.3.app" \
-            "/Applications/Xcode_16.2.app"; do
-            if [ -d "$xcode_path" ]; then
-              echo "Selecting Xcode at $xcode_path"
-              sudo xcode-select -s "$xcode_path"
-              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
-              break
-            fi
-          done
-          sudo xcodebuild -runFirstLaunch
+          set -euo pipefail
           xcodebuild -version
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+          python3 - "$IOS_SDK" <<'PY'
+          import sys
+          v = tuple(int(x) for x in sys.argv[1].split('.')[:2])
+          if v < (26, 4):
+              raise SystemExit(f"Expo SDK 58 needs iOS SDK >= 26.4; got {sys.argv[1]}")
+          print(f"Compatible iOS SDK: {sys.argv[1]}")
+          PY
 
       - name: Live Activity · refresh
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
@@ -710,7 +700,7 @@ jobs:
       - name: 📦 Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
@@ -774,20 +764,11 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🏗️ Generate iOS project
+        shell: bash
         run: |
-          node scripts/fix-expo-modules-jsi.mjs || true
-          pnpm exec expo prebuild --platform ios --skip-dependency-update '*'
-          node -e '
-            const fs=require("fs");
-            const pbx="ios/Pods/Pods.xcodeproj/project.pbxproj";
-            if(fs.existsSync(pbx)){
-              let c=fs.readFileSync(pbx,"utf8");
-              c=c.replace(/SWIFT_TREAT_WARNINGS_AS_ERRORS = YES/g,"SWIFT_TREAT_WARNINGS_AS_ERRORS = NO");
-              c=c.replace(/SWIFT_VERSION = 6\.0;/g,"SWIFT_VERSION = 5.0;");
-              c=c.replace(/SWIFT_STRICT_CONCURRENCY = complete;/g,"SWIFT_STRICT_CONCURRENCY = minimal;");
-              fs.writeFileSync(pbx,c,"utf8");
-            }
-          '
+          set -euo pipefail
+          node scripts/patch-expo-jsi-concurrency.mjs
+          pnpm prebuild --platform ios
 
       - name: Live Activity · refresh
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}

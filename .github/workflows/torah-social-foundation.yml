@@ -61,7 +61,7 @@ jobs:
           github_token: ${{ github.token }}
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.28.5
+          version: 12.16.1
           run_install: false
       - name: Live Activity · refresh
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
@@ -166,7 +166,7 @@ jobs:
     name: iOS and iPad unsigned IPA build
     # The hosted macOS 15 ARM64 pool intermittently fails to allocate a runner,
     # cancelling queued jobs after about 15 min before any step executes.
-    # Use the separate Intel/macOS 26 pool; its image includes Xcode 26.3.
+    # Use the same Intel/macOS 26 pool as the verified device IPA workflow.
     runs-on: macos-26-intel
     timeout-minutes: 90
     env:
@@ -198,10 +198,23 @@ jobs:
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: Select Xcode 26.3 (GitHub-hosted macOS 26 Intel)
+      - name: Select Xcode 26.6 (Expo SDK 58 compatible)
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
-          xcode-version: '26.3'
+          xcode-version: '26.6'
+      - name: Verify required iOS device SDK before dependency installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+          python3 - "$IOS_SDK" <<'PY'
+          import sys
+          v = tuple(int(x) for x in sys.argv[1].split('.')[:2])
+          if v < (26, 4):
+              raise SystemExit(f"Expo SDK 58 needs iOS SDK >= 26.4; got {sys.argv[1]}")
+          print(f"Compatible iOS SDK: {sys.argv[1]}")
+          PY
       - name: Live Activity · refresh
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
@@ -213,7 +226,7 @@ jobs:
           github_token: ${{ github.token }}
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.28.5
+          version: 12.16.1
           run_install: false
       - name: Live Activity · refresh
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
