@@ -3,6 +3,7 @@ import {AppState} from 'react-native'
 
 import {MessagesEventBus} from '#/state/messages/events/agent'
 import {useChatClient, useSession} from '#/state/session'
+import {IS_WEB} from '#/env'
 
 const MessagesEventBusContext = createContext<MessagesEventBus | null>(null)
 MessagesEventBusContext.displayName = 'MessagesEventBusContext'
@@ -69,7 +70,9 @@ export function MessagesEventBusProviderInner({
   }, [bus])
 
   useEffect(() => {
+    let pageSuspended = false
     const handleAppStateChange = (nextAppState: string) => {
+      if (pageSuspended) return
       if (nextAppState === 'active') {
         bus.resume()
       } else {
@@ -77,10 +80,30 @@ export function MessagesEventBusProviderInner({
       }
     }
 
+    const handlePageHide = () => {
+      // A discarded page also becomes hidden. Starting a background poll then
+      // asks WebKit to fetch after pagehide, when requests are no longer allowed.
+      pageSuspended = true
+      bus.suspend()
+    }
+    const handlePageShow = () => {
+      if (!pageSuspended) return
+      pageSuspended = false
+      handleAppStateChange(AppState.currentState)
+    }
+
+    if (IS_WEB) {
+      window.addEventListener('pagehide', handlePageHide)
+      window.addEventListener('pageshow', handlePageShow)
+    }
     const sub = AppState.addEventListener('change', handleAppStateChange)
 
     return () => {
       sub.remove()
+      if (IS_WEB) {
+        window.removeEventListener('pagehide', handlePageHide)
+        window.removeEventListener('pageshow', handlePageShow)
+      }
     }
   }, [bus])
 
