@@ -16,10 +16,23 @@ name: Existing fixture logs in through the default Torah provider and loads real
 - tapOn:
     id: loginPasswordInput
 # The field stays secure. Maestro debug output is scrubbed before any upload.
-- inputText:
-    text: ${FIXTURE_PASSWORD}
-    label: Enter existing project fixture password
+# Maestro 2.12.1 types the remainder of a multi-character input at 30 chars/s.
+# Enter each character once through its awaited slow path, then check the secure
+# field's masked accessibility value before submitting. No reveal or retry.
+- evalScript: ${output.passwordCharacter = 0}
+- repeat:
+    times: ${FIXTURE_PASSWORD.length}
+    commands:
+      - inputText:
+          text: ${FIXTURE_PASSWORD.charAt(output.passwordCharacter)}
+          label: Enter one secure fixture-password character
+      - evalScript: ${output.passwordCharacter += 1}
 - hideKeyboard
+- copyTextFrom:
+    id: loginPasswordInput
+- assertTrue:
+    condition: ${/^[\u2022\u25cf]+$/.test(maestro.copiedText) && maestro.copiedText.length === FIXTURE_PASSWORD.length}
+    label: Secure password field has the expected masked character count
 - tapOn:
     id: loginNextButton
 - extendedWaitUntil:

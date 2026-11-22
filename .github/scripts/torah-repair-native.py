@@ -46,17 +46,84 @@ COLD_BOOT_DEVICES = set()
 COLD_START_ALLOWANCE_SECONDS = 300
 SIMULATOR_BOOT_TIMEOUT_SECONDS = 900
 JWT = re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
+# Pinned Maestro logs both whole input and separate first-character/rest payloads.
+# Redact these records, not each password character throughout unrelated output.
+TEXT_INPUT_MARKER = "[REDACTED_TEXT_INPUT]"
+DRIVER_INPUT_FRAGMENT = re.compile(
+    r"(\[TextInputHelper\][ \t]+(?:first character|remaining text):)[^\r\n]*"
+)
+MAESTRO_INPUT_TEXT = re.compile(
+    r"(maestro\.Maestro\.inputText:[ \t]+Inputting text:)[^\r\n]*"
+)
+MAESTRO_INPUT_DESCRIPTION = re.compile(
+    r"(?m)(maestro\.cli\.runner\.CliConsoleListener\.[A-Za-z]+:[ \t]+Input text )[^\r\n]*?"
+    r"([ \t]+(?:RUNNING|COMPLETED|FAILED|SKIPPED|WARNED|PENDING))(?=\r?$)"
+)
 
 
 def register_secret(password):
     SECRETS.update((password, json.dumps(password)[1:-1], quote(password, safe=""), html.escape(password), password.replace("'", "''")))
 
 
-def redact(value):
-    text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+def redact_text(text):
+    text = DRIVER_INPUT_FRAGMENT.sub(lambda match: match[1] + " " + TEXT_INPUT_MARKER, text)
+    text = MAESTRO_INPUT_TEXT.sub(lambda match: match[1] + " " + TEXT_INPUT_MARKER, text)
+    text = MAESTRO_INPUT_DESCRIPTION.sub(lambda match: match[1] + TEXT_INPUT_MARKER + match[2], text)
+    if text.startswith("Input text "):
+        text = "Input text " + TEXT_INPUT_MARKER
+    # Fail closed if the pinned input-record shapes change. Never echo a payload.
+    for line in text.splitlines():
+        if "[TextInputHelper]" in line or "maestro.Maestro.inputText:" in line:
+            if not line.endswith(TEXT_INPUT_MARKER):
+                raise RuntimeError("Unknown Maestro input log format; artifact upload blocked")
+        if "maestro.cli.runner.CliConsoleListener." in line and "Input text " in line:
+            if not MAESTRO_INPUT_DESCRIPTION.search(line):
+                raise RuntimeError("Unknown Maestro input description format; artifact upload blocked")
+    if "inputTextCommand" in text or "InputTextCommand(" in text:
+        raise RuntimeError("Unstructured Maestro input command; artifact upload blocked")
     for secret in sorted(SECRETS, key=len, reverse=True):
         text = text.replace(secret, "[REDACTED_TEST_PASSWORD]")
     return JWT.sub("[REDACTED_JWT]", text)
+
+
+def redact_json(value):
+    """Keep command metadata/timings and JSON escaping intact while removing input."""
+    if isinstance(value, dict):
+        if value.get("resource-id") == "loginPasswordInput":
+            for name in ("text", "value"):
+                field = value.get(name, "")
+                if not isinstance(field, str) or (field and not re.fullmatch(r"[\u2022\u25cf]+", field)):
+                    raise RuntimeError("Password accessibility value is not fully masked; artifact upload blocked")
+        result = {}
+        for key, item in value.items():
+            if key == "inputTextCommand" and item is not None:
+                if (not isinstance(item, dict) or not isinstance(item.get("text"), str)
+                        or set(item) - {"text", "label", "optional", "description", "originalDescription"}):
+                    raise RuntimeError("Unknown Maestro input command shape; artifact upload blocked")
+                result[key] = {
+                    name: TEXT_INPUT_MARKER if name == "text" else redact_json(field)
+                    for name, field in item.items()
+                }
+            else:
+                result[key] = redact_json(item)
+        return result
+    if isinstance(value, list):
+        return [redact_json(item) for item in value]
+    return redact_text(value) if isinstance(value, str) else value
+
+
+def redact(value, *, json_required=False):
+    text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+    if json_required or text.lstrip().startswith(("{", "[")):
+        try:
+            document = json.loads(text)
+        except json.JSONDecodeError:
+            if json_required or "inputTextCommand" in text:
+                raise RuntimeError("Cannot safely parse JSON artifact; upload blocked") from None
+        else:
+            scrubbed = redact_json(document)
+            return json.dumps(scrubbed, indent=2, ensure_ascii=False) if scrubbed != document else text
+    return redact_text(text)
 
 
 def fixture_password(handle):
@@ -110,13 +177,13 @@ def sanitize_artifacts():
             text = raw.decode("utf-8")
         except UnicodeDecodeError:
             raise RuntimeError(f"Cannot safely scan binary artifact {path.relative_to(OUT)}; upload blocked") from None
-        scrubbed = redact(text)
+        scrubbed = redact(text, json_required=path.suffix.lower() == ".json")
         checked += 1
         if scrubbed != text:
             path.write_text(scrubbed, encoding="utf-8")
             rewritten += 1
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "sanitization.json").write_text(json.dumps({"text_files_checked": checked, "redacted_files": rewritten, "jwt_filter": True, "password_filter": fixture.exists()}, indent=2))
+    (OUT / "sanitization.json").write_text(json.dumps({"text_files_checked": checked, "redacted_files": rewritten, "jwt_filter": True, "password_filter": fixture.exists(), "driver_fragment_filter": True, "input_command_filter": True}, indent=2))
 
 
 def run(args, log, timeout=120, env=None):
