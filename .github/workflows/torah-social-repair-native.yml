@@ -17,7 +17,7 @@ jobs:
   simulator:
     name: Hebrew and English on iPhone and iPad
     runs-on: macos-26-intel
-    timeout-minutes: 135
+    timeout-minutes: 160
     env:
       CI: '1'
       USE_CCACHE: '1'
@@ -143,7 +143,7 @@ jobs:
           test -d "$APP" || { echo "Missing simulator app: $APP" >&2; exit 1; }
           echo "TORAH_SIMULATOR_APP=$APP" >> "$GITHUB_ENV"
       - name: Run real Hebrew and English UI flows on iPhone and iPad
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: python3 .github/scripts/torah-repair-native.py
       - name: Save compiler cache
         if: always()

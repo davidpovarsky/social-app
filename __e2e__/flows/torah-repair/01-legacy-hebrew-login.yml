@@ -1,0 +1,29 @@
+# The runner seeds legacy NSUserDefaults before this launch. Clearing state here
+# would erase the upgrade fixture and make this test equivalent to a fresh app.
+appId: ${APP_ID}
+name: Legacy RTL preferences upgrade and Hebrew sign-in layout
+---
+- launchApp:
+    clearState: false
+    clearKeychain: false
+- extendedWaitUntil:
+    visible:
+      id: signInButton
+    timeout: 60000
+- assertVisible:
+    id: createAccountButton
+- assertVisible: "התחבר"
+- takeScreenshot: 01-legacy-hebrew-landing
+- tapOn:
+    id: signInButton
+- extendedWaitUntil:
+    visible:
+      id: loginUsernameInput
+    timeout: 30000
+- assertVisible:
+    id: loginPasswordInput
+- assertVisible:
+    id: selectServiceButton
+- assertVisible: "חזור"
+- assertVisible: "התחבר"
+- takeScreenshot: 02-legacy-hebrew-login

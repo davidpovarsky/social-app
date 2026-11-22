@@ -129,6 +129,30 @@ def select_device_type(inventory, runtime, family):
     ))
 
 
+def seed_legacy_flags(udid, folder):
+    """Simulate upgrading an installation that persisted old RN RTL overrides."""
+    run(["xcrun", "simctl", "terminate", udid, APP_ID], folder / "terminate.log")
+    container = Path(run(["xcrun", "simctl", "get_app_container", udid, APP_ID, "data"], folder / "data-container.log").strip())
+    # Stop cfprefsd as part of shutdown before editing the actual app sandbox.
+    # Global simulator defaults are a different domain and cannot seed this bug.
+    run(["xcrun", "simctl", "shutdown", udid], folder / "shutdown.log")
+    preferences = container / "Library/Preferences" / f"{APP_ID}.plist"
+    values = plistlib.loads(preferences.read_bytes()) if preferences.exists() else {}
+    legacy = {
+        "RCTI18nUtil_forceRTL": True,
+        "RCTI18nUtil_makeRTLFlipLeftAndRightStyles": True,
+    }
+    values.update(legacy)
+    preferences.parent.mkdir(parents=True, exist_ok=True)
+    preferences.write_bytes(plistlib.dumps(values, fmt=plistlib.FMT_BINARY))
+    fixture = {key: plistlib.loads(preferences.read_bytes())[key] for key in legacy}
+    if fixture != legacy:
+        raise AssertionError("Legacy RTL preferences were not persisted")
+    (folder / "seeded-rtl-flags.json").write_text(json.dumps(fixture, indent=2))
+    run(["xcrun", "simctl", "boot", udid], folder / "boot.log")
+    run(["xcrun", "simctl", "bootstatus", udid, "-b"], folder / "bootstatus.log", 240)
+
+
 def exercise_device(family, device_type, runtime, app, executable):
     folder = OUT / family.lower()
     folder.mkdir(parents=True, exist_ok=True)
@@ -150,28 +174,32 @@ def exercise_device(family, device_type, runtime, app, executable):
         run(["xcrun", "simctl", "bootstatus", udid, "-b"], folder / "locale-bootstatus.log", 240)
         run(["xcrun", "simctl", "spawn", udid, "defaults", "read", "NSGlobalDomain", "AppleLanguages"], folder / "device-languages.log")
         run(["xcrun", "simctl", "install", udid, app], folder / "install.log")
-        for name, language in PHASES:
-            phase = {"name": name, "language": language, "status": "failed"}
-            result["phases"].append(phase)
-            phase_dir = folder / name
-            run([
-                "maestro", "--device", udid, "test", "--format", "junit",
-                "--output", phase_dir / "junit.xml",
-                "--debug-output", phase_dir / "debug",
-                "--test-output-dir", phase_dir / "artifacts",
-                "-e", f"APP_ID={APP_ID}", FLOWS / f"{name}.yml",
-            ], phase_dir / "maestro.log", 300)
-            # hierarchy writes JSON to stdout; keep stderr separate for valid parsing.
-            with (phase_dir / "hierarchy.json").open("w") as stdout, (phase_dir / "hierarchy-stderr.log").open("w") as stderr:
-                subprocess.run(
-                    ["maestro", "--device", udid, "hierarchy", "--no-reinstall-driver"],
-                    stdout=stdout, stderr=stderr, timeout=120, check=True,
-                )
-            tree = json.loads((phase_dir / "hierarchy.json").read_text())
-            layout = assert_login_layout(tree, language)
-            (phase_dir / "layout-bounds.json").write_text(json.dumps(layout, ensure_ascii=False, indent=2))
-            run(["xcrun", "simctl", "io", udid, "screenshot", phase_dir / "verified-login.png"], phase_dir / "screenshot.log")
-            phase["status"] = "passed"
+        for fixture in ("fresh", "legacy"):
+            if fixture == "legacy":
+                seed_legacy_flags(udid, folder / "legacy-fixture")
+            for name, language in PHASES:
+                phase = {"name": name, "fixture": fixture, "language": language, "status": "failed"}
+                result["phases"].append(phase)
+                phase_dir = folder / fixture / name
+                flow_name = "01-legacy-hebrew-login" if fixture == "legacy" and name == "01-hebrew-login" else name
+                run([
+                    "maestro", "--device", udid, "test", "--format", "junit",
+                    "--output", phase_dir / "junit.xml",
+                    "--debug-output", phase_dir / "debug",
+                    "--test-output-dir", phase_dir / "artifacts",
+                    "-e", f"APP_ID={APP_ID}", FLOWS / f"{flow_name}.yml",
+                ], phase_dir / "maestro.log", 300)
+                # hierarchy writes JSON to stdout; keep stderr separate for valid parsing.
+                with (phase_dir / "hierarchy.json").open("w") as stdout, (phase_dir / "hierarchy-stderr.log").open("w") as stderr:
+                    subprocess.run(
+                        ["maestro", "--device", udid, "hierarchy", "--no-reinstall-driver"],
+                        stdout=stdout, stderr=stderr, timeout=120, check=True,
+                    )
+                tree = json.loads((phase_dir / "hierarchy.json").read_text())
+                layout = assert_login_layout(tree, language)
+                (phase_dir / "layout-bounds.json").write_text(json.dumps(layout, ensure_ascii=False, indent=2))
+                run(["xcrun", "simctl", "io", udid, "screenshot", phase_dir / "verified-login.png"], phase_dir / "screenshot.log")
+                phase["status"] = "passed"
         result["status"] = "passed"
     except (AssertionError, OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         result["error"] = str(error)
@@ -220,7 +248,7 @@ def main():
             summary.write(f"Source: `{report['sha']}`; runtime: {runtime['name']}; Maestro 2.12.1.\n\n")
             for result in results:
                 summary.write(f"- **{result['family']} ({result['type']}): {result['status']}**\n")
-            summary.write("\nLogged-out launch, actual in-app Hebrew/English selection, auth navigation, relaunch persistence, field bounds and back-button side are checked. Screenshots and logs are in the artifact. Typography still requires screenshot review. Authenticated feeds, posting and physical-device behavior are outside this suite.\n")
+            summary.write("\nBoth fresh installation and persisted legacy RTL flags are exercised on each device. Logged-out launch, actual in-app Hebrew/English selection, auth navigation, relaunch persistence, field bounds and back-button side are checked. Screenshots and logs are in the artifact. Typography still requires screenshot review. Authenticated feeds, posting and physical-device behavior are outside this suite.\n")
     return 0 if all(result["status"] == "passed" for result in results) else 1
 
 
