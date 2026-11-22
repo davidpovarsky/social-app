@@ -22,6 +22,7 @@ from urllib.request import urlopen
 
 
 APP_ID = "com.davidpovarsky.torahsocial"
+APP_DISPLAY_NAME = "Torah Social"
 REPO = Path(__file__).resolve().parents[2]
 OUT = Path(os.environ["QA_ARTIFACTS"])
 FLOWS = REPO / "__e2e__/flows/torah-repair"
@@ -118,7 +119,7 @@ def sanitize_artifacts():
     (OUT / "sanitization.json").write_text(json.dumps({"text_files_checked": checked, "redacted_files": rewritten, "jwt_filter": True, "password_filter": fixture.exists()}, indent=2))
 
 
-def run(args, log, timeout=120):
+def run(args, log, timeout=120, env=None):
     """Capture every command, retain its output, and propagate nonzero exits."""
     log.parent.mkdir(parents=True, exist_ok=True)
     args = list(map(str, args))
@@ -127,7 +128,7 @@ def run(args, log, timeout=120):
     try:
         result = subprocess.run(
             args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-            timeout=timeout, check=False, cwd=REPO,
+            timeout=timeout, check=False, cwd=REPO, env=env,
         )
     except subprocess.TimeoutExpired as error:
         log.write_text(redact(error.stdout or ""), encoding="utf-8")
@@ -179,16 +180,24 @@ def run_maestro(args, udid, folder, flow_budget):
     cold = udid in COLD_BOOT_DEVICES
     COLD_BOOT_DEVICES.discard(udid)
     allowance = COLD_START_ALLOWANCE_SECONDS if cold else 0
+    # Maestro's own readiness deadline must allow the existing cold-start
+    # budget; warm runs retain the caller's environment and normal deadline.
+    subprocess_env = {
+        **os.environ,
+        "MAESTRO_DRIVER_STARTUP_TIMEOUT": str(COLD_START_ALLOWANCE_SECONDS * 1000),
+    } if cold else None
+    driver_startup_timeout = (subprocess_env or os.environ).get("MAESTRO_DRIVER_STARTUP_TIMEOUT", "120000")
     timing = {
         "flow_process_budget_seconds": flow_budget,
         "cold_start_allowance_seconds": allowance,
         "process_timeout_seconds": flow_budget + allowance,
         "first_test_after_boot": cold,
+        "driver_startup_timeout_ms": driver_startup_timeout,
         "status": "failed",
     }
     started = time.monotonic()
     try:
-        output = run(args, folder / "maestro.log", flow_budget + allowance)
+        output = run(args, folder / "maestro.log", flow_budget + allowance, env=subprocess_env)
         timing["status"] = "passed"
         return output
     finally:
@@ -206,7 +215,7 @@ def hierarchy(udid, folder):
     (folder / "hierarchy-stderr.log").write_text(stderr, encoding="utf-8")
     if result.returncode:
         raise RuntimeError(f"Maestro hierarchy failed ({result.returncode}): {stderr[-3000:]}")
-    return json.loads(stdout)
+    return application_root(json.loads(stdout))
 
 
 def version(value):
@@ -225,6 +234,23 @@ def bounds(node):
     if not match:
         raise AssertionError(f"Missing or unexpected Maestro bounds: {value!r}")
     return tuple(int(part) for part in match.groups())
+
+
+def application_root(tree):
+    """Resolve the app beneath Maestro's zero-bounds synthetic iOS root."""
+    candidates = [
+        node for node in (tree, *tree.get("children", []))
+        if node.get("attributes", {}).get("accessibilityText") == APP_DISPLAY_NAME
+    ]
+    if len(candidates) != 1:
+        raise AssertionError(f"Expected one {APP_DISPLAY_NAME!r} app root; found {len(candidates)}")
+    app = candidates[0]
+    if app.get("enabled", app.get("attributes", {}).get("enabled")) not in (True, "true"):
+        raise AssertionError("Torah app root is not enabled")
+    left, top, right, bottom = bounds(app)
+    if right <= left or bottom <= top:
+        raise AssertionError(f"Degenerate Torah app viewport: {(left, top, right, bottom)}")
+    return app
 
 
 def assert_login_layout(tree, language):
