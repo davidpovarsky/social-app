@@ -37,7 +37,7 @@ jest.mock('#/state/messages/events/agent', () => ({
 }))
 
 let originalWindow: PropertyDescriptor | undefined
-let originalAppState: AppStateStatus
+let originalAppState: typeof AppState.currentState
 let onAppStateChange: (state: AppStateStatus) => void
 
 beforeEach(() => {
@@ -147,6 +147,28 @@ describe('chat event bus page lifecycle', () => {
     changeAppState('active')
     expect(mockBus.resume).toHaveBeenCalledTimes(1)
   })
+
+  it.each([null, undefined])(
+    'keeps a restored page suspended when its current AppState is %s',
+    currentState => {
+      mountProvider()
+
+      dispatchPageEvent('pagehide')
+      AppState.currentState = currentState
+      dispatchPageEvent('pageshow')
+
+      expect(mockBus.suspend).toHaveBeenCalledTimes(1)
+      expect(mockBus.resume).not.toHaveBeenCalled()
+      expect(mockBus.background).not.toHaveBeenCalled()
+
+      changeAppState('background')
+      expect(mockBus.background).toHaveBeenCalledTimes(1)
+      expect(mockBus.resume).not.toHaveBeenCalled()
+
+      changeAppState('active')
+      expect(mockBus.resume).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('removes the AppState and page listeners on unmount', () => {
     const result = mountProvider()

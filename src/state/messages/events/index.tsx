@@ -71,8 +71,10 @@ export function MessagesEventBusProviderInner({
 
   useEffect(() => {
     let pageSuspended = false
-    const handleAppStateChange = (nextAppState: string) => {
-      if (pageSuspended) return
+    const handleAppStateChange = (
+      nextAppState: typeof AppState.currentState,
+    ) => {
+      if (pageSuspended || nextAppState == null) return
       if (nextAppState === 'active') {
         bus.resume()
       } else {
