@@ -1,0 +1,24 @@
+appId: ${APP_ID}
+name: Hebrew layout and preference survive a cold relaunch
+---
+- stopApp
+- launchApp:
+    clearState: false
+    clearKeychain: false
+- extendedWaitUntil:
+    visible:
+      id: signInButton
+    timeout: 60000
+- assertVisible: "התחבר"
+- tapOn:
+    id: signInButton
+- extendedWaitUntil:
+    visible:
+      id: loginUsernameInput
+    timeout: 15000
+- assertVisible:
+    id: loginPasswordInput
+- assertVisible:
+    id: selectServiceButton
+- assertVisible: "חזור"
+- takeScreenshot: 14-hebrew-login-after-relaunch
