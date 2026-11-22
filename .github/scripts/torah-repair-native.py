@@ -62,6 +62,25 @@ HIERARCHY_PROCESS_TIMEOUT_SECONDS = (
     + HIERARCHY_REQUEST_TIMEOUT_SECONDS
     + HIERARCHY_CLI_OVERHEAD_SECONDS
 )
+
+# Controlled diagnostic only: these exact values were available in the098
+# artifact inventory. Never silently fall back to another runtime or device.
+DIAGNOSTIC_RUNTIME = {
+    "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+    "version": "26.4.1",
+    "buildversion": "23E254a",
+}
+DIAGNOSTIC_DEVICE_TYPES = {
+    "iPhone": {
+        "name": "iPhone 17 Pro",
+        "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+    },
+    "iPad": {
+        "name": "iPad Pro 11-inch (M5)",
+        "identifier": "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-11-inch-M5-12GB",
+    },
+}
+
 JWT = re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
 # Pinned Maestro logs both whole input and separate first-character/rest payloads.
 # Redact these records, not each password character throughout unrelated output.
@@ -644,6 +663,54 @@ def assert_authenticated_layout(tree, screen_name, family):
     return {"screen": screen_name, "viewport": screen, "elements": checks}
 
 
+
+def select_runtime(inventory, *, diagnostic=False, minimum_os_version=None):
+    """Keep normal selection unchanged; pin the isolated runtime experiment."""
+    runtimes = [item for item in inventory["runtimes"] if item.get("isAvailable") and ".iOS-" in item["identifier"] and version(item["version"]) >= (26, 4)]
+    if not runtimes:
+        raise RuntimeError("No available iOS simulator runtime >= 26.4")
+    if not diagnostic:
+        return max(runtimes, key=lambda item: version(item["version"]))
+
+    matches = [
+        item for item in inventory["runtimes"]
+        if item.get("identifier") == DIAGNOSTIC_RUNTIME["identifier"]
+    ]
+    if len(matches) != 1:
+        raise RuntimeError("Expected exactly one explicitly selected diagnostic runtime")
+    runtime = matches[0]
+    if runtime.get("isAvailable") is not True or any(
+        runtime.get(key) != value for key, value in DIAGNOSTIC_RUNTIME.items()
+    ):
+        raise RuntimeError("Diagnostic runtime availability, version or build differs")
+    if runtime not in runtimes:
+        raise RuntimeError("Diagnostic runtime does not satisfy the existing iOS >= 26.4 policy")
+    if not isinstance(minimum_os_version, str) or re.fullmatch(
+        r"[0-9]+(?:\.[0-9]+){0,2}", minimum_os_version
+    ) is None:
+        raise RuntimeError("App MinimumOSVersion is missing or invalid")
+    minimum = version(minimum_os_version)
+    minimum += (0,) * (3 - len(minimum))
+    if minimum > version(runtime["version"]):
+        raise RuntimeError("Selected diagnostic runtime is below the app MinimumOSVersion")
+
+    supported = runtime.get("supportedDeviceTypes")
+    types = inventory.get("devicetypes")
+    if not isinstance(supported, list) or not isinstance(types, list):
+        raise RuntimeError("Diagnostic runtime device-support metadata is missing")
+    for family, expected in DIAGNOSTIC_DEVICE_TYPES.items():
+        for collection in (types, supported):
+            matching_types = [
+                item for item in collection
+                if isinstance(item, dict) and item.get("identifier") == expected["identifier"]
+            ]
+            if len(matching_types) != 1 or matching_types[0].get("name") != expected["name"]:
+                raise RuntimeError(f"Exact diagnostic {family} device type is missing or ambiguous")
+        if select_device_type(inventory, runtime, family)["identifier"] != expected["identifier"]:
+            raise RuntimeError(f"Diagnostic {family} selection changed unexpectedly")
+    return runtime
+
+
 def select_device_type(inventory, runtime, family):
     # Use types supported by the installed runtime when Xcode supplies that list.
     supported = runtime.get("supportedDeviceTypes", [])
@@ -817,10 +884,7 @@ def main():
     if not (app / "main.jsbundle").is_file():
         raise RuntimeError("Release app is missing its embedded JavaScript bundle")
     inventory = json.loads(run(["xcrun", "simctl", "list", "-j"], OUT / "runtime-inventory.json"))
-    runtimes = [item for item in inventory["runtimes"] if item.get("isAvailable") and ".iOS-" in item["identifier"] and version(item["version"]) >= (26, 4)]
-    if not runtimes:
-        raise RuntimeError("No available iOS simulator runtime >= 26.4")
-    runtime = max(runtimes, key=lambda item: version(item["version"]))
+    runtime = select_runtime(inventory, diagnostic=True, minimum_os_version=info.get("MinimumOSVersion"))
     results = []
     report = {
         "sha": os.environ.get("TORAH_SIMULATOR_SOURCE_SHA", os.environ.get("GITHUB_SHA")),
@@ -828,6 +892,12 @@ def main():
         "runtime": runtime["name"], "app_id": APP_ID,
         "mode": "diagnostic-only-native-password-paste",
         "acceptance_eligible": False,
+        "controlled_runtime_comparison": {
+            "target": {**DIAGNOSTIC_RUNTIME, "isAvailable": True},
+            "actual": {key: runtime[key] for key in ("identifier", "version", "buildversion", "isAvailable")},
+            "app_minimum_os_version": info["MinimumOSVersion"],
+            "required_device_types": DIAGNOSTIC_DEVICE_TYPES,
+        },
         "expected_flow_executions": 2,
         "started": time.time(), "devices": results,
     }
