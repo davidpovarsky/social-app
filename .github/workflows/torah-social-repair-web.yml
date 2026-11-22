@@ -41,12 +41,18 @@ jobs:
       - name: Verify independent-network build contract
         run: node scripts/test-torah-isolation.mjs
       - name: Unit and regression tests
+        id: unit
+        continue-on-error: true
         run: pnpm test-ci --maxWorkers=2
       - name: Apply Torah network configuration
         run: node scripts/torah-isolate-client.mjs
       - name: Typecheck iOS, Android and web
+        id: types
+        continue-on-error: true
         run: pnpm typecheck
       - name: Lint
+        id: lint
+        continue-on-error: true
         run: pnpm lint
       - name: Build production web assets
         run: pnpm build-web
@@ -85,6 +91,16 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           node scripts/test-torah-web.mjs
+      - name: Enforce all static validation gates
+        if: always()
+        env:
+          UNIT_OUTCOME: ${{ steps.unit.outcome }}
+          TYPES_OUTCOME: ${{ steps.types.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+        run: |
+          test "$UNIT_OUTCOME" = success
+          test "$TYPES_OUTCOME" = success
+          test "$LINT_OUTCOME" = success
       - name: Package verified ARM64 release
         run: tar -czf artifacts/torah-social-web-arm64.tar.gz -C release .
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

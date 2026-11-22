@@ -21,6 +21,14 @@ import {
   toShortUrl,
 } from '../../src/lib/strings/url-helpers'
 
+// Keep upstream URL contracts deterministic; Torah-specific behavior is covered
+// in url-helpers-torah.test.ts with an explicitly isolated network fixture.
+jest.mock('#/env', () => ({
+  ...jest.requireActual('#/env'),
+  TORAH_ISOLATED_NETWORK: false,
+  TORAH_PDS_HOST: 'https://bsky.social',
+}))
+
 describe('detectLinkables', () => {
   const inputs = [
     'no linkable',

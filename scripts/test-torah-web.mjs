@@ -22,7 +22,7 @@ for (let attempt = 0; ; attempt++) {
   await new Promise(resolve => setTimeout(resolve, 500))
 }
 const suggested = await fetch(
-  appview + '/xrpc/app.bsky.actor.getSuggestions?limit=20',
+  appview + '/xrpc/app.bsky.actor.getSuggestions?limit=100',
 ).then(response => {
   assert.equal(response.status, 200)
   return response.json()
@@ -43,6 +43,38 @@ assert.ok(
   actor,
   'An existing local account with content is required for live content validation',
 )
+// Reuse an existing project test fixture; never create accounts or publish content.
+const testActor = suggested.actors.find(candidate =>
+  /^e2e-a-[0-9]+\./.test(candidate.handle),
+)
+assert.ok(testActor, 'An existing project e2e account is required')
+const testRunId = testActor.handle.match(/^e2e-a-([0-9]+)\./)[1]
+const seedScript = await fs.readFile('.github/scripts/run-torah-e2e.sh', 'utf8')
+const passwordRecipe = seedScript.match(/^E2E_USER_A_PASSWORD=(["'])(.+)\1$/m)
+assert.ok(
+  passwordRecipe,
+  'Existing e2e credential recipe must be a quoted literal',
+)
+const testPassword = passwordRecipe[2]
+  .replaceAll('${E2E_RUN_ID}', testRunId)
+  .replaceAll('$E2E_RUN_ID', testRunId)
+assert.ok(
+  !/[`$]/.test(testPassword),
+  'Credential recipe must not require shell evaluation',
+)
+const hebrewCatalog = await fs.readFile(
+  'src/locale/locales/he/messages.po',
+  'utf8',
+)
+function uiLabel(message, locale) {
+  if (!locale.startsWith('he')) return message
+  const marker = 'msgid ' + JSON.stringify(message) + '\nmsgstr '
+  const start = hebrewCatalog.indexOf(marker)
+  assert.ok(start >= 0, 'Missing translation for ' + message)
+  const value = hebrewCatalog.slice(start + marker.length).split('\n')[0]
+  return JSON.parse(value) || message
+}
+
 const scenarios = []
 const errors = []
 const forbidden = []
@@ -101,6 +133,8 @@ for (const [engineName, engine] of [
             forbidden.push({scenario: name, url: url.origin + url.pathname})
           }
         })
+        let authenticated = false
+        let phase = 'welcome'
         try {
           await page.goto(base, {waitUntil: 'domcontentloaded'})
           await withinViewport(page, 'signInButton')
@@ -111,11 +145,29 @@ for (const [engineName, engine] of [
           )
           await noHorizontalOverflow(page)
           await capture(page, name + '-welcome')
+          phase = 'login'
           await page.getByTestId('signInButton').click()
           await withinViewport(page, 'loginForm')
           await withinViewport(page, 'loginUsernameInput')
           await noHorizontalOverflow(page)
           await capture(page, name + '-login')
+          if ([390, 820, 1280].includes(width)) {
+            phase = 'authenticated-home'
+            await page.getByTestId('loginUsernameInput').fill(testActor.handle)
+            await page.getByTestId('loginPasswordInput').fill(testPassword)
+            await page.getByTestId('loginNextButton').click()
+            await withinViewport(page, 'HomeScreen')
+            const later = page.getByRole('button', {
+              name: uiLabel('Maybe later', locale),
+              exact: true,
+            })
+            if (await later.isVisible()) await later.click()
+            await withinViewport(page, 'postText')
+            await noHorizontalOverflow(page)
+            await capture(page, name + '-authenticated-home')
+            authenticated = true
+          }
+          phase = 'profile'
           await page.goto(base + '/profile/' + encodeURIComponent(actor.did), {
             waitUntil: 'domcontentloaded',
           })
@@ -123,10 +175,60 @@ for (const [engineName, engine] of [
           await withinViewport(page, 'postText')
           await noHorizontalOverflow(page)
           await capture(page, name + '-profile')
-          scenarios.push({name, passed: true})
+          if (authenticated) {
+            phase = 'draft-composer'
+            const fab = page.getByTestId('composeFAB')
+            if (await fab.isVisible()) {
+              await fab.click()
+            } else {
+              await page
+                .getByRole('button', {
+                  name: uiLabel('Compose new post', locale),
+                  exact: true,
+                })
+                .click()
+            }
+            await withinViewport(page, 'composePostView')
+            const editor = page
+              .getByTestId('composePostView')
+              .locator('[contenteditable="true"]')
+              .first()
+            await editor.fill(
+              'בדיקת פריסה בעברית עם English ומספרים 1234567890 — '.repeat(4),
+            )
+            await withinViewport(page, 'composerPublishBtn')
+            const textDimensions = await editor.evaluate(element => ({
+              width: element.clientWidth,
+              content: element.scrollWidth,
+            }))
+            assert.ok(
+              textDimensions.content <= textDimensions.width + 2,
+              'Draft text overflows its editor: ' +
+                JSON.stringify(textDimensions),
+            )
+            await noHorizontalOverflow(page)
+            await capture(page, name + '-draft-composer')
+            phase = 'source-picker'
+            await page
+              .getByRole('button', {
+                name: 'הוסף מקור תורני',
+                exact: true,
+              })
+              .click()
+            await withinViewport(page, 'torahSourceQueryInput')
+            await noHorizontalOverflow(page)
+            await capture(page, name + '-source-picker')
+          }
+          scenarios.push({name, passed: true, authenticated})
         } catch (error) {
           await capture(page, name + '-failure').catch(() => {})
-          scenarios.push({name, passed: false, error: String(error)})
+          scenarios.push({
+            name,
+            passed: false,
+            phase,
+            authenticated,
+            error: String(error),
+          })
         } finally {
           await context.close()
         }
