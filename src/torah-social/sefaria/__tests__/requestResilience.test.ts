@@ -16,7 +16,7 @@ function response(
     status,
     ok: status >= 200 && status < 300,
     headers: {get: (name: string) => values.get(name.toLowerCase()) ?? null},
-    json: async () => data,
+    json: () => Promise.resolve(data),
   } as unknown as Response
 }
 
@@ -27,6 +27,11 @@ function refData(ref: string, addressTypes = ['Talmud', 'Integer']) {
     hebrew: ref,
     address_types: addressTypes,
   }
+}
+
+function requestUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input !== 'string') throw new Error('Expected a string API URL')
+  return input
 }
 
 function capture<T>(promise: Promise<T>) {
@@ -76,11 +81,13 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
 
   it('recovers from 429 only after the integer Retry-After delay', async () => {
     const starts: number[] = []
-    fetchMock.mockImplementation(async () => {
+    fetchMock.mockImplementation(() => {
       starts.push(Date.now())
-      return starts.length === 1
-        ? response({}, 429, {'Retry-After': '2'})
-        : response(refData('Berakhot 2a'))
+      return Promise.resolve(
+        starts.length === 1
+          ? response({}, 429, {'Retry-After': '2'})
+          : response(refData('Berakhot 2a')),
+      )
     })
     const pending = capture(api.validateRef('Berakhot 2a'))
     await jest.advanceTimersByTimeAsync(1_999)
@@ -93,13 +100,15 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
 
   it('honors an HTTP-date Retry-After without starting early', async () => {
     const starts: number[] = []
-    fetchMock.mockImplementation(async () => {
+    fetchMock.mockImplementation(() => {
       starts.push(Date.now())
-      return starts.length === 1
-        ? response({}, 429, {
-            'Retry-After': new Date(START + 4_000).toUTCString(),
-          })
-        : response(refData('Berakhot 2a'))
+      return Promise.resolve(
+        starts.length === 1
+          ? response({}, 429, {
+              'Retry-After': new Date(START + 4_000).toUTCString(),
+            })
+          : response(refData('Berakhot 2a')),
+      )
     })
     const pending = capture(api.validateRef('Berakhot 2a'))
     await jest.advanceTimersByTimeAsync(3_999)
@@ -110,14 +119,16 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('exhausts at most two 429 retries and never caches the failure', async () => {
-    fetchMock.mockImplementation(async () =>
-      response({}, 429, {'Retry-After': '1'}),
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response({}, 429, {'Retry-After': '1'})),
     )
     expect(await rejected(api.validateRef('Berakhot 2a'))).toBeInstanceOf(
       api.SefariaRateLimitError,
     )
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    fetchMock.mockImplementation(async () => response(refData('Berakhot 2a')))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response(refData('Berakhot 2a'))),
+    )
     expect((await resolved(api.validateRef('Berakhot 2a'))).ref).toBe(
       'Berakhot 2a',
     )
@@ -125,8 +136,8 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('refuses a long Retry-After rather than clamping it and respects shared cooldown', async () => {
-    fetchMock.mockImplementation(async () =>
-      response({}, 429, {'Retry-After': '60'}),
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response({}, 429, {'Retry-After': '60'})),
     )
     const first = await rejected(api.validateRef('Berakhot 2a'))
     expect(first).toBeInstanceOf(api.SefariaRateLimitError)
@@ -135,7 +146,9 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
     expect(second).toBeInstanceOf(api.SefariaRateLimitError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     await jest.advanceTimersByTimeAsync(60_000)
-    fetchMock.mockImplementation(async () => response(refData('Berakhot 2b')))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response(refData('Berakhot 2b'))),
+    )
     expect((await resolved(api.validateRef('Berakhot 2b'))).ref).toBe(
       'Berakhot 2b',
     )
@@ -144,12 +157,12 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
 
   it('uses bounded local pacing for a missing or malformed Retry-After', async () => {
     const starts: number[] = []
-    fetchMock.mockImplementation(async () => {
+    fetchMock.mockImplementation(() => {
       starts.push(Date.now())
-      if (starts.length === 1) return response({}, 429)
+      if (starts.length === 1) return Promise.resolve(response({}, 429))
       if (starts.length === 2)
-        return response({}, 429, {'Retry-After': 'not-a-date'})
-      return response(refData('Berakhot 2a'))
+        return Promise.resolve(response({}, 429, {'Retry-After': 'not-a-date'}))
+      return Promise.resolve(response(refData('Berakhot 2a')))
     })
     await resolved(api.validateRef('Berakhot 2a'))
     expect(starts).toEqual([START, START + 1_000, START + 2_000])
@@ -162,10 +175,12 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
     'refuses an unrepresentable Retry-After without poisoning later calls (%s)',
     async (_label, header) => {
       fetchMock
-        .mockImplementationOnce(async () =>
-          response({}, 429, {'Retry-After': header}),
+        .mockImplementationOnce(() =>
+          Promise.resolve(response({}, 429, {'Retry-After': header})),
         )
-        .mockImplementation(async () => response(refData('Berakhot 2a')))
+        .mockImplementation(() =>
+          Promise.resolve(response(refData('Berakhot 2a'))),
+        )
       const error = await rejected(api.validateRef('Berakhot 2a'))
       expect(error).toBeInstanceOf(api.SefariaRateLimitError)
       expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -181,9 +196,9 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
     async status => {
       let owned: AbortSignal | undefined
       const caller = new AbortController()
-      fetchMock.mockImplementation(async (_input, init) => {
+      fetchMock.mockImplementation((_input, init) => {
         owned = init?.signal ?? undefined
-        return response({}, status, {'Retry-After': '1'})
+        return Promise.resolve(response({}, status, {'Retry-After': '1'}))
       })
       const error = await rejected(api.getText('Genesis 1', caller.signal))
       expect(error).toBeInstanceOf(Error)
@@ -197,19 +212,21 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   )
 
   it('does not retry other HTTP failures or invalid refs', async () => {
-    fetchMock.mockImplementation(async () => response({}, 500))
+    fetchMock.mockImplementation(() => Promise.resolve(response({}, 500)))
     await rejected(api.validateRef('Berakhot 2a'))
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    fetchMock.mockImplementation(async () => response({is_ref: false}))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response({is_ref: false})),
+    )
     await rejected(api.validateRef('not a ref'))
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('serializes requests and spaces successful starts by at least one second', async () => {
     const starts: number[] = []
-    fetchMock.mockImplementation(async () => {
+    fetchMock.mockImplementation(() => {
       starts.push(Date.now())
-      return response({versions: []})
+      return Promise.resolve(response({versions: []}))
     })
     await resolved(
       Promise.all([
@@ -266,8 +283,8 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('cancels backoff immediately with the original reason and no later retry', async () => {
-    fetchMock.mockImplementation(async () =>
-      response({}, 429, {'Retry-After': '5'}),
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response({}, 429, {'Retry-After': '5'})),
     )
     const controller = new AbortController()
     const pending = capture(api.validateRef('Berakhot 2a', controller.signal))
@@ -284,7 +301,9 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   it('does not let one caller cancel another caller for the same uncached ref', async () => {
     fetchMock
       .mockImplementationOnce(() => new Promise<Response>(() => {}))
-      .mockImplementation(async () => response(refData('Berakhot 2a')))
+      .mockImplementation(() =>
+        Promise.resolve(response(refData('Berakhot 2a'))),
+      )
     const a = new AbortController()
     const b = new AbortController()
     const first = capture(api.validateRef('Berakhot 2a', a.signal))
@@ -310,7 +329,9 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
     )
     fetchMock
       .mockResolvedValueOnce(body)
-      .mockImplementation(async () => response(refData('Berakhot 2a')))
+      .mockImplementation(() =>
+        Promise.resolve(response(refData('Berakhot 2a'))),
+      )
     const controller = new AbortController()
     const pending = capture(api.validateRef('Berakhot 2a', controller.signal))
     await jest.advanceTimersByTimeAsync(10)
@@ -328,7 +349,9 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('reuses only successful refs through their actual canonical alias and returns copies', async () => {
-    fetchMock.mockImplementation(async () => response(refData('Berakhot 2a')))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response(refData('Berakhot 2a'))),
+    )
     const first = await resolved(api.validateRef('ברכות ב ע״א'))
     first.ref = 'caller mutation'
     first.addressTypes?.push('caller mutation')
@@ -339,7 +362,9 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('expires successful cache entries after five minutes', async () => {
-    fetchMock.mockImplementation(async () => response(refData('Berakhot 2a')))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response(refData('Berakhot 2a'))),
+    )
     await resolved(api.validateRef('Berakhot 2a'))
     await jest.advanceTimersByTimeAsync(299_999)
     await resolved(api.validateRef('Berakhot 2a'))
@@ -350,11 +375,14 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('bounds positive cache keys and evicts the oldest entry', async () => {
-    fetchMock.mockImplementation(async input =>
-      response(
-        refData(decodeURIComponent(String(input).split('/').pop() ?? ''), [
-          'Integer',
-        ]),
+    fetchMock.mockImplementation(input =>
+      Promise.resolve(
+        response(
+          refData(
+            decodeURIComponent(requestUrl(input).split('/').pop() ?? ''),
+            ['Integer'],
+          ),
+        ),
       ),
     )
     for (let n = 1; n <= 129; n++) await resolved(api.validateRef('Test ' + n))
@@ -364,7 +392,9 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('rejects an already-aborted caller even when the positive ref is cached', async () => {
-    fetchMock.mockImplementation(async () => response(refData('Berakhot 2a')))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(response(refData('Berakhot 2a'))),
+    )
     await resolved(api.validateRef('Berakhot 2a'))
     const controller = new AbortController()
     const reason = {aborted: 'before cache lookup'}
@@ -377,11 +407,14 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
 
   it('does not generate a/b requests for a documented non-Talmud address', async () => {
     const refs: string[] = []
-    fetchMock.mockImplementation(async input => {
-      const url = String(input)
-      if (url.includes('/api/name/')) return response({completion_objects: []})
+    fetchMock.mockImplementation(input => {
+      const url = requestUrl(input)
+      if (url.includes('/api/name/'))
+        return Promise.resolve(response({completion_objects: []}))
       refs.push(decodeURIComponent(url.split('/').pop() ?? ''))
-      return response(refData('Genesis 1', ['Integer', 'Integer']))
+      return Promise.resolve(
+        response(refData('Genesis 1', ['Integer', 'Integer'])),
+      )
     })
     expect(
       (await resolved(api.searchTorahSources('Genesis 1'))).map(
@@ -393,14 +426,15 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
 
   it('still validates Talmud children and skips a nonexistent final half-page', async () => {
     const refs: string[] = []
-    fetchMock.mockImplementation(async input => {
-      const url = String(input)
-      if (url.includes('/api/name/')) return response({completion_objects: []})
+    fetchMock.mockImplementation(input => {
+      const url = requestUrl(input)
+      if (url.includes('/api/name/'))
+        return Promise.resolve(response({completion_objects: []}))
       const ref = decodeURIComponent(url.split('/').pop() ?? '')
       refs.push(ref)
-      return ref.endsWith('b')
-        ? response({is_ref: false})
-        : response(refData(ref))
+      return Promise.resolve(
+        ref.endsWith('b') ? response({is_ref: false}) : response(refData(ref)),
+      )
     })
     expect(
       (await resolved(api.searchTorahSources('Berakhot 64'))).map(
@@ -411,13 +445,16 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('does not turn an exhausted child429 into an incomplete successful search', async () => {
-    fetchMock.mockImplementation(async input => {
-      const url = String(input)
-      if (url.includes('/api/name/')) return response({completion_objects: []})
+    fetchMock.mockImplementation(input => {
+      const url = requestUrl(input)
+      if (url.includes('/api/name/'))
+        return Promise.resolve(response({completion_objects: []}))
       const ref = decodeURIComponent(url.split('/').pop() ?? '')
-      return ref.endsWith('a')
-        ? response({}, 429, {'Retry-After': '1'})
-        : response(refData(ref))
+      return Promise.resolve(
+        ref.endsWith('a')
+          ? response({}, 429, {'Retry-After': '1'})
+          : response(refData(ref)),
+      )
     })
     expect(await rejected(api.searchTorahSources('Berakhot 2'))).toBeInstanceOf(
       api.SefariaRateLimitError,
@@ -432,12 +469,14 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('preserves caller cancellation during child validation across allSettled', async () => {
-    fetchMock.mockImplementation(async input => {
-      const url = String(input)
-      if (url.includes('/api/name/')) return response({completion_objects: []})
+    fetchMock.mockImplementation(input => {
+      const url = requestUrl(input)
+      if (url.includes('/api/name/'))
+        return Promise.resolve(response({completion_objects: []}))
       const ref = decodeURIComponent(url.split('/').pop() ?? '')
-      if (ref.endsWith('a')) return new Promise<Response>(() => {})
-      return response(refData(ref))
+      if (ref.endsWith('a'))
+        return Promise.resolve(new Promise<Response>(() => {}))
+      return Promise.resolve(response(refData(ref)))
     })
     const controller = new AbortController()
     const pending = capture(
@@ -453,10 +492,12 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('preserves caller abort during optional preview text instead of returning attachable metadata', async () => {
-    fetchMock.mockImplementation(async input =>
-      String(input).includes('/api/ref/')
-        ? response(refData('Berakhot 2a'))
-        : new Promise<Response>(() => {}),
+    fetchMock.mockImplementation(input =>
+      Promise.resolve(
+        requestUrl(input).includes('/api/ref/')
+          ? response(refData('Berakhot 2a'))
+          : new Promise<Response>(() => {}),
+      ),
     )
     const controller = new AbortController()
     const pending = capture(
@@ -471,10 +512,12 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('propagates429 from optional preview and manuscripts, without swallowing it', async () => {
-    fetchMock.mockImplementation(async input =>
-      String(input).includes('/api/ref/')
-        ? response(refData('Berakhot 2a'))
-        : response({}, 429, {'Retry-After': '1'}),
+    fetchMock.mockImplementation(input =>
+      Promise.resolve(
+        requestUrl(input).includes('/api/ref/')
+          ? response(refData('Berakhot 2a'))
+          : response({}, 429, {'Retry-After': '1'}),
+      ),
     )
     expect(
       await rejected(api.resolveTorahSource('Berakhot 2a')),
@@ -485,10 +528,12 @@ describe('Sefaria request resilience — real API module, fake clock and fetch',
   })
 
   it('retains intended optional-text and manuscript fallback for ordinary server errors', async () => {
-    fetchMock.mockImplementation(async input =>
-      String(input).includes('/api/ref/')
-        ? response(refData('Berakhot 2a'))
-        : response({}, 500),
+    fetchMock.mockImplementation(input =>
+      Promise.resolve(
+        requestUrl(input).includes('/api/ref/')
+          ? response(refData('Berakhot 2a'))
+          : response({}, 500),
+      ),
     )
     const source = await resolved(api.resolveTorahSource('Berakhot 2a'))
     expect(source.ref).toBe('Berakhot 2a')
