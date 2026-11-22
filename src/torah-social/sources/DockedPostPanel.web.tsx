@@ -150,9 +150,10 @@ export function DockedPostPanel({
         },
         web({
           maxWidth: 680,
-          start: '50%',
-          end: 'auto',
-          transform: [{translateX: isRTL ? '50%' : '-50%'}],
+          // Center between the physical edges in either document direction.
+          // RNW prioritizes physical insets over conflicting logical start/end.
+          marginLeft: 'auto',
+          marginRight: 'auto',
         }),
         panelAnimatedStyle,
       ]}>
