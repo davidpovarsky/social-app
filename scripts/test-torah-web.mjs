@@ -27,6 +27,11 @@ const suggested = await fetch(
   assert.equal(response.status, 200)
   return response.json()
 })
+const readerSource = {
+  ref: 'Berakhot 22b',
+  uri: 'https://www.sefaria.org/Berakhot_22b',
+  label: 'מקור: ברכות כ״ב ע״ב',
+}
 let actor
 let actorPost
 for (const candidate of suggested.actors ?? []) {
@@ -37,16 +42,19 @@ for (const candidate of suggested.actors ?? []) {
   )
   if (response.ok) {
     const data = await response.json()
-    if (data.feed?.length) {
+    const sourcePost = data.feed?.find(
+      item => item.post.record?.embed?.external?.uri === readerSource.uri,
+    )?.post
+    if (sourcePost) {
       actor = candidate
-      actorPost = data.feed[0].post
+      actorPost = sourcePost
       break
     }
   }
 }
 assert.ok(
   actor,
-  'An existing local account with content is required for live content validation',
+  'An existing local post with the known Sefaria source is required for live content validation',
 )
 
 const webOrigin = new URL(process.env.EXPO_PUBLIC_TORAH_WEB_HOST).origin
@@ -54,14 +62,8 @@ const postRkey = actorPost.uri.split('/').at(-1)
 const metadataChecks = []
 for (const [kind, route] of [
   ['home', '/'],
-  ['profile', '/profile/' + encodeURIComponent(actor.did)],
-  [
-    'post',
-    '/profile/' +
-      encodeURIComponent(actor.did) +
-      '/post/' +
-      encodeURIComponent(postRkey),
-  ],
+  ['profile', '/profile/' + actor.did],
+  ['post', '/profile/' + actor.did + '/post/' + encodeURIComponent(postRkey)],
 ]) {
   try {
     const response = await fetch(base + route)
@@ -99,6 +101,20 @@ for (const [kind, route] of [
         new URL(card).origin,
         webOrigin,
         'Home social image must use the configured site',
+      )
+      const cardURL = new URL(card)
+      const cardResponse = await fetch(
+        new URL(cardURL.pathname + cardURL.search, base),
+      )
+      assert.equal(
+        cardResponse.status,
+        200,
+        'Home social image must be served by the built app',
+      )
+      assert.match(
+        cardResponse.headers.get('content-type') ?? '',
+        /^image\//,
+        'Home social image must return image bytes',
       )
     }
     if (kind === 'post') {
@@ -157,6 +173,17 @@ const scenarios = []
 const errors = []
 const forbidden = []
 const httpErrors = []
+const requestFailures = []
+const browserMessages = []
+function redactDiagnostic(value) {
+  return String(value)
+    .replaceAll(testPassword, '[redacted]')
+    .replace(
+      /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+      '[redacted JWT]',
+    )
+    .slice(0, 1500)
+}
 const expectedScenarios = 28
 let abortedReason
 async function capture(page, name) {
@@ -190,13 +217,95 @@ async function noHorizontalOverflow(page) {
   )
 }
 
+async function withinFullViewport(page, locator, name) {
+  await withinLocatorViewport(page, locator, name)
+  const box = await locator.boundingBox()
+  assert.ok(
+    box.y >= -2,
+    name + ' overflows the top edge: ' + JSON.stringify(box),
+  )
+  assert.ok(
+    box.y + box.height <= page.viewportSize().height + 2,
+    name + ' overflows the bottom edge: ' + JSON.stringify(box),
+  )
+}
+async function stableExpandedBox(locator, targetHeight) {
+  let previous
+  let stable = 0
+  const deadline = Date.now() + 10000
+  while (Date.now() < deadline) {
+    const box = await locator.boundingBox()
+    if (box && Math.abs(box.height - targetHeight) <= 2) {
+      stable =
+        previous &&
+        Math.abs(previous.height - box.height) <= 1 &&
+        Math.abs(previous.y - box.y) <= 1
+          ? stable + 1
+          : 0
+      if (stable >= 4) return box
+    }
+    previous = box
+    await new Promise(resolve => setTimeout(resolve, 80))
+  }
+  assert.fail('Expanded source post did not settle at a visible, stable height')
+}
+async function inspectLongFeedError(page, context, name) {
+  const pattern = /\/xrpc\/app\.bsky\.feed\.(getTimeline|getFeed)(?:\?|$)/
+  const message = 'Could not find repo: did:key:z' + 'Q'.repeat(128)
+  let requests = 0
+  const handler = async route => {
+    requests++
+    await route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({error: 'InvalidRequest', message}),
+    })
+  }
+  await context.route(pattern, handler)
+  try {
+    await page.reload({waitUntil: 'domcontentloaded'})
+    const errorView = page.getByTestId('errorMessageView').first()
+    await withinLocatorViewport(page, errorView, 'longFeedError')
+    await errorView.getByText(message, {exact: true}).waitFor()
+    await withinViewport(page, 'errorMessageTryAgainButton')
+    await noHorizontalOverflow(page)
+    assert.ok(
+      requests > 0,
+      'Controlled feed failure must exercise the real request',
+    )
+    await capture(page, name + '-long-feed-error')
+  } finally {
+    await context.unroute(pattern, handler)
+  }
+  const [recoveredResponse] = await Promise.all([
+    page.waitForResponse(
+      response => pattern.test(response.url()) && response.ok(),
+    ),
+    page.getByTestId('errorMessageTryAgainButton').first().click(),
+  ])
+  const recoveredFeed = await recoveredResponse.json()
+  assert.ok(
+    Array.isArray(recoveredFeed.feed) && recoveredFeed.feed.length > 0,
+    'Retry must receive fresh nonempty feed data from the real server',
+  )
+  await page.getByTestId('errorMessageView').first().waitFor({state: 'hidden'})
+  await withinViewport(page, 'postText')
+  await noHorizontalOverflow(page)
+  return {
+    requests,
+    messageCharacters: message.length,
+    recovered: true,
+    freshFeedItems: recoveredFeed.feed.length,
+  }
+}
+
 function flattenSourceLines(value) {
   if (typeof value === 'string') return value.trim() ? [value.trim()] : []
   return Array.isArray(value) ? value.flatMap(flattenSourceLines) : []
 }
 async function inspectSourceReader(page, name, sourceDocuments) {
   await page
-    .getByRole('button', {name: /^מקור: /})
+    .getByRole('button', {name: readerSource.label, exact: true})
     .first()
     .click()
   const reader = page.getByRole('dialog').last()
@@ -205,6 +314,11 @@ async function inspectSourceReader(page, name, sourceDocuments) {
   const deadline = Date.now() + 30000
   while (!loaded && Date.now() < deadline) {
     for (const source of sourceDocuments) {
+      if (
+        source.ref !== readerSource.ref ||
+        source.requestRef !== readerSource.ref
+      )
+        continue
       for (const line of source.lines) {
         const passage = reader.getByText(line, {exact: true}).first()
         if (await passage.isVisible()) {
@@ -218,7 +332,9 @@ async function inspectSourceReader(page, name, sourceDocuments) {
   }
   assert.ok(
     loaded,
-    'Reader must display a substantial Hebrew passage returned by its real text API',
+    'Reader must display a substantial Hebrew passage from the selected ' +
+      readerSource.ref +
+      ' text API response',
   )
   await withinLocatorViewport(page, loaded.passage, 'loadedHebrewPassage')
   const alignment = await loaded.passage.evaluate(element => {
@@ -233,21 +349,16 @@ async function inspectSourceReader(page, name, sourceDocuments) {
       JSON.stringify(alignment),
   )
   const dock = page.getByTestId('dockedPostPanel')
-  await withinViewport(page, 'dockedPostPanel')
+  await withinFullViewport(page, dock, 'collapsedDockedPost')
   const collapsed = await dock.boundingBox()
   await noHorizontalOverflow(page)
   await capture(page, name + '-source-reader')
   await page.getByRole('button', {name: 'הרחב פוסט מעוגן', exact: true}).click()
-  await page.waitForFunction(
-    height =>
-      document
-        .querySelector('[data-testid="dockedPostPanel"]')
-        ?.getBoundingClientRect().height >
-      height + 100,
-    collapsed.height,
-  )
-  await withinViewport(page, 'dockedPostPanel')
-  const expanded = await dock.boundingBox()
+  const expectedExpandedHeight =
+    Math.min(520, Math.max(340, page.viewportSize().height * 0.65)) +
+    (collapsed.height - 104)
+  const expanded = await stableExpandedBox(dock, expectedExpandedHeight)
+  await withinFullViewport(page, dock, 'expandedDockedPost')
   assert.ok(
     expanded.height <= page.viewportSize().height + 2,
     'Expanded post must fit the viewport height',
@@ -266,7 +377,13 @@ async function inspectSourceReader(page, name, sourceDocuments) {
   await page.keyboard.press('Escape')
   await reader.waitFor({state: 'hidden'})
   await dock.waitFor({state: 'detached'})
-  return {ref: loaded.ref, characters: loaded.characters, alignment}
+  return {
+    ref: loaded.ref,
+    characters: loaded.characters,
+    alignment,
+    collapsed,
+    expanded,
+  }
 }
 
 scenarioMatrix: for (const [engineName, engine] of [
@@ -283,7 +400,10 @@ scenarioMatrix: for (const [engineName, engine] of [
           viewport: {width, height: 1000},
           reducedMotion: 'reduce',
         })
+        context.setDefaultTimeout(30000)
+        context.setDefaultNavigationTimeout(30000)
         const page = await context.newPage()
+        const diagnosticTasks = []
         page.on('pageerror', error =>
           errors.push({scenario: name, error: error.message}),
         )
@@ -296,16 +416,59 @@ scenarioMatrix: for (const [engineName, engine] of [
             forbidden.push({scenario: name, url: url.origin + url.pathname})
           }
         })
+        page.on('requestfailed', request => {
+          if (
+            !['fetch', 'xhr'].includes(request.resourceType()) ||
+            requestFailures.length >= 500
+          )
+            return
+          const url = new URL(request.url())
+          requestFailures.push({
+            scenario: name,
+            url: url.origin + url.pathname,
+            error: redactDiagnostic(request.failure()?.errorText),
+          })
+        })
+        page.on('console', message => {
+          if (message.type() !== 'error' || browserMessages.length >= 200)
+            return
+          const value = message.text()
+          if (
+            /^(Access to fetch|Cross-Origin|Failed to load resource|Fetch API cannot load)/.test(
+              value,
+            )
+          ) {
+            browserMessages.push({
+              scenario: name,
+              error: redactDiagnostic(value),
+            })
+          }
+        })
         page.on('response', response => {
           if (response.status() < 400 || httpErrors.length >= 500) return
           const request = response.request()
           if (!['fetch', 'xhr'].includes(request.resourceType())) return
           const url = new URL(response.url())
-          httpErrors.push({
+          const entry = {
             scenario: name,
             status: response.status(),
             url: url.origin + url.pathname,
-          })
+            controlled: phase === 'controlled-feed-error',
+          }
+          httpErrors.push(entry)
+          if (url.pathname.startsWith('/xrpc/')) {
+            diagnosticTasks.push(
+              response
+                .json()
+                .then(body => {
+                  if (typeof body.error === 'string')
+                    entry.error = redactDiagnostic(body.error)
+                  if (typeof body.message === 'string')
+                    entry.message = redactDiagnostic(body.message)
+                })
+                .catch(() => {}),
+            )
+          }
         })
 
         const sourceDocuments = []
@@ -327,12 +490,21 @@ scenarioMatrix: for (const [engineName, engine] of [
               const lines = flattenSourceLines(version?.text)
                 .filter(line => line.length > 40 && /[א-ת]/.test(line))
                 .slice(0, 8)
-              if (lines.length) sourceDocuments.push({ref: data.ref, lines})
+              if (lines.length) {
+                sourceDocuments.push({
+                  ref: data.ref,
+                  requestRef: decodeURIComponent(
+                    url.pathname.slice('/api/v3/texts/'.length),
+                  ).replaceAll('_', ' '),
+                  lines,
+                })
+              }
             })
             .catch(() => {})
         })
 
         let readerEvidence
+        let errorRecoveryEvidence
         let authenticated = false
         let phase = 'welcome'
         try {
@@ -372,9 +544,17 @@ scenarioMatrix: for (const [engineName, engine] of [
             await noHorizontalOverflow(page)
             await capture(page, name + '-authenticated-home')
             authenticated = true
+            if (width === 390) {
+              phase = 'controlled-feed-error'
+              errorRecoveryEvidence = await inspectLongFeedError(
+                page,
+                context,
+                name,
+              )
+            }
           }
           phase = 'profile'
-          await page.goto(base + '/profile/' + encodeURIComponent(actor.did), {
+          await page.goto(base + '/profile/' + actor.did, {
             waitUntil: 'domcontentloaded',
           })
           await withinViewport(page, 'profileView')
@@ -451,7 +631,13 @@ scenarioMatrix: for (const [engineName, engine] of [
             await noHorizontalOverflow(page)
             await capture(page, name + '-source-preview')
           }
-          scenarios.push({name, passed: true, authenticated, readerEvidence})
+          scenarios.push({
+            name,
+            passed: true,
+            authenticated,
+            readerEvidence,
+            errorRecoveryEvidence,
+          })
           console.log(
             JSON.stringify({scenario: name, passed: true, authenticated}),
           )
@@ -495,6 +681,7 @@ scenarioMatrix: for (const [engineName, engine] of [
             break scenarioMatrix
           }
         } finally {
+          await Promise.allSettled(diagnosticTasks)
           await context.close()
         }
       }
@@ -515,6 +702,8 @@ const report = {
   errors,
   forbidden,
   httpErrors,
+  requestFailures,
+  browserMessages,
 }
 await fs.writeFile(
   path.join(output, 'report.json'),

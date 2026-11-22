@@ -1,5 +1,7 @@
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates dumb-init && rm -rf /var/lib/apt/lists/*
+ARG EXPO_PUBLIC_TORAH_WEB_HOST=https://torah-130-110-238-163.nip.io
+ENV BSKY_WEB_ORIGIN=$EXPO_PUBLIC_TORAH_WEB_HOST
 ENV TZ=Etc/UTC GODEBUG=netdns=go FEATURE_GATE_BOOTSTRAP=false HTTP_ADDRESS=:8100
 WORKDIR /bskyweb
 COPY bskyweb /usr/bin/bskyweb

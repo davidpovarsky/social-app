@@ -128,6 +128,8 @@ FROM debian:bookworm-slim
 ENV GODEBUG=netdns=go
 ENV TZ=Etc/UTC
 ENV FEATURE_GATE_BOOTSTRAP=false
+ARG EXPO_PUBLIC_TORAH_WEB_HOST=https://torah-130-110-238-163.nip.io
+ENV BSKY_WEB_ORIGIN=$EXPO_PUBLIC_TORAH_WEB_HOST
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install --yes \

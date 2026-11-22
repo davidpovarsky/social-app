@@ -73,6 +73,9 @@ if (sshKeyPath && fs.existsSync(sshKeyPath)) {
       targetBranch +
       ' FETCH_HEAD',
     'sudo docker build ' +
+      '--build-arg EXPO_PUBLIC_TORAH_WEB_HOST=https://torah-' +
+      oracleHost.replaceAll('.', '-') +
+      '.nip.io ' +
       '--build-arg EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-' +
       oracleHost.replaceAll('.', '-') +
       '.nip.io ' +
@@ -90,8 +93,12 @@ if (sshKeyPath && fs.existsSync(sshKeyPath)) {
     'sudo docker run -d ' +
       '--name torah-social-web ' +
       '--restart unless-stopped ' +
+      '--log-opt max-size=10m --log-opt max-file=3 ' +
       '-p 127.0.0.1:8100:8100 ' +
       '-e ATP_APPVIEW_HOST=https://appview-' +
+      oracleHost.replaceAll('.', '-') +
+      '.nip.io ' +
+      '-e BSKY_WEB_ORIGIN=https://torah-' +
       oracleHost.replaceAll('.', '-') +
       '.nip.io ' +
       '-e HTTP_ADDRESS=:8100 ' +
