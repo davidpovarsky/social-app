@@ -239,9 +239,12 @@ const WebCenterBorders = memo(function LayoutWebCenterBorders() {
   const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
   return gtMobile ? (
     <View
+      testID="layoutCenterBorders"
+      pointerEvents="none"
       style={[
         a.fixed,
-        a.inset_0,
+        a.top_0,
+        a.bottom_0,
         a.border_l,
         a.border_r,
         t.atoms.border_contrast_low,
