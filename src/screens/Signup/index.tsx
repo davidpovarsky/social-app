@@ -68,31 +68,23 @@ export function Signup({onPressBack}: {onPressBack: () => void}) {
 
   const {
     data: serviceInfo,
+    isPending,
     isFetching,
     isError,
     refetch,
   } = useServiceQuery(state.serviceUrl)
 
-  useEffect(() => {
-    if (isFetching) {
-      dispatch({type: 'setIsLoading', value: true})
-    } else if (!isFetching) {
-      dispatch({type: 'setIsLoading', value: false})
-    }
-  }, [isFetching])
+  const isServiceReady =
+    !isPending &&
+    !isError &&
+    serviceInfo !== undefined &&
+    state.serviceDescription === serviceInfo
 
   useEffect(() => {
-    if (isError) {
-      dispatch({type: 'setServiceDescription', value: undefined})
-      dispatch({
-        type: 'setError',
-        value: l`Unable to contact your service. Please check your Internet connection.`,
-      })
-    } else if (serviceInfo) {
+    if (serviceInfo) {
       dispatch({type: 'setServiceDescription', value: serviceInfo})
-      dispatch({type: 'setError', value: ''})
     }
-  }, [l, serviceInfo, isError])
+  }, [serviceInfo])
 
   useEffect(() => {
     if (state.pendingSubmit) {
@@ -204,6 +196,8 @@ export function Signup({onPressBack}: {onPressBack: () => void}) {
                           isFetchingStarterPack && !isErrorStarterPack
                         }
                         isServerError={isError}
+                        isServiceReady={isServiceReady}
+                        isServiceFetching={isFetching}
                         refetchServer={() => void refetch()}
                       />
                     ) : state.activeStep === SignupStep.HANDLE ? (

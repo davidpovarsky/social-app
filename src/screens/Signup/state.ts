@@ -157,7 +157,6 @@ export function reducer(s: SignupState, a: SignupAction): SignupState {
 
       next.serviceDescription = a.value
       next.userDomain = a.value?.availableUserDomains[0] ?? ''
-      next.isLoading = false
       break
     }
 

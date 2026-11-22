@@ -62,17 +62,29 @@ function preloadViewShot() {
 export function StepInfo({
   onPressBack,
   isServerError,
+  isServiceReady,
+  isServiceFetching,
   refetchServer,
   isLoadingStarterPack,
 }: {
   onPressBack: () => void
   isServerError: boolean
+  isServiceReady: boolean
+  isServiceFetching: boolean
   refetchServer: () => void
   isLoadingStarterPack: boolean
 }) {
   const {t: l} = useLingui()
   const ax = useAnalytics()
   const {state, dispatch} = useSignupContext()
+  const isLoading =
+    state.isLoading ||
+    isLoadingStarterPack ||
+    (!isServerError && !isServiceReady) ||
+    (isServerError && isServiceFetching)
+  const error = isServerError
+    ? l`Unable to contact your service. Please check your Internet connection.`
+    : state.error
   const preemptivelyCompleteActivePolicyUpdate =
     usePreemptivelyCompleteActivePolicyUpdate()
 
@@ -185,21 +197,19 @@ export function StepInfo({
   return (
     <>
       <View style={[a.gap_md, a.pt_lg]}>
-        {!!state.error && (
-          <Admonition.Admonition type="error">
-            {state.error}
-          </Admonition.Admonition>
+        {!!error && (
+          <Admonition.Admonition type="error">{error}</Admonition.Admonition>
         )}
         <HostingProvider
           minimal
           serviceUrl={state.serviceUrl}
           onSelectServiceUrl={v => dispatch({type: 'setServiceUrl', value: v})}
         />
-        {state.isLoading || isLoadingStarterPack ? (
+        {isLoading ? (
           <View style={[a.align_center]}>
             <Loader size="xl" />
           </View>
-        ) : state.serviceDescription ? (
+        ) : isServiceReady && state.serviceDescription ? (
           <>
             {state.serviceDescription.inviteCodeRequired && (
               <View>
@@ -381,7 +391,7 @@ export function StepInfo({
       <BackNextButtons
         hideNext={!isOverRegionMinAccessAge}
         showRetry={isServerError}
-        isLoading={state.isLoading}
+        isLoading={isLoading}
         onBackPress={onPressBack}
         onNextPress={onNextPress}
         onRetryPress={refetchServer}
