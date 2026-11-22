@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - codex/torah-social-repair-20261122
+      - codex/torah-social-web-repair-20261122
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,13 +44,21 @@ jobs:
       - name: Unit and regression tests
         id: unit
         continue-on-error: true
-        run: pnpm test-ci --maxWorkers=2
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/web
+          pnpm test-ci --maxWorkers=2 2>&1 | tee artifacts/web/jest.log
       - name: Apply Torah network configuration
         run: node scripts/torah-isolate-client.mjs
       - name: Typecheck iOS, Android and web
         id: types
         continue-on-error: true
-        run: pnpm typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/web
+          pnpm typecheck 2>&1 | tee artifacts/web/typecheck.log
       - name: Lint
         id: lint
         continue-on-error: true
@@ -63,6 +72,28 @@ jobs:
           node scripts/check-sentry-browser-version.mjs
           sentry_status=$?
           test "$lint_status" -eq 0 && test "$sentry_status" -eq 0
+      - name: Record actual static validation outcomes
+        if: always()
+        env:
+          UNIT_OUTCOME: ${{ steps.unit.outcome }}
+          TYPES_OUTCOME: ${{ steps.types.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+        run: |
+          mkdir -p artifacts/web
+          node -e 'require("node:fs").writeFileSync("artifacts/web/static-gates.json", JSON.stringify({unit:process.env.UNIT_OUTCOME,types:process.env.TYPES_OUTCOME,lint:process.env.LINT_OUTCOME},null,2))'
+      - name: Upload static validation evidence immediately
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: torah-social-static-evidence-${{ github.sha }}
+          path: |
+            artifacts/web/static-gates.json
+            artifacts/web/lint.json
+            artifacts/web/jest.log
+            artifacts/web/typecheck.log
+            junit.xml
+          if-no-files-found: warn
+          retention-days: 14
       - name: Build production web assets
         run: pnpm build-web
       - name: Verify supported browser syntax
@@ -78,12 +109,20 @@ jobs:
           mkdir -p artifacts/web release
           cd bskyweb
           go mod verify
+          CGO_ENABLED=0 go test -tags timetzdata ./...
           CGO_ENABLED=0 go build -trimpath -tags timetzdata -o ../artifacts/web/bskyweb-host ./cmd/bskyweb
           GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -tags timetzdata -o ../release/bskyweb ./cmd/bskyweb
           cd ..
           cp Dockerfile.torah-runtime release/Dockerfile
           printf '%s\n' "$GITHUB_SHA" > release/COMMIT
           (cd release && sha256sum bskyweb > SHA256SUMS)
+      - name: Upload candidate for isolated diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: torah-social-web-candidate-${{ github.sha }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 3
       - name: Install pinned browser test tools
         shell: bash
         run: |
@@ -96,19 +135,10 @@ jobs:
           TORAH_TEST_BASE_URL: http://127.0.0.1:8100
         run: |
           set -euo pipefail
-          FEATURE_GATE_BOOTSTRAP=false ATP_APPVIEW_HOST="$EXPO_PUBLIC_TORAH_APPVIEW_HOST" HTTP_ADDRESS=127.0.0.1:8100 ROBOTS_DISALLOW_ALL=true artifacts/web/bskyweb-host serve > artifacts/web/server.log 2>&1 &
+          BSKY_WEB_ORIGIN="$EXPO_PUBLIC_TORAH_WEB_HOST" FEATURE_GATE_BOOTSTRAP=false ATP_APPVIEW_HOST="$EXPO_PUBLIC_TORAH_APPVIEW_HOST" HTTP_ADDRESS=127.0.0.1:8100 ROBOTS_DISALLOW_ALL=true artifacts/web/bskyweb-host serve > artifacts/web/server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           node scripts/test-torah-web.mjs
-      - name: Record actual static validation outcomes
-        if: always()
-        env:
-          UNIT_OUTCOME: ${{ steps.unit.outcome }}
-          TYPES_OUTCOME: ${{ steps.types.outcome }}
-          LINT_OUTCOME: ${{ steps.lint.outcome }}
-        run: |
-          mkdir -p artifacts/web
-          node -e 'require("node:fs").writeFileSync("artifacts/web/static-gates.json", JSON.stringify({unit:process.env.UNIT_OUTCOME,types:process.env.TYPES_OUTCOME,lint:process.env.LINT_OUTCOME},null,2))'
       - name: Enforce all static validation gates
         if: always()
         env:

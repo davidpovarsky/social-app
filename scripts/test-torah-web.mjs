@@ -28,21 +28,99 @@ const suggested = await fetch(
   return response.json()
 })
 let actor
+let actorPost
 for (const candidate of suggested.actors ?? []) {
   const response = await fetch(
     appview +
       '/xrpc/app.bsky.feed.getAuthorFeed?limit=3&actor=' +
       encodeURIComponent(candidate.did),
   )
-  if (response.ok && (await response.json()).feed?.length) {
-    actor = candidate
-    break
+  if (response.ok) {
+    const data = await response.json()
+    if (data.feed?.length) {
+      actor = candidate
+      actorPost = data.feed[0].post
+      break
+    }
   }
 }
 assert.ok(
   actor,
   'An existing local account with content is required for live content validation',
 )
+
+const webOrigin = new URL(process.env.EXPO_PUBLIC_TORAH_WEB_HOST).origin
+const postRkey = actorPost.uri.split('/').at(-1)
+const metadataChecks = []
+for (const [kind, route] of [
+  ['home', '/'],
+  ['profile', '/profile/' + encodeURIComponent(actor.did)],
+  [
+    'post',
+    '/profile/' +
+      encodeURIComponent(actor.did) +
+      '/post/' +
+      encodeURIComponent(postRkey),
+  ],
+]) {
+  try {
+    const response = await fetch(base + route)
+    assert.equal(response.status, 200, kind + ' metadata document must load')
+    const html = await response.text()
+    const tags = [...html.matchAll(/<(?:link|meta)\b[^>]*>/gi)].map(match => {
+      const attrs = {}
+      for (const attr of match[0].matchAll(
+        /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
+      )) {
+        attrs[attr[1].toLowerCase()] = attr[2] ?? attr[3]
+      }
+      return attrs
+    })
+    const canonical = tags.find(attrs => attrs.rel === 'canonical')?.href
+    const openGraph = tags.find(attrs => attrs.property === 'og:url')?.content
+    assert.ok(
+      canonical && openGraph,
+      kind + ' must expose canonical and Open Graph URLs',
+    )
+    assert.equal(
+      new URL(canonical).origin,
+      webOrigin,
+      kind + ' canonical points outside Torah Social',
+    )
+    assert.equal(
+      new URL(openGraph).href,
+      new URL(canonical).href,
+      kind + ' Open Graph URL must match its canonical URL',
+    )
+    if (kind === 'home') {
+      const card = tags.find(attrs => attrs.property === 'og:image')?.content
+      assert.ok(card, 'Home page must expose a social image')
+      assert.equal(
+        new URL(card).origin,
+        webOrigin,
+        'Home social image must use the configured site',
+      )
+    }
+    if (kind === 'post') {
+      assert.ok(
+        new URL(canonical).pathname.endsWith('/post/' + postRkey),
+        'Post metadata must identify the requested post',
+      )
+    }
+    metadataChecks.push({kind, passed: true, canonical, openGraph})
+  } catch (error) {
+    metadataChecks.push({kind, passed: false, error: String(error)})
+  }
+}
+await fs.writeFile(
+  path.join(output, 'metadata-report.json'),
+  JSON.stringify(metadataChecks, null, 2),
+)
+assert.ok(
+  metadataChecks.every(check => check.passed),
+  'Configured-origin metadata checks failed: ' + JSON.stringify(metadataChecks),
+)
+
 // Reuse an existing project test fixture; never create accounts or publish content.
 const testActor = suggested.actors.find(candidate =>
   /^e2e-a-[0-9]+\./.test(candidate.handle),
@@ -79,6 +157,8 @@ const scenarios = []
 const errors = []
 const forbidden = []
 const httpErrors = []
+const expectedScenarios = 28
+let abortedReason
 async function capture(page, name) {
   await page.screenshot({
     path: path.join(output, name + '.png'),
@@ -109,7 +189,87 @@ async function noHorizontalOverflow(page) {
     'Horizontal document overflow: ' + JSON.stringify(dimensions),
   )
 }
-for (const [engineName, engine] of [
+
+function flattenSourceLines(value) {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : []
+  return Array.isArray(value) ? value.flatMap(flattenSourceLines) : []
+}
+async function inspectSourceReader(page, name, sourceDocuments) {
+  await page
+    .getByRole('button', {name: /^מקור: /})
+    .first()
+    .click()
+  const reader = page.getByRole('dialog').last()
+  await withinLocatorViewport(page, reader, 'torahSourceReader')
+  let loaded
+  const deadline = Date.now() + 30000
+  while (!loaded && Date.now() < deadline) {
+    for (const source of sourceDocuments) {
+      for (const line of source.lines) {
+        const passage = reader.getByText(line, {exact: true}).first()
+        if (await passage.isVisible()) {
+          loaded = {passage, ref: source.ref, characters: line.length}
+          break
+        }
+      }
+      if (loaded) break
+    }
+    if (!loaded) await page.waitForTimeout(250)
+  }
+  assert.ok(
+    loaded,
+    'Reader must display a substantial Hebrew passage returned by its real text API',
+  )
+  await withinLocatorViewport(page, loaded.passage, 'loadedHebrewPassage')
+  const alignment = await loaded.passage.evaluate(element => {
+    const style = getComputedStyle(element)
+    return {align: style.textAlign, direction: style.direction}
+  })
+  assert.ok(
+    alignment.align === 'right' ||
+      (alignment.align === 'start' && alignment.direction === 'rtl') ||
+      (alignment.align === 'end' && alignment.direction === 'ltr'),
+    'Hebrew reader passage must align to the right: ' +
+      JSON.stringify(alignment),
+  )
+  const dock = page.getByTestId('dockedPostPanel')
+  await withinViewport(page, 'dockedPostPanel')
+  const collapsed = await dock.boundingBox()
+  await noHorizontalOverflow(page)
+  await capture(page, name + '-source-reader')
+  await page.getByRole('button', {name: 'הרחב פוסט מעוגן', exact: true}).click()
+  await page.waitForFunction(
+    height =>
+      document
+        .querySelector('[data-testid="dockedPostPanel"]')
+        ?.getBoundingClientRect().height >
+      height + 100,
+    collapsed.height,
+  )
+  await withinViewport(page, 'dockedPostPanel')
+  const expanded = await dock.boundingBox()
+  assert.ok(
+    expanded.height <= page.viewportSize().height + 2,
+    'Expanded post must fit the viewport height',
+  )
+  await noHorizontalOverflow(page)
+  await capture(page, name + '-expanded-source-post')
+  await page.getByRole('button', {name: 'צמצם פוסט מעוגן', exact: true}).click()
+  await page.waitForFunction(
+    height =>
+      document
+        .querySelector('[data-testid="dockedPostPanel"]')
+        ?.getBoundingClientRect().height <=
+      height + 3,
+    collapsed.height,
+  )
+  await page.keyboard.press('Escape')
+  await reader.waitFor({state: 'hidden'})
+  await dock.waitFor({state: 'detached'})
+  return {ref: loaded.ref, characters: loaded.characters, alignment}
+}
+
+scenarioMatrix: for (const [engineName, engine] of [
   ['chromium', chromium],
   ['webkit', webkit],
 ]) {
@@ -147,6 +307,32 @@ for (const [engineName, engine] of [
             url: url.origin + url.pathname,
           })
         })
+
+        const sourceDocuments = []
+        page.on('response', response => {
+          const url = new URL(response.url())
+          if (
+            !response.ok() ||
+            !/(^|\.)sefaria\.org$/.test(url.hostname) ||
+            !url.pathname.startsWith('/api/v3/texts/')
+          )
+            return
+          response
+            .json()
+            .then(data => {
+              const versions = data.versions ?? []
+              const version =
+                versions.find(item => item.language?.toLowerCase() === 'he') ??
+                versions.find(item => item.language?.toLowerCase() === 'hebrew')
+              const lines = flattenSourceLines(version?.text)
+                .filter(line => line.length > 40 && /[א-ת]/.test(line))
+                .slice(0, 8)
+              if (lines.length) sourceDocuments.push({ref: data.ref, lines})
+            })
+            .catch(() => {})
+        })
+
+        let readerEvidence
         let authenticated = false
         let phase = 'welcome'
         try {
@@ -195,6 +381,16 @@ for (const [engineName, engine] of [
           await withinViewport(page, 'postText')
           await noHorizontalOverflow(page)
           await capture(page, name + '-profile')
+
+          if ([390, 820, 1280].includes(width)) {
+            phase = 'source-reader'
+            readerEvidence = await inspectSourceReader(
+              page,
+              name,
+              sourceDocuments,
+            )
+          }
+
           if (authenticated) {
             phase = 'draft-composer'
             const fab = page.getByTestId('composeFAB')
@@ -238,8 +434,24 @@ for (const [engineName, engine] of [
             await withinViewport(page, 'torahSourceQueryInput')
             await noHorizontalOverflow(page)
             await capture(page, name + '-source-picker')
+
+            phase = 'source-preview'
+            await page.getByTestId('torahSourceQueryInput').fill('Genesis 1:1')
+            await page
+              .getByRole('button', {name: 'בדוק מקור', exact: true})
+              .click()
+            await withinViewport(page, 'torahAttachSourceBtn')
+            await page.waitForFunction(() =>
+              [...document.querySelectorAll('[role="dialog"]')].some(dialog =>
+                dialog.textContent
+                  .replace(/[^א-ת]/g, '')
+                  .includes('בראשיתבראאלהים'),
+              ),
+            )
+            await noHorizontalOverflow(page)
+            await capture(page, name + '-source-preview')
           }
-          scenarios.push({name, passed: true, authenticated})
+          scenarios.push({name, passed: true, authenticated, readerEvidence})
           console.log(
             JSON.stringify({scenario: name, passed: true, authenticated}),
           )
@@ -271,6 +483,17 @@ for (const [engineName, engine] of [
             authenticated,
             error: String(error).replaceAll(testPassword, '[redacted]'),
           })
+          if (
+            scenarios.filter(
+              scenario => !scenario.passed && scenario.phase === phase,
+            ).length >= 4
+          ) {
+            abortedReason =
+              'Stopped after four failures in ' +
+              phase +
+              '; the remaining matrix is not validated'
+            break scenarioMatrix
+          }
         } finally {
           await context.close()
         }
@@ -285,6 +508,9 @@ const report = {
   base,
   appview,
   actor: actor.did,
+  expectedScenarios,
+  abortedReason,
+  metadataChecks,
   scenarios,
   errors,
   forbidden,
@@ -295,6 +521,11 @@ await fs.writeFile(
   JSON.stringify(report, null, 2),
 )
 console.log(JSON.stringify(report))
+assert.equal(
+  scenarios.length,
+  expectedScenarios,
+  abortedReason || 'The full responsive matrix must complete',
+)
 assert.ok(
   scenarios.every(scenario => scenario.passed),
   'Responsive UI scenarios failed',
