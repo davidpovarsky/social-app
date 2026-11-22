@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {Pressable, View} from 'react-native'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {useIsRTL} from '#/locale/layoutDirection'
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useTheme} from '#/alf'
@@ -123,7 +124,7 @@ export function DetectedTorahSources({
                     a.text_sm,
                     a.font_semi_bold,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}>
@@ -135,7 +136,7 @@ export function DetectedTorahSources({
                     a.text_xs,
                     t.atoms.text_contrast_medium,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}>
@@ -218,7 +219,7 @@ export function DetectedTorahSources({
                     a.text_2xs,
                     t.atoms.text_contrast_medium,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}>
@@ -261,7 +262,9 @@ export function DetectedTorahSources({
                           a.text_xs,
                           a.font_semi_bold,
                           {
-                            textAlign: isRTL ? 'right' : 'left',
+                            ...getPhysicalTextAlignStyle(
+                              isRTL ? 'right' : 'left',
+                            ),
                             writingDirection: isRTL ? 'rtl' : 'ltr',
                           },
                         ]}>

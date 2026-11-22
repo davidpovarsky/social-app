@@ -7,6 +7,7 @@ import {useNavigation} from '@react-navigation/native'
 
 import {getHomeNavigationAction} from '#/lib/routes/navigation'
 import {type NavigationProp} from '#/lib/routes/types'
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {useAppLayoutDirection, useIsRTL} from '#/locale/layoutDirection'
 import {useSetDrawerOpen} from '#/state/shell'
 import {useIsWithinSplitView} from '#/screens/Messages/components/splitView/context'
@@ -217,7 +218,7 @@ export function TitleText({
           : [a.text_lg, a.font_semi_bold],
         a.leading_tight,
         IS_IOS && align === 'platform' && a.text_center,
-        align === 'left' && {textAlign: isRTL ? 'right' : 'left'},
+        align === 'left' && getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
         gtMobile && a.text_xl,
         style,
       ]}
@@ -239,7 +240,7 @@ export function SubtitleText({children}: {children: React.ReactNode}) {
         a.text_sm,
         a.leading_snug,
         IS_IOS && align === 'platform' && a.text_center,
-        align === 'left' && {textAlign: isRTL ? 'right' : 'left'},
+        align === 'left' && getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
         t.atoms.text_contrast_medium,
       ]}
       numberOfLines={1}>

@@ -5,3 +5,13 @@
 export function isRTLText(_text: string) {
   return false
 }
+
+/** Preserve the existing physical alignment in the browser. */
+export function getPhysicalTextAlignStyle(textAlign: 'left' | 'right') {
+  return {textAlign}
+}
+
+/** Root web Text already uses dir="auto" for each paragraph. */
+export function getRichTextDirectionStyle(_text: string) {
+  return undefined
+}

@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react'
 import {Pressable, type StyleProp, View, type ViewStyle} from 'react-native'
 import {Image} from 'expo-image'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {useIsRTL} from '#/locale/layoutDirection'
 import {atoms as a, useTheme} from '#/alf'
 import * as Dialog from '#/components/Dialog'
@@ -124,7 +125,10 @@ export function TorahSourceCard({
                 style={[
                   a.text_md,
                   a.font_semi_bold,
-                  {textAlign: 'right', writingDirection: 'rtl'},
+                  {
+                    ...getPhysicalTextAlignStyle('right'),
+                    writingDirection: 'rtl',
+                  },
                 ]}>
                 {title}
               </Text>
@@ -136,7 +140,10 @@ export function TorahSourceCard({
                     a.text_sm,
                     a.leading_snug,
                     t.atoms.text_contrast_high,
-                    {textAlign: 'right', writingDirection: 'rtl'},
+                    {
+                      ...getPhysicalTextAlignStyle('right'),
+                      writingDirection: 'rtl',
+                    },
                   ]}>
                   {preview}
                 </Text>

@@ -12,6 +12,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {RichText as RichTextAPI} from '@bsky/sdk/richtext'
 
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {useIsRTL} from '#/locale/layoutDirection'
 import {POST_TOMBSTONE, usePostShadow} from '#/state/cache/post-shadow'
 import {PreviewableUserAvatar} from '#/view/com/util/UserAvatar'
@@ -228,7 +229,7 @@ export function DockedPostPanel({
                   a.text_sm,
                   a.font_semi_bold,
                   {
-                    textAlign: isRTL ? 'right' : 'left',
+                    ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                     writingDirection: isRTL ? 'rtl' : 'ltr',
                   },
                 ]}>
@@ -240,7 +241,7 @@ export function DockedPostPanel({
                   a.text_xs,
                   t.atoms.text_contrast_medium,
                   {
-                    textAlign: isRTL ? 'right' : 'left',
+                    ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                     writingDirection: 'ltr',
                   },
                 ]}>
@@ -280,7 +281,7 @@ export function DockedPostPanel({
                 a.leading_snug,
                 t.atoms.text_contrast_high,
                 {
-                  textAlign: isRTL ? 'right' : 'left',
+                  ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                   writingDirection: isRTL ? 'rtl' : 'ltr',
                 },
               ]}>
@@ -304,7 +305,7 @@ export function DockedPostPanel({
                     a.text_md,
                     a.leading_normal,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}

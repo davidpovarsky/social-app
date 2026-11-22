@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react'
 import {View} from 'react-native'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {useIsRTL} from '#/locale/layoutDirection'
 import {ExternalEmbedRemoveBtn} from '#/view/com/composer/ExternalEmbedRemoveBtn'
 import {type EmbedDraft} from '#/view/com/composer/state/composer'
@@ -79,7 +80,7 @@ export function TorahPostHeaderEmbed({
           a.text_2xs,
           t.atoms.text_contrast_medium,
           {
-            textAlign: isRTL ? 'right' : 'left',
+            ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
             writingDirection: isRTL ? 'rtl' : 'ltr',
           },
         ]}>
@@ -91,7 +92,7 @@ export function TorahPostHeaderEmbed({
           a.text_sm,
           a.font_semi_bold,
           {
-            textAlign: isRTL ? 'right' : 'left',
+            ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
             writingDirection: isRTL ? 'rtl' : 'ltr',
           },
         ]}>
