@@ -33,6 +33,12 @@ func run(args []string) {
 			Usage:  "run the server",
 			Action: serve,
 			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "web-origin",
+					Usage:   "Public HTTP(S) origin for canonical, OpenGraph, and structured-data URLs",
+					Value:   defaultWebOrigin,
+					EnvVars: []string{"BSKY_WEB_ORIGIN"},
+				},
 				&cli.BoolFlag{
 					Name:    "feature-gate-bootstrap",
 					Usage:   "Embed a cached feature-gate fallback in app HTML",

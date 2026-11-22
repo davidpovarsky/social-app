@@ -24,7 +24,7 @@ func TestBskyProfileCanonicalURL(t *testing.T) {
 		{tab: "unknown", want: baseURL},
 	} {
 		t.Run(test.tab, func(t *testing.T) {
-			if got := bskyProfileCanonicalURL("alice.bsky.social", test.tab); got != test.want {
+			if got := bskyProfileCanonicalURL(defaultWebOrigin, "alice.bsky.social", test.tab); got != test.want {
 				t.Errorf("bskyProfileCanonicalURL(..., %q) = %q, want %q", test.tab, got, test.want)
 			}
 		})
@@ -32,7 +32,7 @@ func TestBskyProfileCanonicalURL(t *testing.T) {
 }
 
 func TestRenderProfileWithTabKeepsCanonicalQuery(t *testing.T) {
-	canonicalURL := bskyProfileCanonicalURL("alice.bsky.social", "replies")
+	canonicalURL := bskyProfileCanonicalURL(defaultWebOrigin, "alice.bsky.social", "replies")
 	html := renderTemplate(t, "profile.html", pongo2.Context{
 		"requestURI":   "https://bsky.app/profile/alice.bsky.social?tab=replies",
 		"canonicalURL": canonicalURL,

@@ -68,9 +68,14 @@ type Config struct {
 	linkHost      string
 	ipccHost      string
 	staticCDNHost string
+	webOrigin     string
 }
 
 func serve(cctx *cli.Context) error {
+	webOrigin, err := normalizeWebOrigin(cctx.String("web-origin"))
+	if err != nil {
+		return err
+	}
 	debug := cctx.Bool("debug")
 	httpAddress := cctx.String("http-address")
 	metricsAddress := cctx.String("metrics-address")
@@ -159,6 +164,7 @@ func serve(cctx *cli.Context) error {
 			linkHost:      linkHost,
 			ipccHost:      ipccHost,
 			staticCDNHost: staticCDNHost,
+			webOrigin:     webOrigin,
 		},
 		ipccClient: http.Client{
 			Transport: &http.Transport{
@@ -513,7 +519,14 @@ func (srv *Server) Shutdown() error {
 
 // NewTemplateContext returns a new pongo2 context with some default values.
 func (srv *Server) NewTemplateContext() pongo2.Context {
+	origin := srv.webOrigin()
+	oembedHost := ""
+	if origin == defaultWebOrigin {
+		oembedHost = "https://embed.bsky.app"
+	}
 	return pongo2.Context{
+		"webOrigin":            origin,
+		"oembedHost":           oembedHost,
 		"staticCDNHost":        srv.cfg.staticCDNHost,
 		"featureGateBootstrap": srv.featureGates.snapshot(),
 		"favicon":              fmt.Sprintf("%s/static/favicon.png", srv.cfg.staticCDNHost),
@@ -661,7 +674,7 @@ func (srv *Server) WebPost(c echo.Context) error {
 	identifier := handleOrDID.Normalize().String()
 
 	req := c.Request()
-	requestURI := fmt.Sprintf("https://%s%s", req.Host, req.URL.Path)
+	requestURI := srv.webOrigin() + req.URL.EscapedPath()
 
 	// Fetch the post thread directly. The AT-URI authority accepts either a
 	// handle or a DID (the appview resolves it), so we skip the separate
@@ -686,7 +699,7 @@ func (srv *Server) WebPost(c echo.Context) error {
 	// Always prefer the handle-form URL so JSON-LD `url` and
 	// <link rel="canonical"> match. Falls back to requestURI when the
 	// handle is unusable (template strips query/fragment).
-	canonicalURL := bskyPostURL(postView.Author.Handle, rkey.String())
+	canonicalURL := bskyPostURL(srv.webOrigin(), postView.Author.Handle, rkey.String())
 
 	// Gate before populating any post content into the template so that
 	// !no-unauthenticated posts never leak text/media. The appview returns the
@@ -747,7 +760,7 @@ func (srv *Server) WebPost(c echo.Context) error {
 	isPartOfURL := ""
 	if rootURI := threadRootURI(postView); rootURI != "" {
 		if rootPost := findRootPostInParents(threadView, rootURI); rootPost != nil && rootPost.Author != nil {
-			isPartOfURL = bskyPostURLFromATURI(rootPost.Author.Handle, rootURI)
+			isPartOfURL = bskyPostURLFromATURI(srv.webOrigin(), rootPost.Author.Handle, rootURI)
 		} else {
 			pctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 			if posts, perr := appbsky.FeedGetPosts(pctx, srv.xrpcc, []string{rootURI}); perr != nil {
@@ -756,13 +769,13 @@ func (srv *Server) WebPost(c echo.Context) error {
 				// Handle-form only (no DID fallback): isPartOf must match the
 				// root page's handle-form canonical, so an unusable handle omits
 				// isPartOf rather than point at a non-canonical DID-form URL.
-				isPartOfURL = bskyPostURLFromATURI(posts.Posts[0].Author.Handle, rootURI)
+				isPartOfURL = bskyPostURLFromATURI(srv.webOrigin(), posts.Posts[0].Author.Handle, rootURI)
 			}
 			cancel()
 		}
 	}
 
-	if jsonld, err := buildPostJSONLD(postView, threadView, jsonldURL, isPartOfURL, hideEmbedLabels, hideReplyLabels); err == nil {
+	if jsonld, err := buildPostJSONLD(srv.webOrigin(), postView, threadView, jsonldURL, isPartOfURL, hideEmbedLabels, hideReplyLabels); err == nil {
 		data["postJSONLD"] = jsonld
 	} else {
 		log.Warnf("failed to build post JSON-LD for %s: %v", uri, err)
@@ -775,7 +788,7 @@ func (srv *Server) WebStarterPack(c echo.Context) error {
 	req := c.Request()
 	ctx := req.Context()
 	data := srv.NewTemplateContext()
-	data["requestURI"] = fmt.Sprintf("https://%s%s", req.Host, req.URL.Path)
+	data["requestURI"] = srv.webOrigin() + req.URL.EscapedPath()
 	// sanity check arguments. don't 4xx, just let app handle if not expected format
 	rkeyParam := c.Param("rkey")
 	rkey, err := syntax.ParseRecordKey(rkeyParam)
@@ -804,8 +817,8 @@ func (srv *Server) WebStarterPack(c echo.Context) error {
 		return c.Render(http.StatusOK, "starterpack.html", data)
 	}
 	data["title"] = rec.Name
-	data["starterPackURI"] = spv.StarterPack.Uri;
-	
+	data["starterPackURI"] = spv.StarterPack.Uri
+
 	if srv.cfg.ogcardHost != "" {
 		data["imgThumbUrl"] = fmt.Sprintf("%s/start/%s/%s", srv.cfg.ogcardHost, identifier, rkey)
 	}
@@ -822,7 +835,7 @@ func (srv *Server) WebChatInvite(c echo.Context) error {
 	ctx := req.Context()
 	data := srv.NewTemplateContext()
 	data["noindex"] = true
-	data["requestURI"] = fmt.Sprintf("https://%s%s", req.Host, req.URL.Path)
+	data["requestURI"] = srv.webOrigin() + req.URL.EscapedPath()
 
 	code := c.Param("code")
 	if !chatInviteCodeRe.MatchString(code) {
@@ -850,8 +863,8 @@ func (srv *Server) WebChatInvite(c echo.Context) error {
 	return c.Render(http.StatusOK, "chatinvite.html", data)
 }
 
-func bskyProfileCanonicalURL(handle, tab string) string {
-	canonicalURL := bskyProfileURL(handle)
+func bskyProfileCanonicalURL(origin string, handle, tab string) string {
+	canonicalURL := bskyProfileURL(origin, handle)
 	if canonicalURL == "" {
 		return ""
 	}
@@ -902,13 +915,13 @@ func (srv *Server) WebProfile(c echo.Context) error {
 
 	req := c.Request()
 	data["profileView"] = pv
-	data["requestURI"] = fmt.Sprintf("https://%s%s", req.Host, req.URL.Path)
+	data["requestURI"] = srv.webOrigin() + req.URL.EscapedPath()
 	data["requestHost"] = req.Host
 
 	tab := c.QueryParam("tab")
 	// Keep non-default profile tabs distinct for crawlers. `posts`, blank, and
 	// unknown values all render the default Posts tab and share its canonical.
-	if canonicalURL := bskyProfileCanonicalURL(pv.Handle, tab); canonicalURL != "" {
+	if canonicalURL := bskyProfileCanonicalURL(srv.webOrigin(), pv.Handle, tab); canonicalURL != "" {
 		data["canonicalURL"] = canonicalURL
 	}
 
@@ -946,7 +959,7 @@ func (srv *Server) WebProfile(c echo.Context) error {
 		data["nofollow"] = true
 	}
 
-	if jsonld, err := buildProfileJSONLD(pv, recentPosts, hideEmbedLabels, hideReplyLabels); err == nil {
+	if jsonld, err := buildProfileJSONLD(srv.webOrigin(), pv, recentPosts, hideEmbedLabels, hideReplyLabels); err == nil {
 		data["profileJSONLD"] = jsonld
 	} else {
 		log.Warnf("failed to build profile JSON-LD for %s: %v", pv.Did, err)
@@ -996,7 +1009,7 @@ func (srv *Server) WebFeed(c echo.Context) error {
 	}
 	req := c.Request()
 	data["feedView"] = fgv.View
-	data["requestURI"] = fmt.Sprintf("https://%s%s", req.Host, req.URL.Path)
+	data["requestURI"] = srv.webOrigin() + req.URL.EscapedPath()
 
 	return c.Render(http.StatusOK, "feed.html", data)
 }

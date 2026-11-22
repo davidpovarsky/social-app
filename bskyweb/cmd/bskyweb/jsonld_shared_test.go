@@ -114,7 +114,7 @@ func mainEntity(t *testing.T, out string) map[string]any {
 
 func TestSharedContent_QuotePost(t *testing.T) {
 	pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "quoting!", withQuote(bobQuote))
-	out, _ := buildPostJSONLD(pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
 	main := mainEntity(t, out)
 
 	// isBasedOn is retained alongside sharedContent.
@@ -155,7 +155,7 @@ func TestSharedContent_QuoteHandleInvalid(t *testing.T) {
 	q := bobQuote
 	q.handle = "handle.invalid"
 	pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "quoting!", withQuote(q))
-	out, _ := buildPostJSONLD(pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
 	sc := mainEntity(t, out)["sharedContent"].(map[string]any)
 	if sc["url"] != "https://bsky.app/profile/did:plc:bob/post/xyz" {
 		t.Errorf("url should fall back to DID form, got %v", sc["url"])
@@ -192,7 +192,7 @@ func TestSharedContent_QuoteGated(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "quoting", tc.opts()...)
-			out, _ := buildPostJSONLD(pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
+			out, _ := buildPostJSONLD(defaultWebOrigin, pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
 			main := mainEntity(t, out)
 			if sc, present := main["sharedContent"]; present {
 				t.Errorf("sharedContent should be omitted, got %v", sc)
@@ -207,7 +207,7 @@ func TestSharedContent_QuoteGated(t *testing.T) {
 func TestSharedContent_ExternalLinkCard(t *testing.T) {
 	pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "read this",
 		withExternalThumb("https://www.spiegel.de/article"))
-	out, _ := buildPostJSONLD(pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
 	main := mainEntity(t, out)
 	sc, ok := main["sharedContent"].(map[string]any)
 	if !ok {
@@ -234,7 +234,7 @@ func TestSharedContent_ExternalLinkCard(t *testing.T) {
 func TestSharedContent_QuoteAndLinkCard(t *testing.T) {
 	pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "both",
 		withQuoteAndExternal(bobQuote, "https://example.com/a"))
-	out, _ := buildPostJSONLD(pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
 	main := mainEntity(t, out)
 	arr, ok := main["sharedContent"].([]any)
 	if !ok || len(arr) != 2 {
@@ -257,7 +257,7 @@ func TestSharedContent_QuoteGatedLinkCardKept(t *testing.T) {
 	q.postLabel = "spam"
 	pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "both",
 		withQuoteAndExternal(q, "https://example.com/a"))
-	out, _ := buildPostJSONLD(pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, nil, "u", "", hideEmbedLabels, hideReplyLabels)
 	sc, ok := mainEntity(t, out)["sharedContent"].(map[string]any)
 	if !ok || sc["@type"] != "WebPage" {
 		t.Errorf("expected single WebPage, got %v", sc)
@@ -270,7 +270,7 @@ func TestSharedContent_OnComments(t *testing.T) {
 		handle: "carol.bsky.social", did: "did:plc:carol", rkey: "q1", text: "carol said",
 	}))
 	linking := makePostView("dan.bsky.social", "did:plc:dan", "rep2", "link", withExternalThumb("https://example.com/b"))
-	out, _ := buildPostJSONLD(pv, threadWithReplies(buildReplies(quoting, linking)), "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, threadWithReplies(buildReplies(quoting, linking)), "u", "", hideEmbedLabels, hideReplyLabels)
 	comments := mainEntity(t, out)["comment"].([]any)
 	if len(comments) != 2 {
 		t.Fatalf("expected 2 comments, got %d", len(comments))
@@ -287,7 +287,7 @@ func TestSharedContent_OnComments(t *testing.T) {
 
 func TestSharedContent_ProfileHasPart(t *testing.T) {
 	recent := makePostView("alice.bsky.social", "did:plc:alice", "p1", "quoting", withQuote(bobQuote))
-	out, err := buildProfileJSONLD(newProfileViewDetailed(), []*appbsky.FeedDefs_PostView{recent}, hideEmbedLabels, hideReplyLabels)
+	out, err := buildProfileJSONLD(defaultWebOrigin, newProfileViewDetailed(), []*appbsky.FeedDefs_PostView{recent}, hideEmbedLabels, hideReplyLabels)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestComments_DropNoUnauthenticatedAuthor(t *testing.T) {
 	pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "main")
 	good := makePostView("bob.bsky.social", "did:plc:bob", "good", "visible")
 	private := makePostView("eve.bsky.social", "did:plc:eve", "priv", "private text", withAuthorNoUnauth())
-	out, _ := buildPostJSONLD(pv, threadWithReplies(buildReplies(good, private)), "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, threadWithReplies(buildReplies(good, private)), "u", "", hideEmbedLabels, hideReplyLabels)
 	ids := commentIdentifiers(t, out)
 	if len(ids) != 1 || ids[0] != good.Uri {
 		t.Errorf("expected only the public reply, got %v", ids)
@@ -358,7 +358,7 @@ func chainIdentifiers(t *testing.T, out string) (ids, types []string) {
 
 func TestParentItem_None(t *testing.T) {
 	pv := makePostView("alice.bsky.social", "did:plc:alice", "abc123", "top-level")
-	out, _ := buildPostJSONLD(pv, buildChain(pv), "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, pv, buildChain(pv), "u", "", hideEmbedLabels, hideReplyLabels)
 	if p, present := mainEntity(t, out)["parentItem"]; present {
 		t.Errorf("non-reply should not have parentItem, got %v", p)
 	}
@@ -366,7 +366,7 @@ func TestParentItem_None(t *testing.T) {
 
 func TestParentItem_Chain(t *testing.T) {
 	leaf, ancestors := makeThread(3)
-	out, _ := buildPostJSONLD(leaf, buildChain(leaf, ancestors...), "u", "https://bsky.app/profile/root.bsky.social/post/rootrkey", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, leaf, buildChain(leaf, ancestors...), "u", "https://bsky.app/profile/root.bsky.social/post/rootrkey", hideEmbedLabels, hideReplyLabels)
 	ids, types := chainIdentifiers(t, out)
 	wantIDs := []string{ancestors[0].Uri, ancestors[1].Uri, ancestors[2].Uri}
 	if fmt.Sprint(ids) != fmt.Sprint(wantIDs) {
@@ -395,7 +395,7 @@ func TestParentItem_Chain(t *testing.T) {
 
 func TestParentItem_Capped(t *testing.T) {
 	leaf, ancestors := makeThread(15)
-	out, _ := buildPostJSONLD(leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
 	ids, types := chainIdentifiers(t, out)
 	if len(ids) != maxAncestors {
 		t.Fatalf("chain length = %d, want %d", len(ids), maxAncestors)
@@ -437,7 +437,7 @@ func TestParentItem_StopsAtUnshowable(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			leaf, ancestors := makeThread(4)
 			ancestors = tc.mutate(ancestors)
-			out, _ := buildPostJSONLD(leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
+			out, _ := buildPostJSONLD(defaultWebOrigin, leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
 			ids, _ := chainIdentifiers(t, out)
 			if len(ids) != 1 || ids[0] != ancestors[0].Uri {
 				t.Errorf("chain should stop before ancestor 1, got %v", ids)
@@ -449,7 +449,7 @@ func TestParentItem_StopsAtUnshowable(t *testing.T) {
 func TestParentItem_NegatedLabelDoesNotStop(t *testing.T) {
 	leaf, ancestors := makeThread(2)
 	withPostLabel("spam", true)(ancestors[0])
-	out, _ := buildPostJSONLD(leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
 	if ids, _ := chainIdentifiers(t, out); len(ids) != 2 {
 		t.Errorf("negated label should not stop the chain, got %v", ids)
 	}
@@ -458,7 +458,7 @@ func TestParentItem_NegatedLabelDoesNotStop(t *testing.T) {
 func TestParentItem_FirstParentUnshowable(t *testing.T) {
 	leaf, ancestors := makeThread(3)
 	ancestors[0] = nil
-	out, _ := buildPostJSONLD(leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
 	if p, present := mainEntity(t, out)["parentItem"]; present {
 		t.Errorf("parentItem should be omitted when the direct parent is unshowable, got %v", p)
 	}
@@ -467,7 +467,7 @@ func TestParentItem_FirstParentUnshowable(t *testing.T) {
 func TestParentItem_AncestorSharedContent(t *testing.T) {
 	leaf, ancestors := makeThread(1)
 	withExternalThumb("https://example.com/root-link")(ancestors[0])
-	out, _ := buildPostJSONLD(leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
+	out, _ := buildPostJSONLD(defaultWebOrigin, leaf, buildChain(leaf, ancestors...), "u", "", hideEmbedLabels, hideReplyLabels)
 	p := mainEntity(t, out)["parentItem"].(map[string]any)
 	sc, ok := p["sharedContent"].(map[string]any)
 	if !ok || sc["url"] != "https://example.com/root-link" {

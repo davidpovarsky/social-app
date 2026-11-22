@@ -43,6 +43,31 @@ go build -o bskyweb ./cmd/bskyweb/
 The easiest way to configure the daemon is to copy `example.env` to `.env` and
 fill in auth values there.
 
+## Public web origin
+
+Set `BSKY_WEB_ORIGIN` (or `--web-origin`) to the externally reachable web app
+origin. It defaults to `https://bsky.app` for the public upstream deployment.
+The server uses this value for canonical and OpenGraph URLs, the home page's
+existing static social-card asset, and generated post/profile links throughout
+JSON-LD. It does not infer the origin from an incoming Host header.
+
+For the independent Torah deployment:
+
+```bash
+BSKY_WEB_ORIGIN=https://torah-130-110-238-163.nip.io
+```
+
+Use the web origin, not the PDS or AppView origin. The value must be an HTTP(S)
+origin with an optional port and trailing slash; credentials, subpaths, query
+parameters, and fragments are rejected at startup. HTTPS is appropriate for
+production; HTTP supports local development.
+
+Post images, avatars, profile banners, and external link targets continue to
+use the actual AppView data. An independent origin omits public Bluesky oEmbed
+discovery because this server does not implement an independent oEmbed service.
+Setting this value does not configure the client bundle or a PDS/AppView; those
+endpoints must still be configured separately.
+
 ## Web app statics: embedded and remote modes
 
 `bskyweb` serves the web app's build output (`static/_expo/`, `static/assets/`)

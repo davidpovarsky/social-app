@@ -158,20 +158,20 @@ const authorFeedFetchLimit = 3 * maxRecentPosts
 
 // bskyPostURL returns the canonical handle-form post URL, or "" if handle
 // or rkey is unusable.
-func bskyPostURL(handle, rkey string) string {
+func bskyPostURL(origin string, handle, rkey string) string {
 	if handle == "" || handle == "handle.invalid" || rkey == "" {
 		return ""
 	}
-	return fmt.Sprintf("https://bsky.app/profile/%s/post/%s", handle, rkey)
+	return fmt.Sprintf("%s/profile/%s/post/%s", origin, handle, rkey)
 }
 
 // bskyPostURLFromATURI is bskyPostURL for callers holding an at-uri.
-func bskyPostURLFromATURI(handle, atURI string) string {
+func bskyPostURLFromATURI(origin string, handle, atURI string) string {
 	parsed, err := syntax.ParseATURI(atURI)
 	if err != nil {
 		return ""
 	}
-	return bskyPostURL(handle, parsed.RecordKey().String())
+	return bskyPostURL(origin, handle, parsed.RecordKey().String())
 }
 
 // bskyPostURLFromATURIWithDIDFallback returns the handle-form post URL
@@ -180,7 +180,7 @@ func bskyPostURLFromATURI(handle, atURI string) string {
 // unparseable or has no record key. Used for nested fields (e.g.
 // VideoObject.embedUrl) where omitting on handle.invalid would weaken the
 // emitted structured data.
-func bskyPostURLFromATURIWithDIDFallback(handle, atURI string) string {
+func bskyPostURLFromATURIWithDIDFallback(origin string, handle, atURI string) string {
 	parsed, err := syntax.ParseATURI(atURI)
 	if err != nil {
 		return ""
@@ -189,23 +189,23 @@ func bskyPostURLFromATURIWithDIDFallback(handle, atURI string) string {
 	if rkey == "" {
 		return ""
 	}
-	if url := bskyPostURL(handle, rkey); url != "" {
+	if url := bskyPostURL(origin, handle, rkey); url != "" {
 		return url
 	}
 	did := parsed.Authority().String()
 	if did == "" {
 		return ""
 	}
-	return fmt.Sprintf("https://bsky.app/profile/%s/post/%s", did, rkey)
+	return fmt.Sprintf("%s/profile/%s/post/%s", origin, did, rkey)
 }
 
 // bskyProfileURL returns the canonical handle-form profile URL, or "" if
 // the handle is unusable.
-func bskyProfileURL(handle string) string {
+func bskyProfileURL(origin string, handle string) string {
 	if handle == "" || handle == "handle.invalid" {
 		return ""
 	}
-	return fmt.Sprintf("https://bsky.app/profile/%s", handle)
+	return fmt.Sprintf("%s/profile/%s", origin, handle)
 }
 
 // extractPostMedia returns thumbnail URLs for the post's image, gallery,
@@ -337,7 +337,7 @@ func buildVideoObject(pv *appbsky.FeedDefs_PostView, embedURL, postText string, 
 
 // extractQuotedPostURL returns the canonical URL of a quoted post, or ""
 // if the embed is blocked / not-found / detached / a non-post record.
-func extractQuotedPostURL(pv *appbsky.FeedDefs_PostView) string {
+func extractQuotedPostURL(origin string, pv *appbsky.FeedDefs_PostView) string {
 	if pv == nil || pv.Embed == nil {
 		return ""
 	}
@@ -354,7 +354,7 @@ func extractQuotedPostURL(pv *appbsky.FeedDefs_PostView) string {
 	if vr == nil || vr.Author == nil {
 		return ""
 	}
-	return bskyPostURLFromATURI(vr.Author.Handle, vr.Uri)
+	return bskyPostURLFromATURI(origin, vr.Author.Handle, vr.Uri)
 }
 
 // buildSharedWebPage returns a WebPage for an external link embed (also
@@ -391,7 +391,7 @@ func buildSharedWebPage(pv *appbsky.FeedDefs_PostView) *sharedWebPage {
 // record, carries a label in any of labelSets, or its author requires auth.
 // The quoted text is third-party content, so it gets the same gating as
 // replies.
-func buildQuotedPost(pv *appbsky.FeedDefs_PostView, labelSets ...map[string]bool) *quotedPost {
+func buildQuotedPost(origin string, pv *appbsky.FeedDefs_PostView, labelSets ...map[string]bool) *quotedPost {
 	if pv == nil || pv.Embed == nil {
 		return nil
 	}
@@ -417,7 +417,7 @@ func buildQuotedPost(pv *appbsky.FeedDefs_PostView, labelSets ...map[string]bool
 			return nil
 		}
 	}
-	url := bskyPostURLFromATURIWithDIDFallback(vr.Author.Handle, vr.Uri)
+	url := bskyPostURLFromATURIWithDIDFallback(origin, vr.Author.Handle, vr.Uri)
 	if url == "" {
 		return nil
 	}
@@ -425,7 +425,7 @@ func buildQuotedPost(pv *appbsky.FeedDefs_PostView, labelSets ...map[string]bool
 		Type:          "DiscussionForumPosting",
 		URL:           url,
 		Identifier:    vr.Uri,
-		Author:        buildAuthor(vr.Author),
+		Author:        buildAuthor(origin, vr.Author),
 		DatePublished: vr.IndexedAt,
 	}
 	if post != nil {
@@ -437,11 +437,11 @@ func buildQuotedPost(pv *appbsky.FeedDefs_PostView, labelSets ...map[string]bool
 // buildSharedContent returns the sharedContent value for a post: nil, a
 // single quoted post or link card, or []any{quote, linkCard} when both are
 // present. Returns nil when the post's embeds are hidden by labels.
-func buildSharedContent(pv *appbsky.FeedDefs_PostView, embedHidden bool, labelSets ...map[string]bool) any {
+func buildSharedContent(origin string, pv *appbsky.FeedDefs_PostView, embedHidden bool, labelSets ...map[string]bool) any {
 	if embedHidden {
 		return nil
 	}
-	quote := buildQuotedPost(pv, labelSets...)
+	quote := buildQuotedPost(origin, pv, labelSets...)
 	page := buildSharedWebPage(pv)
 	switch {
 	case quote != nil && page != nil:
@@ -460,7 +460,7 @@ func buildSharedContent(pv *appbsky.FeedDefs_PostView, embedHidden bool, labelSe
 // label in hideLabels or hideReplyLabels, or whose author requires auth, so
 // a hidden post never appears and the hierarchy is never misrepresented by
 // skipping a level. The thread root is typed DiscussionForumPosting.
-func buildAncestorChain(tv *appbsky.FeedDefs_ThreadViewPost, hideLabels, hideReplyLabels map[string]bool) *comment {
+func buildAncestorChain(origin string, tv *appbsky.FeedDefs_ThreadViewPost, hideLabels, hideReplyLabels map[string]bool) *comment {
 	if tv == nil {
 		return nil
 	}
@@ -474,7 +474,7 @@ func buildAncestorChain(tv *appbsky.FeedDefs_ThreadViewPost, hideLabels, hideRep
 		if postAuthorRequiresAuth(ppv) || postHasHideLabel(ppv, hideReplyLabels) || postHasHideLabel(ppv, hideLabels) {
 			break
 		}
-		node := buildReplyNode(ppv, hideLabels, hideReplyLabels)
+		node := buildReplyNode(origin, ppv, hideLabels, hideReplyLabels)
 		if node.Type == "" {
 			break
 		}
@@ -532,7 +532,7 @@ func findRootPostInParents(tv *appbsky.FeedDefs_ThreadViewPost, rootURI string) 
 
 // buildAuthor constructs a Person. Organization classification for
 // custom-domain accounts is a future enhancement.
-func buildAuthor(author *appbsky.ActorDefs_ProfileViewBasic) *personOrOrg {
+func buildAuthor(origin string, author *appbsky.ActorDefs_ProfileViewBasic) *personOrOrg {
 	if author == nil {
 		return nil
 	}
@@ -550,7 +550,7 @@ func buildAuthor(author *appbsky.ActorDefs_ProfileViewBasic) *personOrOrg {
 	} else if author.Handle != "" {
 		p.Name = "@" + author.Handle
 	}
-	if url := bskyProfileURL(author.Handle); url != "" {
+	if url := bskyProfileURL(origin, author.Handle); url != "" {
 		p.URL = url
 	}
 	return p
@@ -560,7 +560,7 @@ func buildAuthor(author *appbsky.ActorDefs_ProfileViewBasic) *personOrOrg {
 // Person.reviewedBy. Skips !IsValid and missing Issuer; caps at
 // maxReviewedBy. URL falls back to DID-form when the verifier's handle is
 // missing or "handle.invalid".
-func buildReviewedBy(state *appbsky.ActorDefs_VerificationState) []*verifier {
+func buildReviewedBy(origin string, state *appbsky.ActorDefs_VerificationState) []*verifier {
 	if state == nil || len(state.Verifications) == 0 {
 		return nil
 	}
@@ -588,10 +588,10 @@ func buildReviewedBy(state *appbsky.ActorDefs_VerificationState) []*verifier {
 		} else if handle != "" && handle != "handle.invalid" {
 			entry.Name = "@" + handle
 		}
-		if url := bskyProfileURL(handle); url != "" {
+		if url := bskyProfileURL(origin, handle); url != "" {
 			entry.URL = url
 		} else {
-			entry.URL = "https://bsky.app/profile/" + v.Issuer
+			entry.URL = origin + "/profile/" + v.Issuer
 		}
 		out = append(out, entry)
 	}
@@ -677,7 +677,7 @@ func buildPostStats(pv *appbsky.FeedDefs_PostView) []interactionStat {
 // hasPart / comment arrays. Returns the zero value if pv or pv.Author is
 // nil; callers should treat that as "skip". Replies whose own labels match
 // hideLabels or hideReplyLabels are dropped from comment[].
-func buildPostNode(pv *appbsky.FeedDefs_PostView, replies []*appbsky.FeedDefs_ThreadViewPost_Replies_Elem, hideLabels, hideReplyLabels map[string]bool) discussionForumPosting {
+func buildPostNode(origin string, pv *appbsky.FeedDefs_PostView, replies []*appbsky.FeedDefs_ThreadViewPost_Replies_Elem, hideLabels, hideReplyLabels map[string]bool) discussionForumPosting {
 	if pv == nil || pv.Author == nil {
 		return discussionForumPosting{}
 	}
@@ -688,14 +688,14 @@ func buildPostNode(pv *appbsky.FeedDefs_PostView, replies []*appbsky.FeedDefs_Th
 		thumb = images[0]
 	}
 
-	postURL := bskyPostURLFromATURIWithDIDFallback(pv.Author.Handle, pv.Uri)
+	postURL := bskyPostURLFromATURIWithDIDFallback(origin, pv.Author.Handle, pv.Uri)
 	postText := postRecordText(pv)
 
 	node := discussionForumPosting{
 		Type:            "DiscussionForumPosting",
 		URL:             postURL,
 		Identifier:      pv.Uri,
-		Author:          buildAuthor(pv.Author),
+		Author:          buildAuthor(origin, pv.Author),
 		Text:            postText,
 		Image:           images,
 		ThumbnailURL:    thumb,
@@ -706,7 +706,7 @@ func buildPostNode(pv *appbsky.FeedDefs_PostView, replies []*appbsky.FeedDefs_Th
 
 	// Surface verifications on the post author only; replies do not.
 	if node.Author != nil {
-		if rb := buildReviewedBy(pv.Author.Verification); len(rb) > 0 {
+		if rb := buildReviewedBy(origin, pv.Author.Verification); len(rb) > 0 {
 			node.Author.ReviewedBy = rb
 		}
 	}
@@ -717,10 +717,10 @@ func buildPostNode(pv *appbsky.FeedDefs_PostView, replies []*appbsky.FeedDefs_Th
 
 	// Gate isBasedOn on the same checks as sharedContent so a labeled or
 	// auth-gated quoted post is never referenced.
-	if !embedHidden && buildQuotedPost(pv, hideLabels, hideReplyLabels) != nil {
-		node.IsBasedOn = extractQuotedPostURL(pv)
+	if !embedHidden && buildQuotedPost(origin, pv, hideLabels, hideReplyLabels) != nil {
+		node.IsBasedOn = extractQuotedPostURL(origin, pv)
 	}
-	node.SharedContent = buildSharedContent(pv, embedHidden, hideLabels, hideReplyLabels)
+	node.SharedContent = buildSharedContent(origin, pv, embedHidden, hideLabels, hideReplyLabels)
 
 	for _, r := range replies {
 		if r == nil || r.FeedDefs_ThreadViewPost == nil || r.FeedDefs_ThreadViewPost.Post == nil {
@@ -736,7 +736,7 @@ func buildPostNode(pv *appbsky.FeedDefs_PostView, replies []*appbsky.FeedDefs_Th
 		if postAuthorRequiresAuth(replyPV) || postHasHideLabel(replyPV, hideReplyLabels) || postHasHideLabel(replyPV, hideLabels) {
 			continue
 		}
-		reply := buildReplyNode(replyPV, hideLabels, hideReplyLabels)
+		reply := buildReplyNode(origin, replyPV, hideLabels, hideReplyLabels)
 		if reply.Type == "" {
 			continue
 		}
@@ -750,7 +750,7 @@ func buildPostNode(pv *appbsky.FeedDefs_PostView, replies []*appbsky.FeedDefs_Th
 // Returns the zero value if pv or pv.Author is nil. Callers are responsible
 // for gating pv itself; hideLabels/hideReplyLabels gate its media and any
 // quoted post in sharedContent.
-func buildReplyNode(pv *appbsky.FeedDefs_PostView, hideLabels, hideReplyLabels map[string]bool) comment {
+func buildReplyNode(origin string, pv *appbsky.FeedDefs_PostView, hideLabels, hideReplyLabels map[string]bool) comment {
 	if pv == nil || pv.Author == nil {
 		return comment{}
 	}
@@ -760,19 +760,19 @@ func buildReplyNode(pv *appbsky.FeedDefs_PostView, hideLabels, hideReplyLabels m
 	if len(images) > 0 {
 		thumb = images[0]
 	}
-	postURL := bskyPostURLFromATURIWithDIDFallback(pv.Author.Handle, pv.Uri)
+	postURL := bskyPostURLFromATURIWithDIDFallback(origin, pv.Author.Handle, pv.Uri)
 	postText := postRecordText(pv)
 	return comment{
 		Type:          "Comment",
 		URL:           postURL,
 		Identifier:    pv.Uri,
-		Author:        buildAuthor(pv.Author),
+		Author:        buildAuthor(origin, pv.Author),
 		Text:          postText,
 		Image:         images,
 		ThumbnailURL:  thumb,
 		Video:         buildVideoObject(pv, postURL, postText, embedHidden),
 		DatePublished: pv.IndexedAt,
-		SharedContent: buildSharedContent(pv, embedHidden, hideLabels, hideReplyLabels),
+		SharedContent: buildSharedContent(origin, pv, embedHidden, hideLabels, hideReplyLabels),
 	}
 }
 
@@ -785,7 +785,7 @@ func buildReplyNode(pv *appbsky.FeedDefs_PostView, hideLabels, hideReplyLabels m
 // match the root page's handle-form canonical. thread, when non-nil, is the
 // post's thread view; its replies become comment[] and its parent chain
 // becomes parentItem.
-func buildPostJSONLD(pv *appbsky.FeedDefs_PostView, thread *appbsky.FeedDefs_ThreadViewPost, canonicalURL string, isPartOfURL string, hideLabels, hideReplyLabels map[string]bool) (string, error) {
+func buildPostJSONLD(origin string, pv *appbsky.FeedDefs_PostView, thread *appbsky.FeedDefs_ThreadViewPost, canonicalURL string, isPartOfURL string, hideLabels, hideReplyLabels map[string]bool) (string, error) {
 	if pv == nil || pv.Author == nil {
 		return "", fmt.Errorf("nil post view or author")
 	}
@@ -793,8 +793,8 @@ func buildPostJSONLD(pv *appbsky.FeedDefs_PostView, thread *appbsky.FeedDefs_Thr
 	if thread != nil {
 		replies = thread.Replies
 	}
-	node := buildPostNode(pv, replies, hideLabels, hideReplyLabels)
-	node.ParentItem = buildAncestorChain(thread, hideLabels, hideReplyLabels)
+	node := buildPostNode(origin, pv, replies, hideLabels, hideReplyLabels)
+	node.ParentItem = buildAncestorChain(origin, thread, hideLabels, hideReplyLabels)
 
 	if isPartOfURL != "" {
 		node.IsPartOf = isPartOfURL
@@ -822,7 +822,7 @@ func buildPostJSONLD(pv *appbsky.FeedDefs_PostView, thread *appbsky.FeedDefs_Thr
 // buildProfileJSONLD marshals a ProfilePage (with hasPart recent posts).
 // Recent posts whose own labels match hideLabels or hideReplyLabels are
 // dropped from hasPart, mirroring the gating applied to comment[].
-func buildProfileJSONLD(pv *appbsky.ActorDefs_ProfileViewDetailed, recentPosts []*appbsky.FeedDefs_PostView, hideLabels, hideReplyLabels map[string]bool) (string, error) {
+func buildProfileJSONLD(origin string, pv *appbsky.ActorDefs_ProfileViewDetailed, recentPosts []*appbsky.FeedDefs_PostView, hideLabels, hideReplyLabels map[string]bool) (string, error) {
 	if pv == nil {
 		return "", fmt.Errorf("nil profile view")
 	}
@@ -857,7 +857,7 @@ func buildProfileJSONLD(pv *appbsky.ActorDefs_ProfileViewDetailed, recentPosts [
 		{Type: "InteractionCounter", InteractionType: "https://schema.org/FollowAction", UserInteractionCount: deref(pv.FollowsCount)},
 		{Type: "InteractionCounter", InteractionType: "https://schema.org/WriteAction", UserInteractionCount: deref(pv.PostsCount)},
 	}
-	if rb := buildReviewedBy(pv.Verification); len(rb) > 0 {
+	if rb := buildReviewedBy(origin, pv.Verification); len(rb) > 0 {
 		person.ReviewedBy = rb
 	}
 
@@ -884,7 +884,7 @@ func buildProfileJSONLD(pv *appbsky.ActorDefs_ProfileViewDetailed, recentPosts [
 		}
 		// Recent posts go in nested form with no replies; hideReplyLabels
 		// still gates any quoted post in sharedContent.
-		node := buildPostNode(rp, nil, hideLabels, hideReplyLabels)
+		node := buildPostNode(origin, rp, nil, hideLabels, hideReplyLabels)
 		if node.Type == "" {
 			continue
 		}
