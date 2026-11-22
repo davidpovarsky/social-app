@@ -3,12 +3,15 @@ import {Image} from 'expo-image'
 import {useLingui} from '@lingui/react/macro'
 
 import {toNiceDomain} from '#/lib/strings/url-helpers'
+import {type AppMetric} from '#/screens/Atmosphere/metrics/apps'
+import {useAtmosphereMetricContext} from '#/screens/Atmosphere/metrics/context'
 import {atoms as a, useTheme} from '#/alf'
 import {Button} from '#/components/Button'
 import {useDialogControl} from '#/components/Dialog'
 import {shouldShowKnownFollowers} from '#/components/KnownFollowers'
 import {MediaInsetBorder} from '#/components/MediaInsetBorder'
 import {Text} from '#/components/Typography'
+import {useAnalytics} from '#/analytics'
 import {type app} from '#/lexicons'
 import {AppDialog} from './AppDialog'
 import {AppKnownFollowers} from './AppKnownFollowers'
@@ -17,16 +20,18 @@ const LOGO_SIZE = 40
 
 export function AppCard({
   app,
+  metric,
 }: {
   app: app.bsky.unspecced.getAtmosphereApps.AppCard
+  metric: AppMetric
 }) {
   const {t: l} = useLingui()
   const t = useTheme()
+  const ax = useAnalytics()
+  const metricContext = useAtmosphereMetricContext()
   const control = useDialogControl()
 
-  if (!app.title || !app.url) return null
-
-  const domain = toNiceDomain(app.url)
+  if (!app.title) return null
 
   const showFollowers =
     app.profile && shouldShowKnownFollowers(app.profile.viewer?.knownFollowers)
@@ -36,7 +41,15 @@ export function AppCard({
       <Button
         label={l`View details for ${app.title}`}
         accessibilityHint=""
-        onPress={() => control.open()}
+        onPress={() => {
+          if (metricContext) {
+            ax.metric('atmosphere:app:detailsOpened', {
+              ...metricContext,
+              ...metric,
+            })
+          }
+          control.open()
+        }}
         style={[
           a.w_full,
           a.rounded_xl,
@@ -75,10 +88,14 @@ export function AppCard({
                   <Text emoji style={[a.text_md, a.font_medium, t.atoms.text]}>
                     {app.title}
                   </Text>
-                  <Text emoji style={[a.text_sm, t.atoms.text_contrast_medium]}>
-                    {' · '}
-                    {domain}
-                  </Text>
+                  {app.url ? (
+                    <Text
+                      emoji
+                      style={[a.text_sm, t.atoms.text_contrast_medium]}>
+                      {' · '}
+                      {toNiceDomain(app.url)}
+                    </Text>
+                  ) : undefined}
                 </Text>
                 {app.description ? (
                   <Text
@@ -99,7 +116,7 @@ export function AppCard({
           </View>
         )}
       </Button>
-      <AppDialog control={control} app={app} />
+      <AppDialog control={control} app={app} metric={metric} />
     </>
   )
 }

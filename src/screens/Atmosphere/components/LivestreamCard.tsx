@@ -8,13 +8,14 @@ import {sanitizeHandle} from '#/lib/strings/handles'
 import {useModerationOpts} from '#/state/preferences/moderation-opts'
 import {UserAvatar} from '#/view/com/util/UserAvatar'
 import {getAssociatedProfile} from '#/screens/Atmosphere/data/exploreData'
+import {useLogContentPress} from '#/screens/Atmosphere/metrics/context'
 import {atoms as a, useTheme} from '#/alf'
+import {type ItemFocusProps} from '#/components/Gallery'
 import {Play_Filled_Corner2_Rounded as PlayIcon} from '#/components/icons/Play'
 import {Link} from '#/components/Link'
 import {Text} from '#/components/Typography'
 import {type app, place} from '#/lexicons'
 import {AtmosphereCardMenu} from './AtmosphereCardMenu'
-import {type ExploreGalleryFocusProps} from './ExploreGallery'
 
 export function LivestreamCard({
   livestream,
@@ -23,11 +24,12 @@ export function LivestreamCard({
 }: {
   livestream: app.bsky.embed.external.ViewLivestream
   width?: number
-  galleryFocus?: ExploreGalleryFocusProps
+  galleryFocus?: ItemFocusProps
 }) {
   const {t: l} = useLingui()
   const t = useTheme()
   const moderationOpts = useModerationOpts()
+  const logPress = useLogContentPress()
   const authorProfile = getAssociatedProfile(livestream.associatedProfiles)
   const title = livestream.title.trim()
 
@@ -58,6 +60,7 @@ export function LivestreamCard({
               : l`Open livestream: ${title}`
           }
           accessibilityHint=""
+          onPress={() => logPress('external')}
           ref={galleryFocus?.focusRef}
           tabIndex={galleryFocus?.tabIndex}
           onFocus={galleryFocus?.onFocus}

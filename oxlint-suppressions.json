@@ -80,12 +80,6 @@
     }
   },
   "src/analytics/metrics/client.test.ts": {
-    "typescript/no-explicit-any": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 8
-    },
     "typescript/require-await": {
       "count": 5
     }
@@ -300,11 +294,6 @@
       "count": 1
     }
   },
-  "src/components/WhoCanReply.tsx": {
-    "typescript/no-floating-promises": {
-      "count": 1
-    }
-  },
   "src/components/ageAssurance/AgeAssuranceRedirectDialog.tsx": {
     "typescript/require-await": {
       "count": 1
@@ -463,6 +452,11 @@
       "count": 1
     }
   },
+  "src/features/feedFeedback/index.tsx": {
+    "typescript/no-explicit-any": {
+      "count": 3
+    }
+  },
   "src/features/liveEvents/preferences.ts": {
     "typescript/no-floating-promises": {
       "count": 1
@@ -604,9 +598,6 @@
   "src/lib/media/manip.ts": {
     "typescript/no-explicit-any": {
       "count": 1
-    },
-    "typescript/no-floating-promises": {
-      "count": 3
     }
   },
   "src/lib/media/manip.web.ts": {
@@ -620,11 +611,6 @@
   "src/lib/media/picker.web.tsx": {
     "typescript/require-await": {
       "count": 2
-    }
-  },
-  "src/lib/media/save-image.ios.ts": {
-    "typescript/no-explicit-any": {
-      "count": 1
     }
   },
   "src/lib/media/save-image.ts": {
@@ -938,11 +924,6 @@
       "count": 1
     }
   },
-  "src/state/feed-feedback.tsx": {
-    "typescript/no-explicit-any": {
-      "count": 3
-    }
-  },
   "src/state/gallery.ts": {
     "typescript/prefer-promise-reject-errors": {
       "count": 1
@@ -1079,20 +1060,9 @@
       "count": 2
     }
   },
-  "src/state/queries/notifications/feed.ts": {
-    "typescript/no-explicit-any": {
-      "count": 2
-    },
-    "typescript/no-floating-promises": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    }
-  },
   "src/state/queries/notifications/unread.tsx": {
     "typescript/no-floating-promises": {
-      "count": 4
+      "count": 2
     },
     "typescript/no-misused-promises": {
       "count": 1
@@ -1163,11 +1133,6 @@
   "src/state/shell/color-mode.tsx": {
     "typescript/no-floating-promises": {
       "count": 2
-    }
-  },
-  "src/state/shell/composer/index.tsx": {
-    "typescript/no-floating-promises": {
-      "count": 1
     }
   },
   "src/state/shell/onboarding.tsx": {
@@ -1419,11 +1384,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 1
-    }
-  },
-  "src/view/screens/Notifications.tsx": {
-    "typescript/no-floating-promises": {
-      "count": 3
     }
   },
   "src/view/screens/Storybook/ListContained.tsx": {

@@ -1,4 +1,4 @@
-import {useCallback, useRef, useState} from 'react'
+import {useCallback, useLayoutEffect, useRef, useState} from 'react'
 import {type LayoutChangeEvent, View} from 'react-native'
 import Animated, {
   interpolate,
@@ -14,7 +14,6 @@ import {Trans, useLingui} from '@lingui/react/macro'
 import {useFocusEffect, useNavigation} from '@react-navigation/native'
 import {useQueryClient} from '@tanstack/react-query'
 
-import {HITSLOP_10} from '#/lib/constants'
 import {useNonReactiveCallback} from '#/lib/hooks/useNonReactiveCallback'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {
@@ -38,7 +37,6 @@ import {
   HomeHeaderModeProvider,
   useHomeHeaderMode,
 } from '#/view/com/util/MainScrollProvider'
-import {NotificationsScreen as LegacyNotificationsScreen} from '#/view/screens/Notifications'
 import {PageList} from '#/screens/Notifications/components/PageList'
 import * as Pager from '#/screens/Notifications/components/PagerView'
 import {TabPills} from '#/screens/Notifications/components/TabPills'
@@ -53,7 +51,6 @@ import {
   nextSeenAt,
 } from '#/screens/Notifications/unread'
 import {atoms as a, useBreakpoints, useTheme, utils} from '#/alf'
-import {BetaTag} from '#/components/BetaTag'
 import {ButtonIcon} from '#/components/Button'
 import {useHeaderOffset} from '#/components/hooks/useHeaderOffset'
 import {EditBig_Stroke2_Corner2_Rounded as EditBigIcon} from '#/components/icons/EditBig'
@@ -62,36 +59,22 @@ import * as Layout from '#/components/Layout'
 import {Link} from '#/components/Link'
 import {Loader} from '#/components/Loader'
 import {type Metrics, useAnalytics} from '#/analytics'
-import {Features, isOnForBetaUser} from '#/analytics/features'
-import {IS_INTERNAL, IS_NATIVE, IS_WEB} from '#/env'
+import {IS_NATIVE, IS_WEB} from '#/env'
 
 type Props = NativeStackScreenProps<
   NotificationsTabNavigatorParams,
   'Notifications'
 >
 
-export function NotificationsScreen(props: Props) {
-  const ax = useAnalytics()
-  // Dev and TestFlight builds always get it, so it's dogfooded before rollout
-  const isNewNotificationsEnabled =
-    IS_INTERNAL || ax.features.enabled(ax.features.NotificationsV2Enable)
-
-  if (isNewNotificationsEnabled) {
-    return <NewNotificationsScreen {...props} />
-  }
-
-  return <LegacyNotificationsScreen {...props} />
-}
-
-export function NewNotificationsScreen({}: Props) {
+export function NotificationsScreen({}: Props) {
   const {t: l} = useLingui()
   const t = useTheme()
   const {openComposer} = useOpenComposer()
 
   return (
-    <Layout.Screen testID="newNotificationsScreen" noInsetTop={IS_NATIVE}>
+    <Layout.Screen testID="notificationsScreen" noInsetTop={IS_NATIVE}>
       <HomeHeaderModeProvider>
-        <NewNotificationsScreenInner />
+        <NotificationsScreenInner />
       </HomeHeaderModeProvider>
       <FAB
         testID="composeFAB"
@@ -105,7 +88,7 @@ export function NewNotificationsScreen({}: Props) {
   )
 }
 
-function NewNotificationsScreenInner() {
+function NotificationsScreenInner() {
   const {t: l} = useLingui()
   const ax = useAnalytics()
   const navigation = useNavigation()
@@ -587,7 +570,21 @@ function NotificationsHeader({
     }
   })
 
+  const ref = useRef<React.ComponentRef<typeof View>>(null)
   const height = useSharedValue(0)
+  const updateHeight = useCallback(
+    (headerHeight: number) => {
+      // Hidden web screens measure 0, keep the last height for coming back
+      if (headerHeight === 0) return
+      height.set(headerHeight)
+      onHeightChange(headerHeight)
+    },
+    [height, onHeightChange],
+  )
+  // onLayout arrives after the first paint, so measure before it
+  useLayoutEffect(() => {
+    updateHeight(ref.current?.getBoundingClientRect().height ?? 0)
+  }, [updateHeight])
   const [pillsHeight, setPillsHeight] = useState(0)
   /*
    * Shrinks the fade from the top as the pills move up, so that it always
@@ -604,12 +601,10 @@ function NotificationsHeader({
 
   return (
     <View
+      ref={ref}
       pointerEvents="box-none"
       style={[a.fixed, a.z_10, a.top_0, a.left_0, a.right_0]}
-      onLayout={event => {
-        height.set(event.nativeEvent.layout.height)
-        onHeightChange(event.nativeEvent.layout.height)
-      }}>
+      onLayout={event => updateHeight(event.nativeEvent.layout.height)}>
       {/*
        * On native, the background fades out under the header, down to the
        * bottom of the pills as they move up. On web, the title and the pills
@@ -657,26 +652,9 @@ function NotificationsHeader({
         <Layout.Header.Outer noBottomBorder sticky={false}>
           <Layout.Header.MenuButton />
           <Layout.Header.Content>
-            <View style={[a.flex_row, a.align_center, a.gap_sm]}>
-              <Layout.Header.TitleText>
-                <Trans>Notifications</Trans>
-              </Layout.Header.TitleText>
-              {
-                /*
-                 * Only for those who have it because they opted in to beta
-                 * features, not internal builds or a wider rollout
-                 */
-                isOnForBetaUser(Features.NotificationsV2Enable) && (
-                  <Link
-                    to={{screen: 'BetaFeaturesSettings'}}
-                    label={l`Beta features`}
-                    accessibilityHint={l`Opens your beta features settings`}
-                    hitSlop={HITSLOP_10}>
-                    <BetaTag />
-                  </Link>
-                )
-              }
-            </View>
+            <Layout.Header.TitleText>
+              <Trans>Notifications</Trans>
+            </Layout.Header.TitleText>
           </Layout.Header.Content>
           <Layout.Header.Slot>
             <Link

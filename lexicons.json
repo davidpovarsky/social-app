@@ -118,8 +118,6 @@
     "app.bsky.notification.unregisterPush",
     "app.bsky.notification.updateSeen",
     "app.bsky.richtext.facet",
-    "app.bsky.unspecced.getAtmosphereApps",
-    "app.bsky.unspecced.getAtmosphereExploreTab",
     "app.bsky.video.defs",
     "app.bsky.video.getJobStatus",
     "app.bsky.video.getUploadLimits",
@@ -273,6 +271,8 @@
     "place.stream.badge.defs",
     "place.stream.livestream",
     "site.standard.document",
+    "site.standard.graph.recommend",
+    "site.standard.graph.subscription",
     "site.standard.publication",
     "social.grain.gallery",
     "social.grain.photo",
@@ -294,7 +294,7 @@
   "resolutions": {
     "app.bsky.actor.defs": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.actor.defs",
-      "cid": "bafyreibhvgz2t4kjfgkg5yo6couskvumhaqigdubpnincchyk3kpzavnie"
+      "cid": "bafyreidyjvyaakb5qtem5ibd7zv4djynlgihcd3qpchr65pilvlx6oo2yu"
     },
     "app.bsky.actor.getPreferences": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.actor.getPreferences",
@@ -318,7 +318,7 @@
     },
     "app.bsky.actor.profile": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.actor.profile",
-      "cid": "bafyreib57i4ahnr7e4uzoewdetkepfsbiqnw4la73hk5hgjp4zdbalfko4"
+      "cid": "bafyreifmvpqm57xys7vaezajca44ejnkmd6juvsuflvjatkq3gb62nnnoy"
     },
     "app.bsky.actor.putPreferences": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.actor.putPreferences",
@@ -430,7 +430,7 @@
     },
     "app.bsky.embed.external": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.embed.external",
-      "cid": "bafyreidhctlel6ogjn5tamcdtuviu7rtdezt6ern7pkubpcin2actwxbym"
+      "cid": "bafyreicnmkv77o556qifk5cknsanqkrhtdyhim6y7fqo5slobvuajrmbee"
     },
     "app.bsky.embed.gallery": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.embed.gallery",
@@ -458,7 +458,7 @@
     },
     "app.bsky.feed.defs": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.feed.defs",
-      "cid": "bafyreigqymem5fqdg3u2aj7rfvmt2j4cmuqjjk4nsx6ft6dq6xcyv2gdkq"
+      "cid": "bafyreigp7i6oac7gnzi2zmb4ciz3zkwakjcamt44sdisrvpugs2dqyhrjq"
     },
     "app.bsky.feed.describeFeedGenerator": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.feed.describeFeedGenerator",
@@ -478,7 +478,7 @@
     },
     "app.bsky.feed.getAuthorFeed": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.feed.getAuthorFeed",
-      "cid": "bafyreiha5ca2lkguxvh22smjuehn2evxhyqk7isuiyqy6b23raljriv5a4"
+      "cid": "bafyreig62wjgho5nmm7ltc4usakw3nwv2mnowp2xjyx5jnzof5psnjwgn4"
     },
     "app.bsky.feed.getFeed": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.feed.getFeed",
@@ -759,14 +759,6 @@
     "app.bsky.richtext.facet": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.richtext.facet",
       "cid": "bafyreidg56eo7zynf6ihz4xb627vwoqf5idnevkmwp7sxc4tijg6xngbu4"
-    },
-    "app.bsky.unspecced.getAtmosphereApps": {
-      "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.unspecced.getAtmosphereApps",
-      "cid": "bafyreihpi7hxe7j4uh7haawophxtppjwziojd4swq4anpgvnegigqk2234"
-    },
-    "app.bsky.unspecced.getAtmosphereExploreTab": {
-      "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.unspecced.getAtmosphereExploreTab",
-      "cid": "bafyreihbh326n4onxitcho3mrbvk5kblz3mexq7i2xjv2g62kvkbye6wzm"
     },
     "app.bsky.video.defs": {
       "uri": "at://did:plc:4v4y5r3lwsbtmsxhile2ljac/com.atproto.lexicon.schema/app.bsky.video.defs",
@@ -1403,6 +1395,14 @@
     "site.standard.document": {
       "uri": "at://did:plc:re3ebnp5v7ffagz6rb6xfei4/com.atproto.lexicon.schema/site.standard.document",
       "cid": "bafyreifylc5lfr4vqfzrwdtqm4pnfg7cbra7z4acbgikylqandzefwdeaq"
+    },
+    "site.standard.graph.recommend": {
+      "uri": "at://did:plc:re3ebnp5v7ffagz6rb6xfei4/com.atproto.lexicon.schema/site.standard.graph.recommend",
+      "cid": "bafyreibglev4uvatb5do5obqxlif5w6b63tysjb7ve6w44x54g7hfe2rgy"
+    },
+    "site.standard.graph.subscription": {
+      "uri": "at://did:plc:re3ebnp5v7ffagz6rb6xfei4/com.atproto.lexicon.schema/site.standard.graph.subscription",
+      "cid": "bafyreiccyb5e4vq3rwhrajeud72ztezljufzrqbo73vz6mw2jwbgsxfqta"
     },
     "site.standard.publication": {
       "uri": "at://did:plc:re3ebnp5v7ffagz6rb6xfei4/com.atproto.lexicon.schema/site.standard.publication",

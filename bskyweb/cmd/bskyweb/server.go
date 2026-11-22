@@ -333,6 +333,7 @@ func serve(cctx *cli.Context) error {
 	e.GET("/search", server.WebGenericNoindex)
 	e.GET("/feeds", server.WebGenericNoindex)
 	e.GET("/atmosphere", server.WebGenericNoindex)
+	e.GET("/atmosphere/activity", server.WebGenericNoindex)
 	e.GET("/notifications", server.WebGenericNoindex)
 	e.GET("/notifications/settings", server.WebGenericNoindex)
 	e.GET("/notifications/activity", server.WebGenericNoindex)
@@ -868,7 +869,7 @@ func bskyProfileCanonicalURL(handle, tab string) string {
 func profileAuthorFeedFilter(tab string) (string, bool) {
 	switch tab {
 	case "replies":
-		return "posts_with_replies", true
+		return "posts_and_replies_only", true
 	case "media":
 		return "posts_with_media", true
 	case "videos":
