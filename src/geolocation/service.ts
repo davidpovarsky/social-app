@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react'
 import {EventEmitter} from 'eventemitter3'
 
 import {networkRetry} from '#/lib/async/retry'
+import {GEOLOCATION_URL} from '#/env'
 import {
   FALLBACK_GEOLOCATION_SERVICE_RESPONSE,
   GEOLOCATION_SERVICE_URL,
@@ -29,6 +30,9 @@ async function fetchGeolocationServiceData(
   url: string,
 ): Promise<Geolocation | undefined> {
   if (debug.enabled) return debug.resolve(debug.geolocation)
+  // Keep the existing unknown-location fallback when this service is disabled.
+  if (!GEOLOCATION_URL) return FALLBACK_GEOLOCATION_SERVICE_RESPONSE
+
   const res = await fetch(url)
   if (!res.ok) {
     throw new Error(`fetchGeolocationServiceData failed ${res.status}`)
