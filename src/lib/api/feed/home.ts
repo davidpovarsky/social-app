@@ -2,6 +2,7 @@ import {type Client} from '@atproto/lex'
 import {type AtUriString} from '@atproto/syntax'
 
 import {PROD_DEFAULT_FEED} from '#/lib/constants'
+import {TORAH_ISOLATED_NETWORK} from '#/env'
 import {type app} from '#/lexicons'
 import {CustomFeedAPI} from './custom'
 import {FollowingFeedAPI} from './following'
@@ -69,7 +70,7 @@ export class HomeFeedAPI implements FeedAPI {
   }
 
   async peekLatest(): Promise<app.bsky.feed.defs.FeedViewPost> {
-    if (this.usingDiscover) {
+    if (this.usingDiscover && !TORAH_ISOLATED_NETWORK) {
       return this.discover.peekLatest()
     }
     return this.following.peekLatest()
@@ -82,6 +83,11 @@ export class HomeFeedAPI implements FeedAPI {
     cursor: string | undefined
     limit: number
   }): Promise<FeedAPIResponse> {
+    // The isolated AppView supports getTimeline, not Bluesky's Discover feed
+    // generator. Its final page must remain readable without a getFeed request.
+    if (TORAH_ISOLATED_NETWORK) {
+      return this.following.fetch({cursor, limit})
+    }
     if (!cursor) {
       this.reset()
     }

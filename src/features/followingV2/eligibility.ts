@@ -1,5 +1,5 @@
 import {type AnalyticsContextType} from '#/analytics'
-import {IS_E2E, IS_NATIVE} from '#/env'
+import {IS_E2E, IS_NATIVE, TORAH_ISOLATED_NETWORK} from '#/env'
 
 /**
  * Whether Following v2 behaviour applies. Every Following v2 call site gates
@@ -57,5 +57,8 @@ export function isFollowingV2HomeForkEnabled(
  * v2. The e2e check runs first, so e2e never logs an exposure for the flag.
  */
 function isFollowingV2Enabled(ax: Pick<AnalyticsContextType, 'features'>) {
+  // The independent deployment currently exposes the ordinary timeline API.
+  // Public rollout flags and e2e mode must not opt it into range/snapshot behavior.
+  if (TORAH_ISOLATED_NETWORK) return false
   return IS_E2E || ax.features.enabled(ax.features.FollowingV2Enable)
 }

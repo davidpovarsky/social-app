@@ -105,7 +105,13 @@ four hours is omitted. The worker's failures are logged by `bskyweb`.
 The corresponding `EXPO_PUBLIC_*` variables are also accepted by the server.
 Set `FEATURE_GATE_BOOTSTRAP=false` to disable the server fetch and HTML payload.
 
-The browser still uses the normal GrowthBook endpoint. If it fails or times out,
+In public-network mode, the browser still uses the normal GrowthBook endpoint.
+Independent Torah builds (`EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true`) use explicit
+local capability defaults and skip remote GrowthBook initialization, cached
+public rollouts, and refreshes. Set `FEATURE_GATE_BOOTSTRAP=false` on that server
+as well, so it does not fetch public configuration for unused HTML payloads.
+
+In public-network mode, if the browser request fails or times out,
 the embedded configuration supplies the rules and saved targeting groups. Newer
 HTML rules also take precedence over an older SDK cache; later network updates
 can replace them. The app document uses `Cache-Control: no-cache` so new document

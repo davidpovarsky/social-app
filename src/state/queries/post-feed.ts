@@ -39,6 +39,7 @@ import {DEFAULT_LOGGED_OUT_PREFERENCES} from '#/state/queries/preferences/const'
 import {useAppviewClient, useSession} from '#/state/session'
 import * as userActionHistory from '#/state/userActionHistory'
 import {KnownError} from '#/view/com/posts/PostFeedErrorMessage'
+import {TORAH_ISOLATED_NETWORK} from '#/env'
 import {app} from '#/lexicons'
 import * as bsky from '#/types/bsky'
 import {useFeedTuners} from '../preferences/feed-tuners'
@@ -438,6 +439,9 @@ function createApi({
   enableFollowingToDiscoverFallback: boolean
 }) {
   if (feedDesc === 'following') {
+    if (TORAH_ISOLATED_NETWORK) {
+      return new FollowingFeedAPI({client})
+    }
     if (feedParams.mergeFeedEnabled) {
       return new MergeFeedAPI({
         client,

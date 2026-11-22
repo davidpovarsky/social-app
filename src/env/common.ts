@@ -99,6 +99,14 @@ export const CHAT_PROXY_DID: DidString =
     : 'did:web:api.bsky.chat')
 
 /**
+ * Independent deployments can explicitly disable chat when the configured
+ * service is unavailable. Keep existing chat enabled unless opted out.
+ */
+export const CHAT_ENABLED: boolean =
+  !TORAH_ISOLATED_NETWORK ||
+  process.env.EXPO_PUBLIC_TORAH_CHAT_ENABLED !== 'false'
+
+/**
  * The DID of the moderation service to proxy requests to.
  */
 export const MOD_PROXY_DID: DidString | undefined =
@@ -122,7 +130,8 @@ export const GROWTHBOOK_API_HOST: string =
  * Growthbook client key
  */
 export const GROWTHBOOK_CLIENT_KEY: string =
-  process.env.EXPO_PUBLIC_GROWTHBOOK_CLIENT_KEY || 'sdk-7gkUkGy9wguUjyFe'
+  process.env.EXPO_PUBLIC_GROWTHBOOK_CLIENT_KEY ||
+  (TORAH_ISOLATED_NETWORK ? '' : 'sdk-7gkUkGy9wguUjyFe')
 
 /**
  * Sentry DSN for telemetry

@@ -2,6 +2,7 @@ import {type Client} from '@atproto/lex'
 import {type AtUriString} from '@atproto/syntax'
 
 import {PROD_DEFAULT_FEED} from '#/lib/constants'
+import {TORAH_ISOLATED_NETWORK} from '#/env'
 import {type app} from '#/lexicons'
 import {CustomFeedAPI} from './custom'
 import {FollowingFeedAPI} from './following'
@@ -60,7 +61,7 @@ export class HomeFeedAPI implements FeedAPI {
   async peekLatest({
     source,
   }: {source?: FeedSource} = {}): Promise<app.bsky.feed.defs.FeedViewPost> {
-    if (source === 'discover') {
+    if (source === 'discover' && !TORAH_ISOLATED_NETWORK) {
       return this.discover.peekLatest()
     }
     return this.following.peekLatest()
@@ -77,6 +78,11 @@ export class HomeFeedAPI implements FeedAPI {
     source?: FeedSource
     limit: number
   }): Promise<FeedAPIResponse> {
+    // Keep the same capability boundary as the legacy Home API, including
+    // callers that reach this implementation without the Following v2 gate.
+    if (TORAH_ISOLATED_NETWORK) {
+      return this.following.fetch({cursor, since, limit})
+    }
     if (source === 'discover') {
       const res = await this.discover.fetch({cursor, limit})
       return {...res, source: 'discover'}

@@ -43,13 +43,30 @@ const sdkOptions = {
   clientKey: env.GROWTHBOOK_CLIENT_KEY,
   enableDevMode: env.IS_INTERNAL,
 }
-const bootstrap = readFeatureBootstrap(sdkOptions)
+const bootstrap = env.TORAH_ISOLATED_NETWORK
+  ? undefined
+  : readFeatureBootstrap(sdkOptions)
+
+// These services are not enabled by a public-network rollout in an independent
+// deployment. Positive experimental flags otherwise retain the SDK's off default.
+const isolatedFeatures = {
+  [Features.ImportContactsOnboardingDisable]: {defaultValue: true},
+  [Features.ImportContactsSettingsDisable]: {defaultValue: true},
+  [Features.LiveNowBetaDisable]: {defaultValue: true},
+  [Features.GroupChatsDisable]: {defaultValue: true},
+  [Features.FollowingV2Enable]: {defaultValue: false},
+}
 
 /**
  * Shared SDK instance. Assumes a single active account context, with attributes
  * supplied by AnalyticsFeaturesContext before its children evaluate features.
  */
-export const features = createGrowthBook(sdkOptions, bootstrap)
+export const features = createGrowthBook(
+  env.TORAH_ISOLATED_NETWORK
+    ? {features: isolatedFeatures, enableDevMode: env.IS_INTERNAL}
+    : sdkOptions,
+  bootstrap,
+)
 
 /**
  * Initializer promise that must be awaited before using the GrowthBook
@@ -57,21 +74,26 @@ export const features = createGrowthBook(sdkOptions, bootstrap)
  * is available synchronously while this revalidates it. Without one, a slow
  * initialization may cause a flash of uncustomized content.
  */
-export const init = bootstrap
-  ? refreshGrowthBook(features, {timeout: TIMEOUT_INIT})
-  : features.init({timeout: TIMEOUT_INIT}).then(res => {
-      if (!res.success) {
-        logger.warn('GrowthBook initialization failed or timed out', {
-          source: res.source,
-          safeMessage: res.error?.toString(),
-        })
-      }
-    })
+// An empty apiHost is not a disable switch: the SDK falls back to its public
+// CDN. Keep independent local configuration out of remote initialization/cache.
+export const init = env.TORAH_ISOLATED_NETWORK
+  ? Promise.resolve()
+  : bootstrap
+    ? refreshGrowthBook(features, {timeout: TIMEOUT_INIT})
+    : features.init({timeout: TIMEOUT_INIT}).then(res => {
+        if (!res.success) {
+          logger.warn('GrowthBook initialization failed or timed out', {
+            source: res.source,
+            safeMessage: res.error?.toString(),
+          })
+        }
+      })
 
 /**
  * Refresh feature gates from GrowthBook.
  */
 export async function refresh({strategy}: {strategy: FeatureFetchStrategy}) {
+  if (env.TORAH_ISOLATED_NETWORK) return
   const options = {
     timeout:
       strategy === 'prefer-low-latency'

@@ -40,6 +40,7 @@ import {hasReachedPageFillLimit, useAutoPagination} from '#/state/queries/util'
 import {useAppviewClient, useSession} from '#/state/session'
 import * as userActionHistory from '#/state/userActionHistory'
 import {KnownError} from '#/view/com/posts/PostFeedErrorMessage'
+import {TORAH_ISOLATED_NETWORK} from '#/env'
 import {CustomFeedAPI} from '#/features/followingV2/home/api/custom'
 import {FollowingFeedAPI} from '#/features/followingV2/home/api/following'
 import {HomeFeedAPI} from '#/features/followingV2/home/api/home'
@@ -1203,6 +1204,9 @@ function createApi({
   enableFollowingToDiscoverFallback: boolean
 }): FeedAPI {
   if (feedDesc === 'following') {
+    if (TORAH_ISOLATED_NETWORK) {
+      return new FollowingFeedAPI({client})
+    }
     if (enableFollowingToDiscoverFallback) {
       return new HomeFeedAPI({client, userInterests})
     } else {
