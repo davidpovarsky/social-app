@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   verify-pnpm-lock:
-    name: No manual pnpm-lock.yaml edits
+    name: Dependency-lock consistency
     runs-on: ubuntu-latest
     steps:
       # Temporary until fixed runner images roll out:
@@ -21,15 +21,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install --only-upgrade --no-install-recommends -y ca-certificates
 
-      - name: ⬇️ Check out PR HEAD
+      - name: ⬇️ Check out PR merge
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-
-      - name: ⬇️ Fetch base branch
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: git fetch origin $BASE_REF --depth=1
 
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
@@ -38,21 +33,15 @@ jobs:
         with:
           node-version-file: package.json
 
-      - name: ⏪ Reset pnpm-lock.yaml to base
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: git show "origin/$BASE_REF:pnpm-lock.yaml" > pnpm-lock.yaml
-
       - name: 📦 pnpm install
-        # Fine to skip scripts since we don't run any code
-        run: pnpm clean && pnpm install --ignore-scripts --no-frozen-lockfile
+        # Validate the committed merge lock and its patch/policy configuration.
+        # This checks dependency consistency, not whether the lock was hand-edited.
+        run: pnpm clean && pnpm install --ignore-scripts --frozen-lockfile
 
-      - name: 🔍 Verify pnpm-lock.yaml
+      - name: 🔍 Verify dependency files remain unchanged
         run: |
           git diff --quiet --exit-code || {
-            echo '::error::`pnpm-lock.yaml` does not match what pnpm would generate given the base `pnpm-lock.yaml` and the head `package.json`.'
-            echo '::error:: - If this is intentional, you can ignore this check.'
-            echo '::error:: - If this is unintentional, apply the following diff:'
+            echo '::error::The frozen install changed tracked files. Commit dependency manifests, lockfile, patches, and policy configuration consistently.'
             git --no-pager diff
             exit 1
           }

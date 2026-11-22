@@ -1,5 +1,5 @@
 import {useCallback} from 'react'
-import {View} from 'react-native'
+import {useWindowDimensions, View} from 'react-native'
 import Animated from 'react-native-reanimated'
 import {msg, plural} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
@@ -55,6 +55,7 @@ export function BottomBarWeb() {
   const {_} = useLingui()
   const {hasSession, currentAccount} = useSession()
   const t = useTheme()
+  const {width: windowWidth} = useWindowDimensions()
   const footerMinimalShellTransform = useMinimalShellFooterTransform()
   const {requestSwitchToAccount} = useLoggedOutViewControls()
   const closeAllActiveElements = useCloseAllActiveElements()
@@ -222,6 +223,7 @@ export function BottomBarWeb() {
         ) : (
           <>
             <View
+              testID="loggedOutBottomBar"
               style={[
                 a.w_full,
                 a.flex_row,
@@ -237,13 +239,23 @@ export function BottomBarWeb() {
               ]}>
               <View style={[a.flex_row, a.align_center, a.gap_md]}>
                 <Logo allowVariants={false} width={32} />
-                <View style={{paddingTop: 4}}>
-                  <Logotype width={80} fill={t.atoms.text.color} />
-                </View>
+                {windowWidth >= 360 && (
+                  <View style={{paddingTop: 4}}>
+                    <Logotype width={80} fill={t.atoms.text.color} />
+                  </View>
+                )}
               </View>
 
-              <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
+              <View
+                style={[
+                  a.flex_1,
+                  a.flex_row,
+                  a.flex_wrap,
+                  a.justify_end,
+                  a.gap_sm,
+                ]}>
                 <Button
+                  testID="loggedOutCreateAccountButton"
                   onPress={showCreateAccount}
                   label={_(msg`Create account`)}
                   size="small"
@@ -254,6 +266,7 @@ export function BottomBarWeb() {
                   </ButtonText>
                 </Button>
                 <Button
+                  testID="loggedOutSignInButton"
                   onPress={showSignIn}
                   label={_(msg`Sign in`)}
                   size="small"

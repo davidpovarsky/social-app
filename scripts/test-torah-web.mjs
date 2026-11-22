@@ -175,6 +175,35 @@ const forbidden = []
 const httpErrors = []
 const requestFailures = []
 const browserMessages = []
+const healthTelemetry = {events: [], limit: 2000, dropped: 0}
+const mainFrameNavigations = {events: [], limit: 300, dropped: 0}
+const healthOrigin = new URL(appview).origin
+const publicCorsOrigins = new Set([
+  new URL(base).origin,
+  webOrigin,
+  healthOrigin,
+])
+function appendBoundedDiagnostic(target, entry) {
+  if (target.events.length < target.limit) target.events.push(entry)
+  else target.dropped++
+}
+function healthRequestURL(value) {
+  const url = new URL(value)
+  return url.origin === healthOrigin && url.pathname === '/xrpc/_health'
+    ? url.origin + url.pathname
+    : null
+}
+function publicCorsHeader(value, kind) {
+  if (value === undefined) return null
+  if (
+    kind === 'origin' &&
+    (value === '*' || value === 'null' || publicCorsOrigins.has(value))
+  )
+    return value
+  if (kind === 'credentials' && (value === 'true' || value === 'false'))
+    return value
+  return '[withheld unexpected header value]'
+}
 function redactDiagnostic(value) {
   return String(value)
     .replaceAll(testPassword, '[redacted]')
@@ -190,6 +219,7 @@ async function capture(page, name) {
   await page.screenshot({
     path: path.join(output, name + '.png'),
     fullPage: true,
+    animations: 'disabled',
   })
 }
 async function withinViewport(page, testId) {
@@ -261,6 +291,143 @@ async function withinFullViewport(page, locator, name) {
     box.y + box.height <= page.viewportSize().height + 2,
     name + ' overflows the bottom edge: ' + JSON.stringify(box),
   )
+}
+async function waitForWelcomeReady(dialog) {
+  const started = Date.now()
+  const deadline = started + 10000
+  let anchor
+  let stable = 0
+  await dialog.waitFor({state: 'visible', timeout: 10000})
+  while (Date.now() < deadline) {
+    const sample = await dialog.evaluate(
+      element => {
+        const rect = element.getBoundingClientRect()
+        let ancestorCount = 0
+        let fullyOpaque = true
+        for (let node = element; node; node = node.parentElement) {
+          const style = getComputedStyle(node)
+          ancestorCount++
+          fullyOpaque &&=
+            Number(style.opacity) === 1 &&
+            style.visibility === 'visible' &&
+            style.display !== 'none'
+        }
+        return {
+          box: {x: rect.x, y: rect.y, width: rect.width, height: rect.height},
+          ancestorCount,
+          fullyOpaque,
+        }
+      },
+      undefined,
+      {timeout: Math.max(1, deadline - Date.now())},
+    )
+    const ready =
+      sample.fullyOpaque && sample.box.width > 0 && sample.box.height > 0
+    if (!ready) {
+      anchor = undefined
+      stable = 0
+    } else if (
+      anchor &&
+      ['x', 'y', 'width', 'height'].every(
+        key => Math.abs(anchor.box[key] - sample.box[key]) <= 1,
+      )
+    ) {
+      stable++
+    } else {
+      anchor = sample
+      stable = 1
+    }
+    if (stable >= 5) {
+      return {
+        ...sample,
+        stableSamples: stable,
+        elapsedMs: Date.now() - started,
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 80))
+  }
+  assert.fail('Welcome dialog did not become fully opaque with stable geometry')
+}
+function assertContainedActions(container, createAccount, signIn) {
+  for (const [name, box] of [
+    ['Create account', createAccount],
+    ['Sign in', signIn],
+  ]) {
+    assert.ok(
+      box.x >= container.x - 2 &&
+        box.y >= container.y - 2 &&
+        box.x + box.width <= container.x + container.width + 2 &&
+        box.y + box.height <= container.y + container.height + 2,
+      name + ' must be contained in its signed-out action row',
+    )
+  }
+  const overlapWidth =
+    Math.min(createAccount.x + createAccount.width, signIn.x + signIn.width) -
+    Math.max(createAccount.x, signIn.x)
+  const overlapHeight =
+    Math.min(createAccount.y + createAccount.height, signIn.y + signIn.height) -
+    Math.max(createAccount.y, signIn.y)
+  assert.ok(
+    overlapWidth <= 0 || overlapHeight <= 0,
+    'Signed-out Create account and Sign in buttons must not overlap',
+  )
+}
+async function inspectSignedOutActions(page, locale) {
+  const viewport = page.viewportSize()
+  const bar = page.getByTestId('loggedOutBottomBar')
+  let container
+  let createAccount
+  let signIn
+  let placement
+  if (viewport.width <= 1300) {
+    placement = 'bottom-bar'
+    container = bar
+    createAccount = page.getByTestId('loggedOutCreateAccountButton')
+    signIn = page.getByTestId('loggedOutSignInButton')
+  } else {
+    placement = 'desktop-sidebar'
+    assert.equal(
+      await bar.count(),
+      0,
+      'Wide signed-out layout must omit bottom bar',
+    )
+    createAccount = page.getByRole('button', {
+      name: uiLabel('Create account', locale),
+      exact: true,
+    })
+    signIn = page.getByRole('button', {
+      name: uiLabel('Sign in', locale),
+      exact: true,
+    })
+    await createAccount.waitFor({state: 'visible', timeout: 30000})
+    await signIn.waitFor({state: 'visible', timeout: 30000})
+    container = createAccount.locator('..')
+    assert.equal(
+      await container
+        .getByRole('button', {
+          name: uiLabel('Sign in', locale),
+          exact: true,
+        })
+        .count(),
+      1,
+      'Desktop signed-out buttons must share their source-defined action row',
+    )
+  }
+  for (const [name, locator] of [
+    ['signedOutActionRow', container],
+    ['signedOutCreateAccount', createAccount],
+    ['signedOutSignIn', signIn],
+  ]) {
+    await withinFullViewport(page, locator, name)
+    assert.equal(await locator.count(), 1, name + ' must be unique')
+  }
+  const boxes = {
+    container: await container.boundingBox(),
+    createAccount: await createAccount.boundingBox(),
+    signIn: await signIn.boundingBox(),
+  }
+  assertContainedActions(boxes.container, boxes.createAccount, boxes.signIn)
+  return {placement, viewport, ...boxes}
 }
 async function stableExpandedBox(locator, targetHeight) {
   let previous
@@ -528,6 +695,36 @@ scenarioMatrix: for (const [engineName, engine] of [
         context.setDefaultNavigationTimeout(30000)
         const page = await context.newPage()
         const diagnosticTasks = []
+        let phase = 'welcome'
+        const healthRequestIds = new WeakMap()
+        let nextHealthRequestId = 1
+        function recordHealthEvent(kind, request, response) {
+          const url = healthRequestURL(request.url())
+          if (!url) return
+          let requestId = healthRequestIds.get(request)
+          if (!requestId) {
+            requestId = nextHealthRequestId++
+            healthRequestIds.set(request, requestId)
+          }
+          const headers = response?.headers()
+          appendBoundedDiagnostic(healthTelemetry, {
+            scenario: name,
+            requestId,
+            kind,
+            phase,
+            observedAt: new Date().toISOString(),
+            url,
+            status: response?.status() ?? null,
+            accessControlAllowOrigin: publicCorsHeader(
+              headers?.['access-control-allow-origin'],
+              'origin',
+            ),
+            accessControlAllowCredentials: publicCorsHeader(
+              headers?.['access-control-allow-credentials'],
+              'credentials',
+            ),
+          })
+        }
         page.on('pageerror', error =>
           errors.push({
             scenario: name,
@@ -539,6 +736,7 @@ scenarioMatrix: for (const [engineName, engine] of [
           }),
         )
         page.on('request', request => {
+          recordHealthEvent('request', request)
           const url = new URL(request.url())
           if (
             /(^|\.)(bsky\.(app|social|network)|growthbook\.io)$/.test(
@@ -546,10 +744,16 @@ scenarioMatrix: for (const [engineName, engine] of [
             ) &&
             ['fetch', 'xhr', 'websocket'].includes(request.resourceType())
           ) {
-            forbidden.push({scenario: name, url: url.origin + url.pathname})
+            forbidden.push({
+              scenario: name,
+              phase,
+              observedAt: new Date().toISOString(),
+              url: url.origin + url.pathname,
+            })
           }
         })
         page.on('requestfailed', request => {
+          recordHealthEvent('failed', request)
           if (
             !['fetch', 'xhr'].includes(request.resourceType()) ||
             requestFailures.length >= 500
@@ -558,6 +762,8 @@ scenarioMatrix: for (const [engineName, engine] of [
           const url = new URL(request.url())
           requestFailures.push({
             scenario: name,
+            phase,
+            observedAt: new Date().toISOString(),
             url: url.origin + url.pathname,
             error: redactDiagnostic(request.failure()?.errorText),
           })
@@ -573,17 +779,22 @@ scenarioMatrix: for (const [engineName, engine] of [
           ) {
             browserMessages.push({
               scenario: name,
+              phase,
+              observedAt: new Date().toISOString(),
               error: redactDiagnostic(value),
             })
           }
         })
         page.on('response', response => {
+          recordHealthEvent('response', response.request(), response)
           if (response.status() < 400 || httpErrors.length >= 500) return
           const request = response.request()
           if (!['fetch', 'xhr'].includes(request.resourceType())) return
           const url = new URL(response.url())
           const entry = {
             scenario: name,
+            phase,
+            observedAt: new Date().toISOString(),
             status: response.status(),
             url: url.origin + url.pathname,
             controlled: phase === 'controlled-feed-error',
@@ -602,6 +813,14 @@ scenarioMatrix: for (const [engineName, engine] of [
                 .catch(() => {}),
             )
           }
+        })
+        page.on('framenavigated', frame => {
+          if (frame !== page.mainFrame()) return
+          appendBoundedDiagnostic(mainFrameNavigations, {
+            scenario: name,
+            phase,
+            observedAt: new Date().toISOString(),
+          })
         })
 
         const sourceDocuments = []
@@ -641,11 +860,14 @@ scenarioMatrix: for (const [engineName, engine] of [
         let readerEvidence
         let columnEvidence
         let errorRecoveryEvidence
+        let welcomeEvidence
+        let loginReadinessEvidence
+        let signedOutActionsEvidence
         let authenticated = false
-        let phase = 'welcome'
         try {
           await page.goto(base, {waitUntil: 'domcontentloaded'})
-          const welcomeSignIn = page.getByRole('dialog').getByRole('button', {
+          const welcomeDialog = page.getByRole('dialog')
+          const welcomeSignIn = welcomeDialog.getByRole('button', {
             name: uiLabel('Sign in', locale),
             exact: true,
           })
@@ -656,11 +878,18 @@ scenarioMatrix: for (const [engineName, engine] of [
             expectedDir,
           )
           await noHorizontalOverflow(page)
+          welcomeEvidence = await waitForWelcomeReady(welcomeDialog)
           await capture(page, name + '-welcome')
           phase = 'login'
           await welcomeSignIn.click()
           await withinViewport(page, 'loginForm')
           await withinViewport(page, 'loginUsernameInput')
+          const loginNext = page.getByTestId('loginNextButton')
+          await withinFullViewport(page, loginNext, 'loginNextButton')
+          loginReadinessEvidence = {
+            serviceDescriptionReady: true,
+            nextButton: await loginNext.boundingBox(),
+          }
           await noHorizontalOverflow(page)
           await capture(page, name + '-login')
           if ([390, 820, 1280].includes(width)) {
@@ -724,6 +953,12 @@ scenarioMatrix: for (const [engineName, engine] of [
           await withinViewport(page, 'postText')
           await noHorizontalOverflow(page)
           columnEvidence = await inspectCenterBorders(page)
+          if (!authenticated) {
+            signedOutActionsEvidence = await inspectSignedOutActions(
+              page,
+              locale,
+            )
+          }
           await capture(page, name + '-profile')
 
           if ([390, 820, 1280].includes(width)) {
@@ -804,6 +1039,9 @@ scenarioMatrix: for (const [engineName, engine] of [
             availabilityEvidence,
             readerEvidence,
             errorRecoveryEvidence,
+            welcomeEvidence,
+            loginReadinessEvidence,
+            signedOutActionsEvidence,
           })
           console.log(
             JSON.stringify({scenario: name, passed: true, authenticated}),
@@ -839,6 +1077,9 @@ scenarioMatrix: for (const [engineName, engine] of [
             availabilityEvidence,
             readerEvidence,
             errorRecoveryEvidence,
+            welcomeEvidence,
+            loginReadinessEvidence,
+            signedOutActionsEvidence,
             error: String(error).replaceAll(testPassword, '[redacted]'),
           })
           if (
@@ -853,7 +1094,9 @@ scenarioMatrix: for (const [engineName, engine] of [
             break scenarioMatrix
           }
         } finally {
+          phase = 'diagnostic-drain'
           await Promise.allSettled(diagnosticTasks)
+          phase = 'context-close'
           await context.close()
         }
       }
@@ -876,6 +1119,8 @@ const report = {
   httpErrors,
   requestFailures,
   browserMessages,
+  healthTelemetry,
+  mainFrameNavigations,
 }
 await fs.writeFile(
   path.join(output, 'report.json'),
