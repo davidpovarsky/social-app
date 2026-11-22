@@ -419,6 +419,97 @@ async function inspectSourceReader(page, name, sourceDocuments) {
   }
 }
 
+async function inspectMessages(page, name, locale) {
+  const checks = [
+    {nsid: 'chat.bsky.actor.getStatus'},
+    {nsid: 'chat.bsky.convo.getUnreadCounts'},
+    {nsid: 'chat.bsky.convo.getLog'},
+    {nsid: 'chat.bsky.convo.listConvos', status: 'accepted'},
+    {nsid: 'chat.bsky.convo.listConvos', status: 'request'},
+  ]
+  const responsesPromise = Promise.all(
+    checks.map(check =>
+      page.waitForResponse(response => {
+        const url = new URL(response.url())
+        return (
+          url.pathname === '/xrpc/' + check.nsid &&
+          (!check.status || url.searchParams.get('status') === check.status)
+        )
+      }),
+    ),
+  )
+  const [, responses] = await Promise.all([
+    page.goto(base + '/messages', {waitUntil: 'domcontentloaded'}),
+    responsesPromise,
+  ])
+  const bodies = []
+  const endpoints = []
+  for (const [index, response] of responses.entries()) {
+    assert.equal(response.status(), 200, checks[index].nsid + ' must load')
+    const body = await response.json()
+    bodies.push(body)
+    endpoints.push({
+      nsid: checks[index].nsid,
+      statusFilter: checks[index].status,
+      status: response.status(),
+    })
+  }
+  assert.equal(typeof bodies[0].chatDisabled, 'boolean')
+  assert.equal(bodies[0].chatDisabled, false, 'Chat must remain available')
+  assert.equal(typeof bodies[1].unreadAcceptedConvos, 'number')
+  assert.equal(typeof bodies[1].unreadRequestConvos, 'number')
+  assert.ok(Array.isArray(bodies[2].logs))
+  const accepted = bodies[3].convos
+  const requests = bodies[4].convos
+  assert.ok(Array.isArray(accepted) && Array.isArray(requests))
+  const options = page.getByRole('button', {
+    name: uiLabel('Chat options', locale),
+    exact: true,
+  })
+  await withinLocatorViewport(page, options, 'chatOptions')
+  await page
+    .getByText(uiLabel('Chats', locale), {exact: true})
+    .first()
+    .waitFor()
+  await withinLocatorViewport(
+    page,
+    page.locator('a[href="/messages/inbox"]').first(),
+    'messageRequests',
+  )
+  const split = !(await page.getByTestId('messagesScreen').isVisible())
+  if (accepted.length) {
+    await page
+      .locator('a[href=' + JSON.stringify('/messages/' + accepted[0].id) + ']')
+      .first()
+      .waitFor()
+  } else {
+    await page
+      .getByText(uiLabel(split ? 'Inbox empty' : 'Say hi to someone', locale), {
+        exact: true,
+      })
+      .first()
+      .waitFor()
+  }
+  assert.equal(
+    await page
+      .getByRole('button', {
+        name: uiLabel('Reload conversations', locale),
+        exact: true,
+      })
+      .isVisible(),
+    false,
+    'Successful messages response must not show a retry error',
+  )
+  await noHorizontalOverflow(page)
+  await capture(page, name + '-messages')
+  return {
+    endpoints,
+    accepted: accepted.length,
+    requests: requests.length,
+    split,
+  }
+}
+
 scenarioMatrix: for (const [engineName, engine] of [
   ['chromium', chromium],
   ['webkit', webkit],
@@ -438,7 +529,14 @@ scenarioMatrix: for (const [engineName, engine] of [
         const page = await context.newPage()
         const diagnosticTasks = []
         page.on('pageerror', error =>
-          errors.push({scenario: name, error: error.message}),
+          errors.push({
+            scenario: name,
+            phase,
+            name: error.name,
+            error: redactDiagnostic(error.message),
+            stack: redactDiagnostic(error.stack),
+            observedAt: new Date().toISOString(),
+          }),
         )
         page.on('request', request => {
           const url = new URL(request.url())
@@ -538,6 +636,8 @@ scenarioMatrix: for (const [engineName, engine] of [
             .catch(() => {})
         })
 
+        let messagesEvidence
+        let availabilityEvidence
         let readerEvidence
         let columnEvidence
         let errorRecoveryEvidence
@@ -589,10 +689,37 @@ scenarioMatrix: for (const [engineName, engine] of [
               )
             }
           }
+          if (authenticated) {
+            phase = 'messages'
+            messagesEvidence = await inspectMessages(page, name, locale)
+          }
           phase = 'profile'
-          await page.goto(base + '/profile/' + actor.did, {
-            waitUntil: 'domcontentloaded',
-          })
+          const availabilityResponse = authenticated
+            ? page.waitForResponse(
+                response =>
+                  new URL(response.url()).pathname ===
+                  '/xrpc/chat.bsky.convo.getConvoAvailability',
+              )
+            : Promise.resolve(null)
+          const [, availability] = await Promise.all([
+            page.goto(base + '/profile/' + actor.did, {
+              waitUntil: 'domcontentloaded',
+            }),
+            availabilityResponse,
+          ])
+          if (availability) {
+            assert.equal(
+              availability.status(),
+              200,
+              'Profile chat availability must load',
+            )
+            const body = await availability.json()
+            assert.equal(typeof body.canChat, 'boolean')
+            availabilityEvidence = {
+              status: availability.status(),
+              canChat: body.canChat,
+            }
+          }
           await withinViewport(page, 'profileView')
           await withinViewport(page, 'postText')
           await noHorizontalOverflow(page)
@@ -673,6 +800,8 @@ scenarioMatrix: for (const [engineName, engine] of [
             passed: true,
             authenticated,
             columnEvidence,
+            messagesEvidence,
+            availabilityEvidence,
             readerEvidence,
             errorRecoveryEvidence,
           })
@@ -706,6 +835,8 @@ scenarioMatrix: for (const [engineName, engine] of [
             phase,
             authenticated,
             columnEvidence,
+            messagesEvidence,
+            availabilityEvidence,
             readerEvidence,
             errorRecoveryEvidence,
             error: String(error).replaceAll(testPassword, '[redacted]'),
@@ -759,6 +890,14 @@ assert.equal(
 assert.ok(
   scenarios.every(scenario => scenario.passed),
   'Responsive UI scenarios failed',
+)
+const failedChatResponses = httpErrors.filter(entry =>
+  new URL(entry.url).pathname.startsWith('/xrpc/chat.bsky.'),
+)
+assert.equal(
+  failedChatResponses.length,
+  0,
+  'Chat endpoints returned failures: ' + JSON.stringify(failedChatResponses),
 )
 assert.equal(errors.length, 0, 'Client JavaScript errors occurred')
 assert.equal(
