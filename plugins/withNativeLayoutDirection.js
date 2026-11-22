@@ -25,7 +25,11 @@ function updateAppDelegate(contents, language) {
     )
   }
   if (contents.includes(marker)) {
-    return contents
+    // Migrate previously generated Swift when prebuild reuses the native tree.
+    return contents.replace(
+      'i18nUtil.swapLeftAndRightInRTL(false)',
+      'i18nUtil.swapLeftAndRight(inRTL: false)',
+    )
   }
   if (!/^(?:(?:internal|public) )?import React\r?$/m.test(contents)) {
     contents = 'import React\n' + contents
@@ -36,7 +40,7 @@ function updateAppDelegate(contents, language) {
     '    if let i18nUtil = RCTI18nUtil.sharedInstance() {',
     '      i18nUtil.allowRTL(true)',
     '      i18nUtil.forceRTL(false)',
-    '      i18nUtil.swapLeftAndRightInRTL(false)',
+    '      i18nUtil.swapLeftAndRight(inRTL: false)',
     '    }',
     '',
   ].join('\n')
