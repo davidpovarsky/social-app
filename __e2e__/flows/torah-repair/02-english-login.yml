@@ -4,6 +4,10 @@ appId: ${APP_ID}
 name: Change Hebrew to English in the app and navigate back
 ---
 - tapOn: "חזור"
+- extendedWaitUntil:
+    visible:
+      id: createAccountButton
+    timeout: 30000
 - tapOn:
     id: createAccountButton
 - extendedWaitUntil:

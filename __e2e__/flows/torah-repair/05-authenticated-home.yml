@@ -20,8 +20,8 @@ name: Existing fixture logs in through the default Torah provider and loads real
 # Never reveal the field or put the password in Maestro environment/arguments.
 - longPressOn:
     id: loginPasswordInput
-- assertVisible: '^(הדבק|Paste)$'
-- tapOn: '^(הדבק|Paste)$'
+- assertVisible: '^(הדבק|הדבקה|Paste)$'
+- tapOn: '^(הדבק|הדבקה|Paste)$'
 - copyTextFrom:
     id: loginPasswordInput
 - evalScript: ${console.log("TORAH_QA_SECURE_MASK_BEFORE_HIDE_LENGTH=" + maestro.copiedText.length)}
