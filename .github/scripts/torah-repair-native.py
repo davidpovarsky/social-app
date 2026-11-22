@@ -873,9 +873,267 @@ def exercise_device(family, device_type, runtime, app, executable, account):
     return result
 
 
+# Diagnostic-only public channel probe. Never derive or accept a credential.
+PUBLIC_CLIPBOARD_CANARY = b"TorahQA-Canary2026"
+CANARY_COMMAND_TIMEOUT_SECONDS = 15
+CANARY_STAGE_OPERATIONS = {
+    "help_pbcopy": "pbcopy", "help_pbpaste": "pbpaste",
+    "copy_canary": "pbcopy", "read_canary": "pbpaste",
+    "clear_canary": "pbcopy", "verify_clear": "pbpaste",
+}
+
+
+class ClipboardCanaryFailure(RuntimeError):
+    def __init__(self, stage, reason):
+        self.stage = stage
+        self.reason = reason
+        super().__init__(f"Public clipboard canary command failed: {stage}/{reason}")
+
+
+def canary_numeric_code(value):
+    return value if type(value) is int and -(2 ** 31) <= value < 2 ** 31 else None
+
+
+def canary_stderr_metadata(value):
+    """Return fixed markers/numeric codes only; never return error text."""
+    result = {"stderr_marker": "none", "stderr_domain": None, "stderr_code": None}
+    if not isinstance(value, bytes) or not value:
+        return result
+    result["stderr_marker"] = "unclassified"
+    lowered = value.lower()
+    markers = (
+        ("device_not_booted", (b"not booted", b"current state: shutdown")),
+        ("invalid_device", (b"invalid device",)),
+        ("unsupported_operation", (b"unknown command", b"unrecognized command", b"not supported")),
+        ("usage", (b"usage: simctl",)),
+        ("service_connection", (b"connection refused", b"connection invalid", b"couldn't communicate", b"service unavailable")),
+        ("reported_timeout", (b"timed out",)),
+    )
+    for marker, needles in markers:
+        if any(needle in lowered for needle in needles):
+            result["stderr_marker"] = marker
+            break
+    # Names are emitted only from this fixed public allowlist. The arbitrary
+    # stderr stream, paths, pasteboard data and exception messages stay private.
+    domains = (
+        "NSPOSIXErrorDomain", "NSCocoaErrorDomain",
+        "com.apple.CoreSimulator.SimError",
+    )
+    for domain in domains:
+        match = re.search(
+            rb"domain=" + re.escape(domain.encode("ascii")) + rb",\s*code=(-?[0-9]{1,10})(?:\D|$)",
+            value,
+        )
+        if match:
+            code = canary_numeric_code(int(match.group(1)))
+            if code is not None:
+                result["stderr_domain"], result["stderr_code"] = domain, code
+            break
+    return result
+
+
+def run_canary_command(udid, stage, records):
+    """Run only this owned device's fixed public probe/help, with no raw logs."""
+    require_owned_simulator(udid)
+    if stage not in CANARY_STAGE_OPERATIONS or not isinstance(records, list):
+        raise ValueError("Unsupported public canary stage")
+    if len(PUBLIC_CLIPBOARD_CANARY) != 18 or not PUBLIC_CLIPBOARD_CANARY.isascii():
+        raise RuntimeError("Public canary shape differs")
+    operation = CANARY_STAGE_OPERATIONS[stage]
+    is_help = stage.startswith("help_")
+    args = (
+        ["xcrun", "simctl", "help", operation]
+        if is_help else ["xcrun", "simctl", operation, udid]
+    )
+    payload = (
+        PUBLIC_CLIPBOARD_CANARY if stage == "copy_canary"
+        else b"" if stage == "clear_canary" else None
+    )
+    record = {
+        "sequence": len(records), "stage": stage, "operation": operation,
+        "category": "public-command-help" if is_help else "owned-public-pasteboard-canary",
+        "process_timeout_seconds": CANARY_COMMAND_TIMEOUT_SECONDS,
+        "started_epoch_seconds": round(time.time(), 3),
+        "status": "failed", "reason": "not_completed",
+        "timed_out": False, "returncode": None, "os_errno": None,
+        "stdout_bytes": None, "stderr_bytes": None,
+        "stderr_marker": "none", "stderr_domain": None, "stderr_code": None,
+    }
+    records.append(record)
+    started = time.monotonic()
+    try:
+        try:
+            process = subprocess.run(
+                args, input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                timeout=CANARY_COMMAND_TIMEOUT_SECONDS, check=False,
+            )
+        except subprocess.TimeoutExpired as error:
+            record["timed_out"], record["reason"] = True, "timeout"
+            record["stdout_bytes"] = len(error.stdout) if isinstance(error.stdout, bytes) else None
+            record["stderr_bytes"] = len(error.stderr) if isinstance(error.stderr, bytes) else None
+            record.update(canary_stderr_metadata(error.stderr))
+            raise ClipboardCanaryFailure(stage, "timeout") from None
+        except OSError as error:
+            record["reason"], record["os_errno"] = "os_error", canary_numeric_code(error.errno)
+            raise ClipboardCanaryFailure(stage, "os_error") from None
+        except subprocess.SubprocessError:
+            record["reason"] = "subprocess_error"
+            raise ClipboardCanaryFailure(stage, "subprocess_error") from None
+        record["returncode"] = canary_numeric_code(process.returncode)
+        record["stdout_bytes"] = len(process.stdout) if isinstance(process.stdout, bytes) else None
+        record["stderr_bytes"] = len(process.stderr) if isinstance(process.stderr, bytes) else None
+        record.update(canary_stderr_metadata(process.stderr))
+        if type(process.returncode) is not int or not isinstance(process.stdout, bytes) or not isinstance(process.stderr, bytes):
+            record["reason"] = "invalid_process_result"
+            raise ClipboardCanaryFailure(stage, "invalid_process_result") from None
+        if process.returncode != 0:
+            record["reason"] = "nonzero_exit"
+            raise ClipboardCanaryFailure(stage, "nonzero_exit") from None
+        record["status"], record["reason"] = "passed", "completed"
+        return (process.stdout, process.stderr) if is_help else process.stdout
+    finally:
+        record["elapsed_seconds"] = round(time.monotonic() - started, 3)
+
+
+def capture_canary_help(udid, operation, folder, records):
+    """Only fixed help-command output may enter the public help-text writer."""
+    if operation not in ("pbcopy", "pbpaste"):
+        raise ValueError("Unsupported help operation")
+    outputs = run_canary_command(udid, "help_" + operation, records)
+    if not isinstance(outputs, tuple) or len(outputs) != 2 or not all(isinstance(value, bytes) for value in outputs):
+        raise ClipboardCanaryFailure("help_" + operation, "invalid_help_result")
+    failures = []
+    # Prefer recognized stdout; otherwise consider recognized stderr from the
+    # SAME fixed public-help subprocess. No probe stream reaches this helper.
+    for source_stream, output in zip(("stdout", "stderr"), outputs):
+        if len(output) > 16384:
+            failures.append((bool(output), "help_output_exceeds_bound"))
+            continue
+        try:
+            text = output.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            failures.append((bool(output), "help_output_not_utf8"))
+            continue
+        if re.search(r"(?im)^usage:\s+simctl\s+" + operation + r"(?:\s|$)", text) is None:
+            failures.append((bool(output), "help_contract_unrecognized"))
+            continue
+        safe = redact(text)
+        (folder / ("simctl-help-" + operation + ".txt")).write_text(safe, encoding="utf-8")
+        return {
+            "operation": operation, "status": "captured",
+            "bytes": len(safe.encode("utf-8")), "source_stream": source_stream,
+        }
+    reason = next((reason for nonempty, reason in failures if nonempty), "help_contract_unrecognized")
+    raise ClipboardCanaryFailure("help_" + operation, reason)
+
+
+def exercise_public_clipboard_canary(udid, folder):
+    """One copy/readback, then mandatory clear/readback; no retries or auth."""
+    require_owned_simulator(udid)
+    folder.mkdir(parents=True, exist_ok=True)
+    report = {
+        "schema": 1, "mode": "diagnostic-only-public-pasteboard-canary",
+        "acceptance_eligible": False, "payload_is_public": True,
+        "expected_length": 18, "expected_utf8_bytes": 18,
+        "readback_utf8_bytes": None, "readback_matches": False,
+        "cleanup_attempted": False, "cleanup_verified": False,
+        "primary_failure": None, "cleanup_failure": None,
+        "commands": [], "help": [], "status": "failed",
+    }
+    started = time.monotonic()
+    stage = "help_pbcopy"
+    try:
+        for operation in ("pbcopy", "pbpaste"):
+            stage = "help_" + operation
+            report["help"].append(capture_canary_help(udid, operation, folder, report["commands"]))
+        stage = "copy_canary"
+        run_canary_command(udid, stage, report["commands"])
+        stage = "read_canary"
+        readback = run_canary_command(udid, stage, report["commands"])
+        report["readback_utf8_bytes"] = len(readback)
+        report["readback_matches"] = readback == PUBLIC_CLIPBOARD_CANARY
+        del readback
+        if not report["readback_matches"]:
+            raise ClipboardCanaryFailure(stage, "readback_mismatch")
+    except ClipboardCanaryFailure as error:
+        report["primary_failure"] = {"stage": error.stage, "reason": error.reason}
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+        report["primary_failure"] = {"stage": stage, "reason": "unexpected_internal_error"}
+    finally:
+        report["cleanup_attempted"] = True
+        stage = "clear_canary"
+        try:
+            run_canary_command(udid, stage, report["commands"])
+            stage = "verify_clear"
+            remaining = run_canary_command(udid, stage, report["commands"])
+            report["cleanup_verified"] = remaining == b""
+            del remaining
+            if not report["cleanup_verified"]:
+                raise ClipboardCanaryFailure(stage, "cleanup_mismatch")
+        except ClipboardCanaryFailure as error:
+            report["cleanup_failure"] = {"stage": error.stage, "reason": error.reason}
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+            report["cleanup_failure"] = {"stage": stage, "reason": "unexpected_internal_error"}
+        report["status"] = "passed" if (
+            report["primary_failure"] is None and report["readback_matches"]
+            and report["cleanup_failure"] is None and report["cleanup_verified"]
+        ) else "failed"
+        report["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        (folder / "clipboard-canary.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    return report
+
+
+def exercise_canary_device(device_type, runtime):
+    """Owned simulator lifecycle only; do not install/launch Torah or Maestro."""
+    folder = OUT / "iphone"
+    folder.mkdir(parents=True, exist_ok=True)
+    result = {
+        "family": "iPhone", "type": device_type["name"], "status": "failed",
+        "phases": [], "canary_status": "not_started", "acceptance_eligible": False,
+        "setup_failure": None, "cleanup_failures": [],
+    }
+    started = time.monotonic()
+    udid = None
+    stage = "create"
+    try:
+        created = run([
+            "xcrun", "simctl", "create", f"TorahClipboardCanary-{os.getpid()}",
+            device_type["identifier"], runtime["identifier"],
+        ], folder / "create.log").strip()
+        if re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", created) is None:
+            raise RuntimeError("Created simulator did not return an exact UUID")
+        udid = created
+        OWNED_SIMULATOR_DEVICES.add(udid)
+        require_owned_simulator(udid)
+        stage = "boot"
+        run(["xcrun", "simctl", "boot", udid], folder / "boot.log")
+        stage = "bootstatus"
+        wait_for_boot(udid, folder / "bootstatus.log", "initial")
+        stage = "public_clipboard_canary"
+        report = exercise_public_clipboard_canary(udid, folder / "clipboard-canary")
+        result["canary_status"] = report["status"]
+        result["status"] = report["status"]
+    except (AssertionError, OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+        result["setup_failure"] = {"stage": stage, "reason": "owned_simulator_setup_failed"}
+    finally:
+        if udid:
+            for label in ("shutdown", "delete"):
+                try:
+                    run(["xcrun", "simctl", label, udid], folder / (label + ".log"), 60)
+                except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+                    result["cleanup_failures"].append({"stage": label, "reason": "owned_simulator_cleanup_failed"})
+                    result["status"] = "failed"
+            OWNED_SIMULATOR_DEVICES.discard(udid)
+            COLD_BOOT_DEVICES.discard(udid)
+        result["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        (folder / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+        sanitize_artifacts()
+    return result
+
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    account = existing_fixture()
     app = Path(os.environ["TORAH_SIMULATOR_APP"])
     with (app / "Info.plist").open("rb") as stream:
         info = plistlib.load(stream)
@@ -885,41 +1143,43 @@ def main():
         raise RuntimeError("Release app is missing its embedded JavaScript bundle")
     inventory = json.loads(run(["xcrun", "simctl", "list", "-j"], OUT / "runtime-inventory.json"))
     runtime = select_runtime(inventory, diagnostic=True, minimum_os_version=info.get("MinimumOSVersion"))
-    results = []
     report = {
         "sha": os.environ.get("TORAH_SIMULATOR_SOURCE_SHA", os.environ.get("GITHUB_SHA")),
         "harness_sha": os.environ.get("GITHUB_SHA"),
         "runtime": runtime["name"], "app_id": APP_ID,
-        "mode": "diagnostic-only-native-password-paste",
-        "acceptance_eligible": False,
+        "mode": "diagnostic-only-owned-simulator-pasteboard-canary",
+        "acceptance_eligible": False, "payload_is_public": True,
+        "expected_flow_executions": 0, "attempted_flow_phases": 0,
+        "passed_flow_phases": 0, "cold_start_allowances_used": 0,
+        "maestro_process_seconds": 0,
+        "fixture_derived": False, "account_login_attempted": False,
+        "app_installed_or_launched_by_driver": False,
         "controlled_runtime_comparison": {
             "target": {**DIAGNOSTIC_RUNTIME, "isAvailable": True},
             "actual": {key: runtime[key] for key in ("identifier", "version", "buildversion", "isAvailable")},
             "app_minimum_os_version": info["MinimumOSVersion"],
             "required_device_types": DIAGNOSTIC_DEVICE_TYPES,
         },
-        "expected_flow_executions": 2,
-        "started": time.time(), "devices": results,
+        "started": time.time(), "devices": [],
     }
-    for family in ("iPhone",):
-        results.append(exercise_device(family, select_device_type(inventory, runtime, family), runtime, app, info["CFBundleExecutable"], account))
-        timings = [json.loads(path.read_text()) for path in OUT.glob("*/**/process-timing.json")]
-        report["diagnostic_outcome"] = "login_succeeded" if all(item["status"] == "passed" for item in results) else "login_not_confirmed"
-        report["attempted_flow_phases"] = sum(len(item["phases"]) for item in results)
-        report["passed_flow_phases"] = sum(phase["status"] == "passed" for item in results for phase in item["phases"])
-        report["elapsed_seconds"] = round(time.time() - report["started"], 3)
-        report["cold_start_allowances_used"] = sum(item["first_test_after_boot"] for item in timings)
-        report["maestro_process_seconds"] = round(sum(item["elapsed_seconds"] for item in timings), 3)
-        (OUT / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2))
+    report["devices"].append(exercise_canary_device(select_device_type(inventory, runtime, "iPhone"), runtime))
+    report["diagnostic_outcome"] = (
+        "public_clipboard_channel_passed"
+        if all(item["status"] == "passed" for item in report["devices"])
+        else "public_clipboard_channel_failed"
+    )
+    report["elapsed_seconds"] = round(time.time() - report["started"], 3)
+    (OUT / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    sanitize_artifacts()
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-            summary.write("## DIAGNOSTIC ONLY: native secure login paste\n\n")
-            summary.write(f"Compiled app source: `{report['sha']}`; harness source: `{report['harness_sha']}`; runtime: {runtime['name']}; Maestro 2.12.1.\n\n")
-            for result in results:
-                summary.write(f"- **{result['family']} ({result['type']}): {result['status']}**\n")
-            summary.write("\nThis disposable diagnostic runs only fresh Hebrew login layout and the existing authenticated-home flow on one iPhone. It preserves their UI assertions and time budgets, but does not exercise the full language, legacy, iPad, composer, source or discard matrix. Read diagnostic_outcome in summary.json. This driver is not eligible for Native acceptance or merging as the full suite, and exits nonzero even when login succeeds.\n")
-    print(f"DIAGNOSTIC ONLY: {report['diagnostic_outcome']}; full Native acceptance not evaluated", flush=True)
-    return 1  # A successful experiment must never be mistaken for full acceptance.
+            summary.write("## DIAGNOSTIC ONLY: public simulator clipboard canary\n\n")
+            summary.write(f"Outcome: {report['diagnostic_outcome']}; runtime: {runtime['name']}.\n\n")
+            summary.write("One owned iPhone simulator and a fixed public18-byte ASCII canary. No fixture derivation, password entry, account login, Torah launch or Maestro flow was attempted. This environment check cannot establish authentication or full Native acceptance and always exits nonzero.\n")
+    print(f"DIAGNOSTIC ONLY: {report['diagnostic_outcome']}; no auth or Native acceptance", flush=True)
+    return 1
+
+
 
 
 if __name__ == "__main__":
