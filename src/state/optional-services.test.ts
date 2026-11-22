@@ -148,6 +148,8 @@ describe('configured optional workers', () => {
       json: () => Promise.resolve(response),
     })
     const {resolve} = await import('#/geolocation/service')
+    // The first call starts prefetching; a later startup call waits for it.
+    await resolve()
     await resolve()
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -160,3 +162,5 @@ describe('configured optional workers', () => {
     )
   })
 })
+
+export {}

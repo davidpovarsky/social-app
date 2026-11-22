@@ -1,5 +1,7 @@
-import {StyleSheet, type TextStyle} from 'react-native'
+import {type TextStyle} from 'react-native'
 import {describe, expect, it} from '@jest/globals'
+
+import {flatten} from '#/alf/util/flatten'
 
 import {
   getPhysicalTextAlignStyle,
@@ -97,7 +99,7 @@ describe.each<Direction>(['ltr', 'rtl'])(
 )
 
 it('normalizes nested caller direction while retaining explicit LTR alignment', () => {
-  const style = StyleSheet.flatten<TextStyle>([
+  const style = flatten<TextStyle>([
     [{direction: 'rtl', textAlign: 'center'}],
     getRichTextDirectionStyle('123 🦋'),
   ])

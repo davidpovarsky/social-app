@@ -30,6 +30,15 @@ jest.mock('#/env', () =>
 )
 jest.mock('#/lib/hooks/useOpenLink', () => ({useOpenLink: () => mockOpenLink}))
 
+// Source dialogs have separate coverage; these tests exercise ordinary gallery
+// metadata and keep the real RichText parser and link rendering.
+jest.mock('#/torah-social/sources/TorahInlineLink', () => ({
+  TorahInlineLink: () => null,
+}))
+jest.mock('#/torah-social/sources/TorahRichTextBlocks', () => ({
+  TorahRichTextBlocks: () => null,
+}))
+
 jest.mock('@lingui/react', () => {
   const fill = (message: string, values: Record<string, unknown> = {}) =>
     message.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key]))
