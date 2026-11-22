@@ -57,7 +57,101 @@ async function runTests() {
   console.log('   ✓ ברכות ב ע"א: Exact resolved source is #1.')
 
   console.log('4. Testing searchTorahSources("ברכות ב")...')
-  const resBerakhot2 = await searchTorahSources('ברכות ב')
+  const resBerakhot2 = await (async () => {
+    const refLabels = new Map([
+      ['ברכות ב', 'parent-daf'],
+      ['Berakhot 2a', 'amud-a'],
+      ['Berakhot 2b', 'amud-b'],
+    ].map(([ref, label]) => [
+      'https://www.sefaria.org/api/ref/' + encodeURIComponent(ref),
+      label,
+    ]))
+    const safeRef = value =>
+      typeof value === 'string' &&
+      /^[\p{L}\p{N}][\p{L}\p{N}\p{M} _.'״׳:(),\/-]{0,159}$/u.test(value) &&
+      !value.includes('://') &&
+      !/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(value)
+        ? value
+        : '[unavailable-ref]'
+    const record = fields => {
+      try {
+        console.log('   [Torah test 4] ' + JSON.stringify(fields))
+      } catch {
+        // Diagnostic output must not replace the original result or error.
+      }
+    }
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async function (...args) {
+      const label = refLabels.get(typeof args[0] === 'string' ? args[0] : '')
+      if (!label) return Reflect.apply(originalFetch, this, args)
+      let response
+      try {
+        response = await Reflect.apply(originalFetch, this, args)
+      } catch (error) {
+        record({ref: label, phase: 'fetch', error: 'fetch_error'})
+        throw error
+      }
+      const contentType = response.headers.get('content-type')
+      record({
+        ref: label,
+        phase: 'http',
+        status: response.status,
+        content_type:
+          contentType == null ||
+          (contentType.length <= 160 &&
+            /^[a-z0-9.+-]+\/[a-z0-9.+-]+(?:;\s*charset=(?:"[a-z0-9_.-]+"|[a-z0-9_.-]+))?$/i.test(contentType))
+            ? contentType
+            : '[unavailable-content-type]',
+      })
+      if (!response.ok) return response
+      const originalJson = response.json
+      const ownJson = Object.getOwnPropertyDescriptor(response, 'json')
+      try {
+        Object.defineProperty(response, 'json', {
+          configurable: true,
+          writable: true,
+          value: async function (...jsonArgs) {
+            try {
+              const data = await Reflect.apply(originalJson, this, jsonArgs)
+              record({
+                ref: label,
+                phase: 'json',
+                canonical_ref: safeRef(data?.normalized || data?.ref || data?.url_ref),
+                is_ref: typeof data?.is_ref === 'boolean' ? data.is_ref : null,
+              })
+              return data
+            } catch (error) {
+              record({ref: label, phase: 'json', error: 'json_error'})
+              throw error
+            } finally {
+              try {
+                if (ownJson) Object.defineProperty(response, 'json', ownJson)
+                else delete response.json
+              } catch {
+                record({ref: label, phase: 'observer', error: 'json_restore_error'})
+              }
+            }
+          },
+        })
+      } catch {
+        record({ref: label, phase: 'observer', error: 'json_observer_unavailable'})
+      }
+      return response
+    }
+    try {
+      const result = await searchTorahSources('ברכות ב')
+      record({
+        phase: 'result',
+        candidate_keys: Array.isArray(result)
+          ? result.slice(0, 20).map(item => safeRef(item?.key))
+          : ['[unavailable-result]'],
+        result_count: Array.isArray(result) ? result.length : null,
+      })
+      return result
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })()
   assert.strictEqual(resBerakhot2[0].exact, true, 'Must be exact')
   assert.strictEqual(resBerakhot2[0].key, 'Berakhot 2', 'Must be Berakhot 2')
   const keysBer2 = resBerakhot2.map(r => r.key)
