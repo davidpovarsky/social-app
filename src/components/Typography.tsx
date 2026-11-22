@@ -2,7 +2,7 @@ import {createContext, useContext} from 'react'
 import {UITextView} from '@bsky.app/react-native-uitextview'
 
 import {getInterfaceTextDirectionStyle} from '#/lib/strings/text-direction'
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
+import {TextDirectionContext} from '#/locale/textDirectionContext'
 import {logger} from '#/logger'
 import {atoms as a, type TextStyleProp, useAlf, useTheme, web} from '#/alf'
 import {
@@ -34,7 +34,7 @@ export function Text({
   ...rest
 }: TextProps) {
   const isTextDescendant = useContext(NativeTextAncestorContext)
-  const appDirection = useAppLayoutDirection()
+  const appDirection = useContext(TextDirectionContext)
   const {fonts, flags} = useAlf()
   const t = useTheme()
   const s = normalizeTextStyles(
@@ -51,9 +51,10 @@ export function Text({
       flags,
     },
   )
-  const directionStyle = isTextDescendant
-    ? undefined
-    : getInterfaceTextDirectionStyle(appDirection, s)
+  const directionStyle =
+    !isTextDescendant && appDirection
+      ? getInterfaceTextDirectionStyle(appDirection, s)
+      : undefined
 
   if (__DEV__) {
     if (!emoji && childHasEmoji(children)) {

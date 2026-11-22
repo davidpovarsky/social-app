@@ -1,12 +1,11 @@
 import {StyleSheet, type TextStyle} from 'react-native'
-import {beforeEach, describe, expect, it, jest} from '@jest/globals'
+import {describe, expect, it, jest} from '@jest/globals'
 import {render} from '@testing-library/react-native'
 
 import {getRichTextDirectionStyle} from '#/lib/strings/text-direction.native'
+import {TextDirectionContext} from '#/locale/textDirectionContext'
 import * as TextField from '#/components/forms/TextField'
 import {Text} from '#/components/Typography'
-
-let mockAppDirection: 'ltr' | 'rtl' = 'rtl'
 
 function mockFlatten(style: unknown): Record<string, unknown> {
   if (Array.isArray(style)) {
@@ -33,9 +32,9 @@ jest.mock('#/env', () => ({IS_NATIVE: true, IS_WEB: false}))
 jest.mock('#/logger', () => ({logger: {warn: jest.fn()}}))
 jest.mock('#/lib/constants', () => ({HITSLOP_20: {}}))
 jest.mock('#/lib/merge-refs', () => ({mergeRefs: () => () => {}}))
-jest.mock('#/locale/layoutDirection', () => ({
-  useAppLayoutDirection: () => mockAppDirection,
-}))
+jest.mock('#/locale/layoutDirection', () => {
+  throw new Error('Text primitives must not import language preferences')
+})
 jest.mock('#/lib/strings/text-direction', () =>
   jest.requireActual('#/lib/strings/text-direction.native'),
 )
@@ -61,10 +60,6 @@ jest.mock('#/alf/typography', () => ({
   renderChildrenWithEmoji: (children: unknown) => children,
 }))
 
-beforeEach(() => {
-  mockAppDirection = 'rtl'
-})
-
 function Form({style}: {style?: TextStyle}) {
   return (
     <>
@@ -85,11 +80,18 @@ function Form({style}: {style?: TextStyle}) {
 
 describe('native interface text during language changes', () => {
   it('updates the existing heading, label, and input through Hebrew, English, and Hebrew', () => {
-    const view = render(<Form />)
+    const view = render(
+      <TextDirectionContext value="rtl">
+        <Form />
+      </TextDirectionContext>,
+    )
 
     for (const direction of ['rtl', 'ltr', 'rtl'] as const) {
-      mockAppDirection = direction
-      view.rerender(<Form />)
+      view.rerender(
+        <TextDirectionContext value={direction}>
+          <Form />
+        </TextDirectionContext>,
+      )
 
       const expected = {
         direction: 'ltr',
@@ -116,14 +118,22 @@ describe('native interface text during language changes', () => {
   ])(
     'preserves explicit heading and input styles %p while the app language changes',
     style => {
-      const view = render(<Form style={style} />)
+      const view = render(
+        <TextDirectionContext value="rtl">
+          <Form style={style} />
+        </TextDirectionContext>,
+      )
       for (const direction of ['rtl', 'ltr'] as const) {
-        mockAppDirection = direction
-        view.rerender(<Form style={style} />)
+        view.rerender(
+          <TextDirectionContext value={direction}>
+            <Form style={style} />
+          </TextDirectionContext>,
+        )
         for (const id of ['heading', 'input']) {
           const actual = StyleSheet.flatten<TextStyle>(
             view.getByTestId(id).props.style,
           )
+          if (!actual) throw new Error(`Missing rendered style for ${id}`)
           expect(actual).toMatchObject(style)
           expect(actual.direction).toBe(style.direction)
           expect(actual.writingDirection).toBe(style.writingDirection)
@@ -145,16 +155,14 @@ describe('native interface text during language changes', () => {
           </Text>
         </Text>
       )
-      const view = render(content)
+      const view = render(
+        <TextDirectionContext value="rtl">{content}</TextDirectionContext>,
+      )
       for (const direction of ['rtl', 'ltr'] as const) {
-        mockAppDirection = direction
         view.rerender(
-          <Text testID="paragraph" style={paragraphStyle}>
-            {text}
-            <Text testID="nested" style={{fontWeight: 'bold'}}>
-              mixed suffix
-            </Text>
-          </Text>,
+          <TextDirectionContext value={direction}>
+            {content}
+          </TextDirectionContext>,
         )
         expect(
           StyleSheet.flatten(view.getByTestId('paragraph').props.style),
@@ -162,6 +170,7 @@ describe('native interface text during language changes', () => {
         const nested = StyleSheet.flatten<TextStyle>(
           view.getByTestId('nested').props.style,
         )
+        if (!nested) throw new Error('Missing rendered nested text style')
         expect(nested.direction).toBeUndefined()
         expect(nested.writingDirection).toBeUndefined()
         expect(nested.textAlign).toBeUndefined()
@@ -172,16 +181,31 @@ describe('native interface text during language changes', () => {
 
   it('preserves an explicit nested span alignment', () => {
     const view = render(
-      <Text style={getRichTextDirectionStyle('עברית')}>
-        <Text testID="nested" style={{textAlign: 'center'}}>
-          centered suffix
+      <TextDirectionContext value="rtl">
+        <Text style={getRichTextDirectionStyle('עברית')}>
+          <Text testID="nested" style={{textAlign: 'center'}}>
+            centered suffix
+          </Text>
         </Text>
-      </Text>,
+      </TextDirectionContext>,
     )
     expect(
       StyleSheet.flatten(view.getByTestId('nested').props.style),
     ).toMatchObject({
       textAlign: 'center',
     })
+  })
+
+  it('retains inherited defaults when rendered outside the app provider', () => {
+    const view = render(<Form />)
+    for (const id of ['heading', 'input']) {
+      const actual = StyleSheet.flatten<TextStyle>(
+        view.getByTestId(id).props.style,
+      )
+      if (!actual) throw new Error(`Missing rendered style for ${id}`)
+      expect(actual.direction).toBeUndefined()
+      expect(actual.writingDirection).toBeUndefined()
+      expect(actual.textAlign).toBeUndefined()
+    }
   })
 })

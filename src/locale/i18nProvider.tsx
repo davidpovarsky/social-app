@@ -7,6 +7,7 @@ import {type Locale} from 'date-fns'
 import {IS_WEB} from '#/env'
 import {useLocaleLanguage} from './i18n'
 import {useAppLayoutDirection} from './layoutDirection'
+import {TextDirectionContext} from './textDirectionContext'
 
 const DateLocaleContext = createContext<Locale | undefined>(undefined)
 DateLocaleContext.displayName = 'DateLocaleContext'
@@ -20,7 +21,9 @@ export default function I18nProvider({children}: {children: React.ReactNode}) {
         <View
           {...(IS_WEB ? {dir: direction} : {})}
           style={{flex: 1, direction}}>
-          {children}
+          <TextDirectionContext value={direction}>
+            {children}
+          </TextDirectionContext>
         </View>
       </DefaultI18nProvider>
     </DateLocaleContext>

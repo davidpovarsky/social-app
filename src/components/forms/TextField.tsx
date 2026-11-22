@@ -12,7 +12,7 @@ import {
 import {HITSLOP_20} from '#/lib/constants'
 import {mergeRefs} from '#/lib/merge-refs'
 import {getInterfaceTextDirectionStyle} from '#/lib/strings/text-direction'
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
+import {TextDirectionContext} from '#/locale/textDirectionContext'
 import {
   applyFonts,
   atoms as a,
@@ -187,7 +187,7 @@ export function createInput(Component: typeof TextInput) {
   }: InputProps) {
     const t = useTheme()
     const {fonts} = useAlf()
-    const appDirection = useAppLayoutDirection()
+    const appDirection = useContext(TextDirectionContext)
     const ctx = useContext(Context)
     const withinRoot = Boolean(ctx.inputRef)
 
@@ -243,10 +243,9 @@ export function createInput(Component: typeof TextInput) {
     }
 
     applyFonts(flattened, fonts.family)
-    const directionStyle = getInterfaceTextDirectionStyle(
-      appDirection,
-      flattened,
-    )
+    const directionStyle = appDirection
+      ? getInterfaceTextDirectionStyle(appDirection, flattened)
+      : undefined
 
     if (flattened.fontSize) {
       flattened.fontSize = Math.round(
