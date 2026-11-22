@@ -72,6 +72,10 @@ import {
 
 // The app-wide mock of `multiformats/cid` can't tell a CID from anything else.
 jest.unmock('multiformats/cid')
+jest.mock('#/env', () => ({
+  ...jest.requireActual<typeof import('#/env')>('#/env'),
+  TORAH_ISOLATED_NETWORK: false,
+}))
 jest.mock('#/state/preferences/languages', () => ({
   getAppLanguageAsContentLanguage: () => '',
   getContentLanguages: () => [],

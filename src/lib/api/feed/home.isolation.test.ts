@@ -5,12 +5,14 @@ import {app} from '#/lexicons'
 import {HomeFeedAPI as LegacyHomeFeedAPI} from './home'
 
 let mockIsolated = true
-jest.mock('#/env', () => ({
-  ...jest.requireActual<typeof import('#/env')>('#/env'),
-  get TORAH_ISOLATED_NETWORK() {
-    return mockIsolated
-  },
-}))
+jest.mock('#/env', () => {
+  const env = {...jest.requireActual<typeof import('#/env')>('#/env')}
+  // Define the getter after copying exports so object spread cannot snapshot it.
+  Object.defineProperty(env, 'TORAH_ISOLATED_NETWORK', {
+    get: () => mockIsolated,
+  })
+  return env
+})
 jest.mock('#/state/preferences/languages', () => ({
   getAppLanguageAsContentLanguage: () => '',
   getContentLanguages: () => [],
@@ -42,7 +44,9 @@ describe.each([
         }
         return Promise.resolve({feed})
       })
-      const api = new HomeFeedAPI({client: {call} as unknown as Client})
+      const api = new HomeFeedAPI({
+        client: {did: 'did:plc:viewer', call} as unknown as Client,
+      })
 
       const response = await api.fetch({cursor: undefined, limit: 30})
 
@@ -58,10 +62,18 @@ describe.each([
 
   it('paginates the timeline and stops at its own end', async () => {
     const call = jest
-      .fn()
+      .fn(
+        (
+          _method: unknown,
+          _params: {cursor?: string; limit: number},
+        ): Promise<app.bsky.feed.getTimeline.$OutputBody> =>
+          Promise.resolve({feed: []}),
+      )
       .mockResolvedValueOnce({cursor: 'timeline-next', feed: [post('first')]})
       .mockResolvedValueOnce({feed: [post('last')]})
-    const api = new HomeFeedAPI({client: {call} as unknown as Client})
+    const api = new HomeFeedAPI({
+      client: {did: 'did:plc:viewer', call} as unknown as Client,
+    })
 
     const first = await api.fetch({cursor: undefined, limit: 30})
     const last = await api.fetch({cursor: first.cursor, limit: 30})
@@ -78,7 +90,9 @@ describe.each([
   it('preserves real timeline errors instead of returning an empty success', async () => {
     const failure = new Error('Timeline unavailable')
     const call = jest.fn().mockRejectedValue(failure)
-    const api = new HomeFeedAPI({client: {call} as unknown as Client})
+    const api = new HomeFeedAPI({
+      client: {did: 'did:plc:viewer', call} as unknown as Client,
+    })
 
     await expect(api.fetch({cursor: undefined, limit: 30})).rejects.toBe(
       failure,
@@ -88,7 +102,9 @@ describe.each([
 
   it('checks for new posts with getTimeline', async () => {
     const call = jest.fn().mockResolvedValue({feed: [post('latest')]})
-    const api = new HomeFeedAPI({client: {call} as unknown as Client})
+    const api = new HomeFeedAPI({
+      client: {did: 'did:plc:viewer', call} as unknown as Client,
+    })
 
     await expect(api.peekLatest()).resolves.toEqual(post('latest'))
     expect(call).toHaveBeenCalledWith(app.bsky.feed.getTimeline, {limit: 1})

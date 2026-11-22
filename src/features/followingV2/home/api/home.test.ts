@@ -3,6 +3,10 @@ import {type Client} from '@atproto/lex'
 import {app} from '#/lexicons'
 import {FALLBACK_MARKER_POST, HomeFeedAPI} from './home'
 
+jest.mock('#/env', () => ({
+  ...jest.requireActual<typeof import('#/env')>('#/env'),
+  TORAH_ISOLATED_NETWORK: false,
+}))
 jest.mock('#/state/preferences/languages', () => ({
   getAppLanguageAsContentLanguage: () => '',
   getContentLanguages: () => [],
