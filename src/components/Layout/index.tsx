@@ -1,5 +1,3 @@
-
-
 import {memo, useContext, useMemo} from 'react'
 import {
   type StyleProp,
@@ -13,8 +11,8 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
+
 import {useAppLayoutDirection} from '#/locale/layoutDirection'
-import {getShellLayout} from '#/components/Layout/direction'
 import {useEnableMinimalShellModeForScreen} from '#/state/shell'
 import {useShellLayout} from '#/state/shell/shell-layout'
 import {useIsWithinSplitView} from '#/screens/Messages/components/splitView/context'
@@ -29,6 +27,7 @@ import {shouldCenterNativeTabletContent} from '#/alf/breakpoints.shared'
 import {useDialogContext} from '#/components/Dialog'
 import {CENTER_COLUMN_WIDTH} from '#/components/Layout/const'
 import {ScrollbarOffsetContext} from '#/components/Layout/context'
+import {getShellLayout} from '#/components/Layout/direction'
 import {IS_IPAD, IS_WEB} from '#/env'
 
 export * from '#/components/Layout/const'

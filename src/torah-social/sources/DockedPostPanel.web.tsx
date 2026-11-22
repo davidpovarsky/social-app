@@ -1,12 +1,7 @@
 // On web the docked reader expands via its accessible handle; native adds pan gestures.
 
 import {memo, useCallback, useMemo, useState} from 'react'
-import {
-  Pressable,
-  ScrollView,
-  useWindowDimensions,
-  View,
-} from 'react-native'
+import {Pressable, ScrollView, useWindowDimensions, View} from 'react-native'
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -15,8 +10,9 @@ import Animated, {
 } from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {RichText as RichTextAPI} from '@bsky/sdk/richtext'
-import {useIsRTL} from '#/locale/layoutDirection'
+
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {POST_TOMBSTONE, usePostShadow} from '#/state/cache/post-shadow'
 import {PreviewableUserAvatar} from '#/view/com/util/UserAvatar'
 import {atoms as a, useTheme, web} from '#/alf'

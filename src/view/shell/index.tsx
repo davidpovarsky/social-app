@@ -1,5 +1,3 @@
-
-
 import {useCallback, useEffect} from 'react'
 import {BackHandler, useWindowDimensions, View} from 'react-native'
 import {Drawer} from 'react-native-drawer-layout'
@@ -9,13 +7,14 @@ import {StatusBar} from 'expo-status-bar'
 import {BottomSheetOutlet} from '@bsky.app/bottom-sheet'
 import {updateActiveViewAsync} from '@bsky.app/expo-bluesky-swiss-army/src/VisibilityView'
 import {useNavigation, useNavigationState} from '@react-navigation/native'
-import {useIsRTL} from '#/locale/layoutDirection'
+
 import {useDedupe} from '#/lib/hooks/useDedupe'
 import {useIntentHandler} from '#/lib/hooks/useIntentHandler'
 import {useNotificationsHandler} from '#/lib/hooks/useNotificationHandler'
 import {useOTAUpdateRecovery} from '#/lib/hooks/useOTAUpdates'
 import {useNotificationsRegistration} from '#/lib/notifications/notifications'
 import {isStateAtTabRoot} from '#/lib/routes/helpers'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {useDialogFullyExpandedCountContext} from '#/state/dialogs'
 import {useSession} from '#/state/session'
 import {

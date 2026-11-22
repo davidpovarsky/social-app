@@ -1,18 +1,13 @@
-
-
 import {createContext, useCallback, useContext} from 'react'
 import {type GestureResponderEvent, Keyboard, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
-import {
-  useAppLayoutDirection,
-  useIsRTL,
-} from '#/locale/layoutDirection'
-import {getShellLayout} from '#/components/Layout/direction'
+
 import {getHomeNavigationAction} from '#/lib/routes/navigation'
 import {type NavigationProp} from '#/lib/routes/types'
+import {useAppLayoutDirection, useIsRTL} from '#/locale/layoutDirection'
 import {useSetDrawerOpen} from '#/state/shell'
 import {useIsWithinSplitView} from '#/screens/Messages/components/splitView/context'
 import {
@@ -37,6 +32,7 @@ import {
   HEADER_SLOT_SIZE,
 } from '#/components/Layout/const'
 import {ScrollbarOffsetContext} from '#/components/Layout/context'
+import {getShellLayout} from '#/components/Layout/direction'
 import {Text} from '#/components/Typography'
 import {useAnalytics} from '#/analytics'
 import {IS_IOS} from '#/env'

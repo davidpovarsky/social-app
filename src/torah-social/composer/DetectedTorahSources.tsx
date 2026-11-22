@@ -1,7 +1,6 @@
-
-
 import {useEffect, useRef, useState} from 'react'
 import {Pressable, View} from 'react-native'
+
 import {useIsRTL} from '#/locale/layoutDirection'
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useTheme} from '#/alf'

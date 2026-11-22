@@ -1,7 +1,6 @@
-
-
 import {isRtl, sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {useLanguagePrefs} from '#/state/preferences'
+
 export type AppLayoutDirection = 'ltr' | 'rtl'
 
 /**

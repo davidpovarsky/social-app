@@ -1,7 +1,6 @@
-
-
 import {useEffect, useState} from 'react'
 import {View} from 'react-native'
+
 import {useIsRTL} from '#/locale/layoutDirection'
 import {ExternalEmbedRemoveBtn} from '#/view/com/composer/ExternalEmbedRemoveBtn'
 import {type EmbedDraft} from '#/view/com/composer/state/composer'

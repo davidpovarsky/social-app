@@ -1,5 +1,3 @@
-
-
 import {useCallback} from 'react'
 import {
   type LayoutChangeEvent,
@@ -18,6 +16,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import {scheduleOnRN, scheduleOnUI} from 'react-native-worklets'
 import {useLingui} from '@lingui/react/macro'
+
 import {
   type AppLayoutDirection,
   useAppLayoutDirection,
@@ -334,10 +333,7 @@ function TabBarInner({
           style={{direction: 'ltr'}}
           showsHorizontalScrollIndicator={false}
           ref={scrollElRef}
-          contentContainerStyle={[
-            styles.contentContainer,
-            {direction: 'ltr'},
-          ]}
+          contentContainerStyle={[styles.contentContainer, {direction: 'ltr'}]}
           onLayout={e => {
             containerSize.set(e.nativeEvent.layout.width)
           }}

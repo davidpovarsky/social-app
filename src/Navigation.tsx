@@ -1,5 +1,3 @@
-
-
 import {type JSX, useCallback, useEffect, useRef} from 'react'
 import * as Linking from 'expo-linking'
 import * as Notifications from 'expo-notifications'
@@ -18,7 +16,7 @@ import {
   NavigationContainer,
   StackActions,
 } from '@react-navigation/native'
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
+
 import {timeout} from '#/lib/async/timeout'
 import {useAccountSwitcher} from '#/lib/hooks/useAccountSwitcher'
 import {useColorSchemeStyle} from '#/lib/hooks/useColorSchemeStyle'
@@ -54,6 +52,7 @@ import {
   type SearchTabNavigatorParams,
 } from '#/lib/routes/types'
 import {bskyTitle} from '#/lib/strings/headings'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {emitSoftReset} from '#/state/events'
 import {useUnreadNotifications} from '#/state/queries/notifications/unread'
 import {useSession} from '#/state/session'

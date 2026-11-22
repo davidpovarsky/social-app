@@ -1,5 +1,3 @@
-
-
 import {
   forwardRef,
   useCallback,
@@ -42,8 +40,9 @@ import {
 import {type BottomSheetNativeComponent} from '@bsky.app/bottom-sheet/src/BottomSheetNativeComponent'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
+
 import {ScrollProvider} from '#/lib/ScrollContext'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {logger} from '#/logger'
 import {useA11y} from '#/state/a11y'
 import {useDialogStateControlContext} from '#/state/dialogs'

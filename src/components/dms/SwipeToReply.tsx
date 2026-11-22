@@ -1,5 +1,3 @@
-
-
 import {View} from 'react-native'
 import {type PanGesture, usePanGesture} from 'react-native-gesture-handler'
 import Animated, {
@@ -12,8 +10,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {scheduleOnRN} from 'react-native-worklets'
-import {useIsRTL} from '#/locale/layoutDirection'
+
 import {useHaptics} from '#/lib/haptics'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {atoms as a, tokens, useTheme} from '#/alf'
 import {ArrowCornerDownRight_Stroke2_Corner3_Rounded as ReplyIcon} from '#/components/icons/ArrowCornerDownRight'
 import {MESSAGE_BUBBLE_MAX_WIDTH} from './util'

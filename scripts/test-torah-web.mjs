@@ -39,12 +39,18 @@ for (const candidate of suggested.actors ?? []) {
     break
   }
 }
-assert.ok(actor, 'An existing local account with content is required for live content validation')
+assert.ok(
+  actor,
+  'An existing local account with content is required for live content validation',
+)
 const scenarios = []
 const errors = []
 const forbidden = []
 async function capture(page, name) {
-  await page.screenshot({path: path.join(output, name + '.png'), fullPage: true})
+  await page.screenshot({
+    path: path.join(output, name + '.png'),
+    fullPage: true,
+  })
 }
 async function withinViewport(page, testId) {
   const locator = page.getByTestId(testId).first()
@@ -83,7 +89,9 @@ for (const [engineName, engine] of [
           reducedMotion: 'reduce',
         })
         const page = await context.newPage()
-        page.on('pageerror', error => errors.push({scenario: name, error: error.message}))
+        page.on('pageerror', error =>
+          errors.push({scenario: name, error: error.message}),
+        )
         page.on('request', request => {
           const url = new URL(request.url())
           if (
@@ -137,8 +145,18 @@ const report = {
   errors,
   forbidden,
 }
-await fs.writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2))
+await fs.writeFile(
+  path.join(output, 'report.json'),
+  JSON.stringify(report, null, 2),
+)
 console.log(JSON.stringify(report))
-assert.ok(scenarios.every(scenario => scenario.passed), 'Responsive UI scenarios failed')
+assert.ok(
+  scenarios.every(scenario => scenario.passed),
+  'Responsive UI scenarios failed',
+)
 assert.equal(errors.length, 0, 'Client JavaScript errors occurred')
-assert.equal(forbidden.length, 0, 'Client contacted a public Bluesky runtime service')
+assert.equal(
+  forbidden.length,
+  0,
+  'Client contacted a public Bluesky runtime service',
+)

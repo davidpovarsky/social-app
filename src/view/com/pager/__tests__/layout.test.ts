@@ -1,6 +1,5 @@
-
-
 import {getTabBarItemScrollOffset} from '#/view/com/pager/layout'
+
 describe.each([false, true])('tab scrolling (RTL=%s)', rtl => {
   const widths = [130, 84, 180, 92, 150]
   const contentWidth = widths.reduce((sum, width) => sum + width, 0)

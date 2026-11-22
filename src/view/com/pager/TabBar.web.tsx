@@ -1,9 +1,8 @@
-
-
 import {useCallback, useEffect, useRef} from 'react'
 import {type ScrollView, StyleSheet, View} from 'react-native'
 import {type SharedValue} from 'react-native-reanimated'
 import {useLingui} from '@lingui/react/macro'
+
 import {useIsRTL} from '#/locale/layoutDirection'
 import {atoms as a, useBreakpoints, useTheme, web} from '#/alf'
 import {Text} from '#/components/Typography'

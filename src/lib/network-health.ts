@@ -9,10 +9,10 @@ export async function checkServiceHealth(
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetch(
-      `${service.replace(/\/$/, '')}/xrpc/_health`,
-      {cache: 'no-store', signal: controller.signal},
-    )
+    const response = await fetch(`${service.replace(/\/$/, '')}/xrpc/_health`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
     if (!response.ok) return false
     const data: unknown = await response.json()
     return (

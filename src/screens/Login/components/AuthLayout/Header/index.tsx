@@ -8,6 +8,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {useLingui} from '@lingui/react/macro'
 
 import {HITSLOP_30} from '#/lib/constants'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {Logomark} from '#/view/icons/Logomark'
 import {
   atoms as a,
@@ -17,7 +18,10 @@ import {
   useTheme,
 } from '#/alf'
 import {Button, ButtonIcon, type ButtonProps} from '#/components/Button'
-import {ArrowLeft_Stroke2_Corner0_Rounded as ArrowLeft} from '#/components/icons/Arrow'
+import {
+  ArrowLeft_Stroke2_Corner0_Rounded as ArrowLeft,
+  ArrowRight_Stroke2_Corner0_Rounded as ArrowRight,
+} from '#/components/icons/Arrow'
 import {
   BUTTON_VISUAL_ALIGNMENT_OFFSET,
   CENTER_COLUMN_WIDTH,
@@ -98,6 +102,7 @@ export function Logo() {
 }
 
 export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
+  const isRTL = useIsRTL()
   const {t: l} = useLingui()
   const navigation = useContext(AuthLayoutNavigationContext)
 
@@ -118,12 +123,12 @@ export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
         shape="round"
         hitSlop={HITSLOP_30}
         style={[
-          {marginLeft: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
+          {marginStart: -BUTTON_VISUAL_ALIGNMENT_OFFSET},
           a.bg_transparent,
           style,
         ]}
         {...props}>
-        <ButtonIcon icon={ArrowLeft} size="lg" />
+        <ButtonIcon icon={isRTL ? ArrowRight : ArrowLeft} size="lg" />
       </Button>
     </Slot>
   )

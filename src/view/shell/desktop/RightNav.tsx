@@ -1,14 +1,12 @@
-
-
 import {useEffect, useState} from 'react'
 import {View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
-import {getShellLayout} from '#/components/Layout/direction'
+
 import {FEEDBACK_FORM_URL, HELP_DESK_URL} from '#/lib/constants'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {useSession} from '#/state/session'
 import {useLogoVariant} from '#/view/icons/useLogoVariant'
 import {DesktopFeeds} from '#/view/shell/desktop/Feeds'
@@ -22,6 +20,7 @@ import {
   web,
 } from '#/alf'
 import {AppLanguageDropdown} from '#/components/AppLanguageDropdown'
+import {getShellLayout} from '#/components/Layout/direction'
 import {InlineLinkText} from '#/components/Link'
 import {ProgressGuideList} from '#/components/ProgressGuide/List'
 import {Text} from '#/components/Typography'

@@ -377,8 +377,7 @@ module.exports = function (_config) {
               deploymentTarget: '16.4',
               buildReactNativeFromSource: true,
               // CI explicitly opts in without changing normal release settings.
-              ccacheEnabled:
-                IS_DEV || process.env.TORAH_IOS_CCACHE === 'true',
+              ccacheEnabled: IS_DEV || process.env.TORAH_IOS_CCACHE === 'true',
               cxxLanguageStandard: 'c++23',
               extraPods: [
                 {

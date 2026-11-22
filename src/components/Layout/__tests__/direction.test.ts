@@ -1,7 +1,6 @@
-
-
 import {type AppLayoutDirection} from '#/locale/layoutDirection'
 import {getShellLayout} from '#/components/Layout/direction'
+
 /**
  * Resolve logical-start positioning to physical rectangles. These assertions
  * catch the original bug: RTL swapped the anchor without changing translateX.

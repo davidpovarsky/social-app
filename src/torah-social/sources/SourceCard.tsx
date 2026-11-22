@@ -1,8 +1,7 @@
-
-
 import {useEffect, useState} from 'react'
 import {Pressable, type StyleProp, View, type ViewStyle} from 'react-native'
 import {Image} from 'expo-image'
+
 import {useIsRTL} from '#/locale/layoutDirection'
 import {atoms as a, useTheme} from '#/alf'
 import * as Dialog from '#/components/Dialog'

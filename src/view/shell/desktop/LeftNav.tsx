@@ -1,5 +1,3 @@
-
-
 import {useCallback, useMemo, useState} from 'react'
 import {
   type GestureResponderEvent,
@@ -12,8 +10,7 @@ import {PlatformInfo} from '@bsky.app/expo-bluesky-swiss-army'
 import {plural} from '@lingui/core/macro'
 import {Trans, useLingui} from '@lingui/react/macro'
 import {useNavigation, useNavigationState} from '@react-navigation/native'
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
-import {getShellLayout} from '#/components/Layout/direction'
+
 import {UNREAD_NOTIFICATION_CAP} from '#/lib/constants'
 import {useAccountSwitcher} from '#/lib/hooks/useAccountSwitcher'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
@@ -32,6 +29,7 @@ import {
 } from '#/lib/routes/types'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {isInvalidHandle, sanitizeHandle} from '#/lib/strings/handles'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {emitSoftReset} from '#/state/events'
 import {useHomeBadge} from '#/state/home-badge'
 import {useFetchHandle} from '#/state/queries/handle'
@@ -100,6 +98,7 @@ import {
   UserCircle_Filled_Corner0_Rounded as UserCircleFilledIcon,
   UserCircle_Stroke2_Corner0_Rounded as UserCircleIcon,
 } from '#/components/icons/UserCircle'
+import {getShellLayout} from '#/components/Layout/direction'
 import * as Menu from '#/components/Menu'
 import * as Prompt from '#/components/Prompt'
 import {Text} from '#/components/Typography'

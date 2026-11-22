@@ -12,8 +12,6 @@
  * need to match layout but which aren't scrolled.
  */
 
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
-import {getShellLayout} from '#/components/Layout/direction'
 import {forwardRef} from 'react'
 import {
   type FlatListProps,
@@ -27,9 +25,11 @@ import Animated from 'react-native-reanimated'
 import {usePalette} from '#/lib/hooks/usePalette'
 import {useWebMediaQueries} from '#/lib/hooks/useWebMediaQueries'
 import {addStyle} from '#/lib/styles'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {useLayoutBreakpoints} from '#/alf'
 import {useDialogContext} from '#/components/Dialog'
 import {CENTER_COLUMN_WIDTH} from '#/components/Layout'
+import {getShellLayout} from '#/components/Layout/direction'
 
 interface AddedProps {
   desktopFixedHeight?: boolean | number
@@ -157,10 +157,9 @@ export const ScrollView = forwardRef(function ScrollViewImpl(
     )
   }
   if (centerColumnOffset) {
-    contentContainerStyle = addStyle(
-      contentContainerStyle,
-      {transform: [{translateX: layout.columnOffset}]},
-    )
+    contentContainerStyle = addStyle(contentContainerStyle, {
+      transform: [{translateX: layout.columnOffset}],
+    })
   }
   return (
     <Animated.ScrollView

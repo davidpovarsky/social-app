@@ -1,5 +1,3 @@
-
-
 import {
   type JSX,
   memo,
@@ -27,8 +25,9 @@ import Animated, {
 import {scheduleOnRN} from 'react-native-worklets'
 import {updateActiveVideoViewAsync} from '@bsky.app/video'
 import {useFocusEffect} from '@react-navigation/native'
-import {useAppLayoutDirection} from '#/locale/layoutDirection'
+
 import {usePagerFade} from '#/lib/hooks/usePagerFade'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {useSetDrawerSwipeDisabled} from '#/state/shell'
 import {atoms as a, native} from '#/alf'
 

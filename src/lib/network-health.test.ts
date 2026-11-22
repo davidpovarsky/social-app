@@ -45,7 +45,9 @@ it('aborts a stalled request and allows the next probe to recover', async () => 
   const fetchMock = jest.spyOn(global, 'fetch').mockImplementationOnce(
     (_input, init) =>
       new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+        init?.signal?.addEventListener('abort', () =>
+          reject(new Error('aborted')),
+        )
       }),
   )
   const stalled = checkServiceHealth(service, 100)

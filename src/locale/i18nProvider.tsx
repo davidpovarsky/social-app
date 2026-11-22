@@ -5,7 +5,6 @@ import {I18nProvider as DefaultI18nProvider} from '@lingui/react'
 import {type Locale} from 'date-fns'
 
 import {IS_WEB} from '#/env'
-
 import {useLocaleLanguage} from './i18n'
 import {useAppLayoutDirection} from './layoutDirection'
 

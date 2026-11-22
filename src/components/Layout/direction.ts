@@ -1,5 +1,3 @@
-
-
 import {type AppLayoutDirection} from '#/locale/layoutDirection'
 import {
   CENTER_COLUMN_OFFSET,
@@ -7,6 +5,7 @@ import {
   SCROLLBAR_OFFSET,
   SCROLLBAR_OFFSET_POSITIVE,
 } from '#/components/Layout/const'
+
 /**
  * Positions measured from logical start need physical transforms with the
  * matching sign. Yoga/RNW mirror start/end, but never translateX.
