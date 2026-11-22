@@ -78,6 +78,7 @@ function uiLabel(message, locale) {
 const scenarios = []
 const errors = []
 const forbidden = []
+const httpErrors = []
 async function capture(page, name) {
   await page.screenshot({
     path: path.join(output, name + '.png'),
@@ -85,15 +86,17 @@ async function capture(page, name) {
   })
 }
 async function withinViewport(page, testId) {
-  const locator = page.getByTestId(testId).first()
+  return withinLocatorViewport(page, page.getByTestId(testId).first(), testId)
+}
+async function withinLocatorViewport(page, locator, name) {
   await locator.waitFor({state: 'visible', timeout: 30000})
   const box = await locator.boundingBox()
-  assert.ok(box && box.width > 0, testId + ' must have a visible box')
+  assert.ok(box && box.width > 0, name + ' must have a visible box')
   const viewport = page.viewportSize()
-  assert.ok(box.x >= -2, testId + ' overflows the start edge: ' + box.x)
+  assert.ok(box.x >= -2, name + ' overflows the start edge: ' + box.x)
   assert.ok(
     box.x + box.width <= viewport.width + 2,
-    testId + ' overflows the end edge: ' + JSON.stringify(box),
+    name + ' overflows the end edge: ' + JSON.stringify(box),
   )
 }
 async function noHorizontalOverflow(page) {
@@ -133,11 +136,26 @@ for (const [engineName, engine] of [
             forbidden.push({scenario: name, url: url.origin + url.pathname})
           }
         })
+        page.on('response', response => {
+          if (response.status() < 400 || httpErrors.length >= 500) return
+          const request = response.request()
+          if (!['fetch', 'xhr'].includes(request.resourceType())) return
+          const url = new URL(response.url())
+          httpErrors.push({
+            scenario: name,
+            status: response.status(),
+            url: url.origin + url.pathname,
+          })
+        })
         let authenticated = false
         let phase = 'welcome'
         try {
           await page.goto(base, {waitUntil: 'domcontentloaded'})
-          await withinViewport(page, 'signInButton')
+          const welcomeSignIn = page.getByRole('dialog').getByRole('button', {
+            name: uiLabel('Sign in', locale),
+            exact: true,
+          })
+          await withinLocatorViewport(page, welcomeSignIn, 'welcomeSignIn')
           const expectedDir = locale.startsWith('he') ? 'rtl' : 'ltr'
           await page.waitForFunction(
             dir => document.documentElement.dir === dir,
@@ -146,14 +164,16 @@ for (const [engineName, engine] of [
           await noHorizontalOverflow(page)
           await capture(page, name + '-welcome')
           phase = 'login'
-          await page.getByTestId('signInButton').click()
+          await welcomeSignIn.click()
           await withinViewport(page, 'loginForm')
           await withinViewport(page, 'loginUsernameInput')
           await noHorizontalOverflow(page)
           await capture(page, name + '-login')
           if ([390, 820, 1280].includes(width)) {
             phase = 'authenticated-home'
-            await page.getByTestId('loginUsernameInput').fill(testActor.handle)
+            await page
+              .getByTestId('loginUsernameInput')
+              .fill(testActor.handle.split('.')[0])
             await page.getByTestId('loginPasswordInput').fill(testPassword)
             await page.getByTestId('loginNextButton').click()
             await withinViewport(page, 'HomeScreen')
@@ -220,11 +240,33 @@ for (const [engineName, engine] of [
             await capture(page, name + '-source-picker')
           }
           scenarios.push({name, passed: true, authenticated})
+          console.log(
+            JSON.stringify({scenario: name, passed: true, authenticated}),
+          )
         } catch (error) {
           await capture(page, name + '-failure').catch(() => {})
+          const visibleTestIds = await page
+            .locator('[data-testid]:visible')
+            .evaluateAll(elements =>
+              [
+                ...new Set(
+                  elements.map(element => element.getAttribute('data-testid')),
+                ),
+              ].slice(0, 80),
+            )
+            .catch(() => [])
+          console.log(
+            JSON.stringify({
+              scenario: name,
+              passed: false,
+              phase,
+              visibleTestIds,
+            }),
+          )
           scenarios.push({
             name,
             passed: false,
+            visibleTestIds,
             phase,
             authenticated,
             error: String(error).replaceAll(testPassword, '[redacted]'),
@@ -246,6 +288,7 @@ const report = {
   scenarios,
   errors,
   forbidden,
+  httpErrors,
 }
 await fs.writeFile(
   path.join(output, 'report.json'),
