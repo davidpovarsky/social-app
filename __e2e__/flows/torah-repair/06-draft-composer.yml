@@ -3,8 +3,18 @@ name: Mixed Hebrew and English unsaved composer stays inside the viewport
 ---
 - assertVisible:
     id: HomeScreen
-- tapOn:
-    id: composeFAB
+# Native iPad windows >= 800pt use the sidebar compose button instead of a FAB.
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR === 'true'}
+    commands:
+      - tapOn: 'כתוב פוסט חדש'
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR !== 'true'}
+    commands:
+      - tapOn:
+          id: composeFAB
 - extendedWaitUntil:
     visible:
       id: composerTextInput

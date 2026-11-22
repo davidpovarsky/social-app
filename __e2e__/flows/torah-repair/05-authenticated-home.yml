@@ -38,6 +38,16 @@ name: Existing fixture logs in through the default Torah provider and loads real
     visible:
       id: postText
     timeout: 60000
-- assertVisible:
-    id: composeFAB
+# Native iPad windows >= 800pt use the sidebar compose button instead of a FAB.
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR === 'true'}
+    commands:
+      - assertVisible: 'כתוב פוסט חדש'
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR !== 'true'}
+    commands:
+      - assertVisible:
+          id: composeFAB
 - takeScreenshot: 21-authenticated-hebrew-feed

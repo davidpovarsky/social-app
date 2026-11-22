@@ -31,6 +31,9 @@ PHASES = [
     ("03-hebrew-return", "he"),
     ("04-hebrew-persistence", "he"),
 ]
+# LeftNav accessibility label from the Hebrew catalog; FABs are hidden at 800pt.
+TABLET_COMPOSE_LABEL = "כתוב פוסט חדש"
+NATIVE_SIDEBAR_MIN_WIDTH = 800
 AUTH_PHASES = [
     ("05-authenticated-home", "home"),
     ("06-draft-composer", "composer"),
@@ -239,7 +242,12 @@ def assert_default_provider(tree, account):
     }
 
 
-def assert_authenticated_layout(tree, screen_name):
+def uses_native_sidebar(tree, family):
+    left, _, right, _ = bounds(tree)
+    return family == "iPad" and right - left >= NATIVE_SIDEBAR_MIN_WIDTH
+
+
+def assert_authenticated_layout(tree, screen_name, family):
     """Check actual visible native frames and content, without triggering actions."""
     screen = bounds(tree)
     left, top, right, bottom = screen
@@ -260,7 +268,19 @@ def assert_authenticated_layout(tree, screen_name):
 
     if screen_name == "home":
         inside(one_element(tree, "HomeScreen"), "HomeScreen")
-        inside(one_element(tree, "composeFAB"), "composeFAB")
+        if uses_native_sidebar(tree, family):
+            matches = [
+                node for node in tree_nodes(tree)
+                if TABLET_COMPOSE_LABEL in (
+                    node.get("attributes", {}).get("text"),
+                    node.get("attributes", {}).get("accessibilityText"),
+                )
+            ]
+            if len(matches) != 1:
+                raise AssertionError(f"Expected one tablet compose button; found {len(matches)}")
+            inside(matches[0], "tabletComposeButton")
+        else:
+            inside(one_element(tree, "composeFAB"), "composeFAB")
         posts = [
             node for node in tree_nodes(tree)
             if node.get("attributes", {}).get("resource-id") == "postText"
@@ -379,7 +399,9 @@ def exercise_device(family, device_type, runtime, app, executable, account):
         # a bare-username login. No phase changes the selected hosting provider.
         provider_dir = folder / "authenticated/default-provider"
         provider_dir.mkdir(parents=True, exist_ok=True)
-        provider = assert_default_provider(hierarchy(udid, provider_dir), account)
+        provider_tree = hierarchy(udid, provider_dir)
+        provider = assert_default_provider(provider_tree, account)
+        native_sidebar = uses_native_sidebar(provider_tree, family)
         (provider_dir / "default-provider.json").write_text(json.dumps(provider, indent=2))
         run(["xcrun", "simctl", "io", udid, "screenshot", provider_dir / "initial-provider.png"], provider_dir / "screenshot.log")
         for name, screen_name in AUTH_PHASES:
@@ -392,6 +414,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
                 "--debug-output", phase_dir / "debug",
                 "--test-output-dir", phase_dir / "artifacts",
                 "-e", f"APP_ID={APP_ID}",
+                "-e", f"NATIVE_SIDEBAR={str(native_sidebar).lower()}",
             ]
             # Supply credentials only to the login flow. No shell evaluation and
             # no account/session HTTP request or token persistence in this harness.
@@ -407,7 +430,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
             finally:
                 # Maestro's own debug JSON may include resolved env values.
                 sanitize_artifacts()
-            layout = assert_authenticated_layout(hierarchy(udid, phase_dir), screen_name)
+            layout = assert_authenticated_layout(hierarchy(udid, phase_dir), screen_name, family)
             (phase_dir / "layout-bounds.json").write_text(json.dumps(layout, ensure_ascii=False, indent=2))
             run(["xcrun", "simctl", "io", udid, "screenshot", phase_dir / "verified-screen.png"], phase_dir / "screenshot.log")
             phase["status"] = "passed"
