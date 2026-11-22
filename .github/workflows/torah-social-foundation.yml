@@ -10,6 +10,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      notify_live_activity:
+        description: 'Send Notify live-activity updates for this manual run'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -35,6 +41,7 @@ jobs:
       EXPO_PUBLIC_ENV: production
     steps:
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -44,6 +51,7 @@ jobs:
           github_token: ${{ github.token }}
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -56,6 +64,7 @@ jobs:
           version: 11.28.5
           run_install: false
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -68,6 +77,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -77,6 +87,7 @@ jobs:
           github_token: ${{ github.token }}
       - run: pnpm install --frozen-lockfile
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -87,6 +98,7 @@ jobs:
       - name: Compile locale catalogs
         run: pnpm intl:compile
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -110,6 +122,7 @@ jobs:
       - name: Apply isolated Torah network build config
         run: node scripts/torah-isolate-client.mjs
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -122,6 +135,7 @@ jobs:
       - name: Lint merged source
         run: pnpm lint
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -131,6 +145,7 @@ jobs:
           github_token: ${{ github.token }}
       - run: pnpm build-web
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -165,6 +180,7 @@ jobs:
       EXPO_PUBLIC_ENV: production
     steps:
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -174,6 +190,7 @@ jobs:
           github_token: ${{ github.token }}
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -186,6 +203,7 @@ jobs:
         with:
           xcode-version: '26.3'
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -198,6 +216,7 @@ jobs:
           version: 11.28.5
           run_install: false
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -210,6 +229,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -219,6 +239,7 @@ jobs:
           github_token: ${{ github.token }}
       - run: pnpm install --frozen-lockfile
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -227,6 +248,7 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -237,6 +259,7 @@ jobs:
       - name: Compile locale catalogs
         run: pnpm intl:compile
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -247,6 +270,7 @@ jobs:
       - name: Apply isolated Torah network build config
         run: node scripts/torah-isolate-client.mjs
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -259,6 +283,7 @@ jobs:
       - name: Generate native iOS project and install pods
         run: pnpm prebuild --platform ios
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -267,6 +292,7 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -315,6 +341,7 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             build
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
@@ -342,6 +369,7 @@ jobs:
           cd "$RUNNER_TEMP/ipa_pack"
           zip -r -y "$RUNNER_TEMP/TorahSocial-unsigned.ipa" Payload
       - name: Live Activity · refresh
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
         uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
