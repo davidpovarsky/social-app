@@ -40,9 +40,13 @@ async function fetchServiceDescription(
      */
     const client = createServiceClient(serviceUrl)
     const data = await Promise.race([
-      client.call(com.atproto.server.describeServer, undefined, {
-        signal: controller.signal,
-      }),
+      client.call(
+        com.atproto.server.describeServer,
+        {},
+        {
+          signal: controller.signal,
+        },
+      ),
       stopped,
     ])
     if (signal.aborted) throw signal.reason
