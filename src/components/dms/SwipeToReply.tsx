@@ -1,4 +1,6 @@
-import {I18nManager, View} from 'react-native'
+
+
+import {View} from 'react-native'
 import {type PanGesture, usePanGesture} from 'react-native-gesture-handler'
 import Animated, {
   clamp,
@@ -10,7 +12,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {scheduleOnRN} from 'react-native-worklets'
-
+import {useIsRTL} from '#/locale/layoutDirection'
 import {useHaptics} from '#/lib/haptics'
 import {atoms as a, tokens, useTheme} from '#/alf'
 import {ArrowCornerDownRight_Stroke2_Corner3_Rounded as ReplyIcon} from '#/components/icons/ArrowCornerDownRight'
@@ -70,7 +72,7 @@ export function SwipeToReply({
   const {threshold: playThresholdHaptic} = useHaptics()
   const isReducedMotion = useReducedMotion()
 
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   // In RTL, self messages are visually on the left, others' on the right.
   // In LTR, self messages are visually on the right, others' on the left.
   const isVisuallyOnRight = isRTL ? !isFromSelf : isFromSelf

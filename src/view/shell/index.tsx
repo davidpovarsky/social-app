@@ -1,5 +1,7 @@
+
+
 import {useCallback, useEffect} from 'react'
-import {BackHandler, I18nManager, useWindowDimensions, View} from 'react-native'
+import {BackHandler, useWindowDimensions, View} from 'react-native'
 import {Drawer} from 'react-native-drawer-layout'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {NavigationBar} from 'expo-navigation-bar'
@@ -7,7 +9,7 @@ import {StatusBar} from 'expo-status-bar'
 import {BottomSheetOutlet} from '@bsky.app/bottom-sheet'
 import {updateActiveViewAsync} from '@bsky.app/expo-bluesky-swiss-army/src/VisibilityView'
 import {useNavigation, useNavigationState} from '@react-navigation/native'
-
+import {useIsRTL} from '#/locale/layoutDirection'
 import {useDedupe} from '#/lib/hooks/useDedupe'
 import {useIntentHandler} from '#/lib/hooks/useIntentHandler'
 import {useNotificationsHandler} from '#/lib/hooks/useNotificationHandler'
@@ -134,7 +136,7 @@ function ShellInner() {
 
 function DrawerLayout({children}: {children: React.ReactNode}) {
   const t = useTheme()
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   const isDrawerOpen = useIsDrawerOpen()
   const setIsDrawerOpen = useSetDrawerOpen()
   const isDrawerSwipeDisabled = useIsDrawerSwipeDisabled()

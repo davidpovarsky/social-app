@@ -1,3 +1,5 @@
+
+
 import {
   type JSX,
   memo,
@@ -25,7 +27,7 @@ import Animated, {
 import {scheduleOnRN} from 'react-native-worklets'
 import {updateActiveVideoViewAsync} from '@bsky.app/video'
 import {useFocusEffect} from '@react-navigation/native'
-
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {usePagerFade} from '#/lib/hooks/usePagerFade'
 import {useSetDrawerSwipeDisabled} from '#/state/shell'
 import {atoms as a, native} from '#/alf'
@@ -72,6 +74,7 @@ export function Pager({
   onPageScrollStateChanged: parentOnPageScrollStateChanged,
   testID,
 }: React.PropsWithChildren<Props>) {
+  const direction = useAppLayoutDirection()
   const [selectedPage, setSelectedPage] = useState(initialPage)
   const pagerView = useRef<PagerView>(null)
 
@@ -163,9 +166,11 @@ export function Pager({
       })}
       <DrawerGestureRequireFail>
         <MemoizedAnimatedPagerView
+          key={direction}
+          layoutDirection={direction}
           ref={pagerView}
           style={[a.flex_1, pagerFade.style]}
-          initialPage={initialPage}
+          initialPage={selectedPage}
           onLayout={pagerFade.onLayout}
           onPageScroll={handlePageScroll}>
           {children}

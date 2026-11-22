@@ -6,10 +6,9 @@ import {
   useMemo,
   useState,
 } from 'react'
-import {AppState, I18nManager, Platform} from 'react-native'
+import {AppState, Platform} from 'react-native'
 
 import {getPreferredDeviceAppLanguage} from '#/locale/deviceLocales'
-import {isRtl} from '#/locale/helpers'
 import {type AppLanguage} from '#/locale/languages'
 import * as persisted from '#/state/persisted'
 import {AnalyticsContext, utils} from '#/analytics'
@@ -51,11 +50,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
     const hasChanged = prevSystem !== currentDeviceLang
 
     if (hasChanged) {
-      const nextLang = currentDeviceLang as AppLanguage
-      const nextIsRTL = isRtl(nextLang)
-      I18nManager.allowRTL(nextIsRTL)
-      I18nManager.forceRTL(nextIsRTL)
-
       const updated = {
         ...persistedPrefs,
         appLanguage: currentDeviceLang,
@@ -70,11 +64,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
       !persistedPrefs.customAppLanguage &&
       persistedPrefs.appLanguage !== currentDeviceLang
     ) {
-      const nextLang = currentDeviceLang as AppLanguage
-      const nextIsRTL = isRtl(nextLang)
-      I18nManager.allowRTL(nextIsRTL)
-      I18nManager.forceRTL(nextIsRTL)
-
       const updated = {
         ...persistedPrefs,
         appLanguage: currentDeviceLang,
@@ -107,11 +96,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
 
       if (hasChanged) {
         // System / Per-app language changed in iOS Settings
-        const nextLang = currentDeviceLang as AppLanguage
-        const nextIsRTL = isRtl(nextLang)
-        I18nManager.allowRTL(nextIsRTL)
-        I18nManager.forceRTL(nextIsRTL)
-
         return {
           ...current,
           appLanguage: currentDeviceLang,
@@ -125,11 +109,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
         !current.customAppLanguage &&
         current.appLanguage !== currentDeviceLang
       ) {
-        const nextLang = currentDeviceLang as AppLanguage
-        const nextIsRTL = isRtl(nextLang)
-        I18nManager.allowRTL(nextIsRTL)
-        I18nManager.forceRTL(nextIsRTL)
-
         return {
           ...current,
           appLanguage: currentDeviceLang,

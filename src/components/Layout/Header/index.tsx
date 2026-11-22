@@ -1,15 +1,16 @@
+
+
 import {createContext, useCallback, useContext} from 'react'
-import {
-  type GestureResponderEvent,
-  I18nManager,
-  Keyboard,
-  View,
-} from 'react-native'
+import {type GestureResponderEvent, Keyboard, View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
-
+import {
+  useAppLayoutDirection,
+  useIsRTL,
+} from '#/locale/layoutDirection'
+import {getShellLayout} from '#/components/Layout/direction'
 import {getHomeNavigationAction} from '#/lib/routes/navigation'
 import {type NavigationProp} from '#/lib/routes/types'
 import {useSetDrawerOpen} from '#/state/shell'
@@ -32,10 +33,8 @@ import {
 import {Menu_Stroke2_Corner0_Rounded as Menu} from '#/components/icons/Menu'
 import {
   BUTTON_VISUAL_ALIGNMENT_OFFSET,
-  CENTER_COLUMN_OFFSET,
   CENTER_COLUMN_WIDTH,
   HEADER_SLOT_SIZE,
-  SCROLLBAR_OFFSET,
 } from '#/components/Layout/const'
 import {ScrollbarOffsetContext} from '#/components/Layout/context'
 import {Text} from '#/components/Typography'
@@ -60,6 +59,7 @@ export function Outer({
   const {gtMobile} = useBreakpoints()
   const {isWithinOffsetView} = useContext(ScrollbarOffsetContext)
   const {centerColumnOffset} = useLayoutBreakpoints()
+  const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
   const {isWithinSplitView, isWithinLeftPanel} = useIsWithinSplitView()
   /*
    * Native headers sit 4px lower in their box to balance the status bar above
@@ -90,8 +90,8 @@ export function Outer({
         !isWithinOffsetView &&
           !isWithinSplitView && {
             transform: [
-              {translateX: centerColumnOffset ? CENTER_COLUMN_OFFSET : 0},
-              {translateX: web(SCROLLBAR_OFFSET) ?? 0},
+              {translateX: layout.columnOffset},
+              {translateX: web(layout.scrollbarOffset) ?? 0},
             ],
           },
       ]}>
@@ -148,7 +148,7 @@ export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
     [onPress, navigation],
   )
 
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
 
   return (
     <Slot>
@@ -212,7 +212,7 @@ export function TitleText({
   const {gtMobile} = useBreakpoints()
   const {isWithinLeftPanel} = useIsWithinSplitView()
   const align = useContext(AlignmentContext)
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   return (
     <Text
       style={[
@@ -236,7 +236,7 @@ export function TitleText({
 export function SubtitleText({children}: {children: React.ReactNode}) {
   const t = useTheme()
   const align = useContext(AlignmentContext)
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   return (
     <Text
       style={[

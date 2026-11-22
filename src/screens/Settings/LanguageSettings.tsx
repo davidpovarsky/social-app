@@ -1,5 +1,5 @@
 import {useCallback, useMemo, useState} from 'react'
-import {I18nManager, View} from 'react-native'
+import {View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {Trans} from '@lingui/react/macro'
@@ -8,7 +8,7 @@ import {
   type CommonNavigatorParams,
   type NativeStackScreenProps,
 } from '#/lib/routes/types'
-import {isRtl, languageName, sanitizeAppLanguageSetting} from '#/locale/helpers'
+import {languageName, sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {APP_LANGUAGES, LANGUAGES} from '#/locale/languages'
 import {useLanguagePrefs, useLanguagePrefsApi} from '#/state/preferences'
 import {atoms as a, web} from '#/alf'
@@ -69,9 +69,6 @@ export function LanguageSettingsScreen({}: Props) {
       if (langPrefs.appLanguage !== value) {
         const nextLang = sanitizeAppLanguageSetting(value)
         setLangPrefs.setAppLanguage(nextLang)
-        const nextIsRTL = isRtl(nextLang)
-        I18nManager.allowRTL(nextIsRTL)
-        I18nManager.forceRTL(nextIsRTL)
       }
     },
     [langPrefs, setLangPrefs],

@@ -13,7 +13,7 @@ import {I18nManager} from 'react-native'
 import {i18n} from '@lingui/core'
 import {enUS as defaultLocale} from 'date-fns/locale/en-US'
 
-import {isRtl, sanitizeAppLanguageSetting} from '#/locale/helpers'
+import {sanitizeAppLanguageSetting} from '#/locale/helpers'
 import {AppLanguage} from '#/locale/languages'
 import {messages as messagesAn} from '#/locale/locales/an/messages'
 import {messages as messagesAst} from '#/locale/locales/ast/messages'
@@ -60,14 +60,20 @@ import {messages as messagesZh_HK} from '#/locale/locales/zh-HK/messages'
 import {messages as messagesZh_TW} from '#/locale/locales/zh-TW/messages'
 import {useLanguagePrefs} from '#/state/preferences'
 
+/*
+ * Direction is set on the app root, navigation and native pagers. Clear the
+ * older persisted force flag and keep physical coordinates physical; otherwise
+ * native RTL swaps left/right without mirroring translateX, moving fixed
+ * columns outside the viewport. Logical start/end still follow root direction.
+ */
+I18nManager.allowRTL(true)
+I18nManager.forceRTL(false)
+I18nManager.swapLeftAndRightInRTL(false)
+
 /**
  * We do a dynamic import of just the catalog that we need
  */
 export async function dynamicActivate(locale: AppLanguage) {
-  const shouldBeRTL = isRtl(locale)
-  I18nManager.allowRTL(shouldBeRTL)
-  I18nManager.forceRTL(shouldBeRTL)
-
   switch (locale) {
     case AppLanguage.an: {
       i18n.loadAndActivate({locale, messages: messagesAn})

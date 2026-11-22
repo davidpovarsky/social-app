@@ -1,9 +1,12 @@
+
+
 import {useCallback} from 'react'
 import {View} from 'react-native'
 import {type ReanimatedScrollEvent} from 'react-native-reanimated/lib/typescript/hook/commonTypes'
 import {type ScreenLayoutArgs, useIsFocused} from '@react-navigation/native'
 import {type NativeStackNavigationProp} from '@react-navigation/native-stack'
-
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
+import {getShellLayout} from '#/components/Layout/direction'
 import {type FlatNavigatorParams} from '#/lib/routes/types'
 import {ScrollProvider} from '#/lib/ScrollContext'
 import {useChatActorStatusQuery} from '#/state/queries/messages/get-status'
@@ -12,7 +15,7 @@ import {LEFT_NAV_MINIMAL_WIDTH} from '#/view/shell/desktop/LeftNav'
 import {atoms as a, useLayoutBreakpoints, useTheme, web} from '#/alf'
 import {useDialogControl} from '#/components/Dialog'
 import {NewChat} from '#/components/dms/dialogs/NewChatDialog'
-import {CENTER_COLUMN_WIDTH, SCROLLBAR_OFFSET} from '#/components/Layout'
+import {CENTER_COLUMN_WIDTH} from '#/components/Layout'
 import {LockScroll} from '#/components/LockScroll'
 import {useAgeAssurance} from '#/ageAssurance'
 import {IS_WEB} from '#/env'
@@ -62,6 +65,7 @@ function MessagesSplitViewLayoutInner({
   route,
 }: LayoutProps) {
   const {centerColumnOffset} = useLayoutBreakpoints()
+  const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
   const newChatControl = useDialogControl()
   const t = useTheme()
   const isFocused = useIsFocused()
@@ -102,11 +106,11 @@ function MessagesSplitViewLayoutInner({
         {
           transform: [
             {
-              translateX: centerColumnOffset
-                ? halfLeftNavWidth
-                : halfLeftNavWidth / 2,
+              translateX:
+                layout.sign *
+                (centerColumnOffset ? halfLeftNavWidth : halfLeftNavWidth / 2),
             },
-            {translateX: web(SCROLLBAR_OFFSET) ?? 0},
+            {translateX: web(layout.scrollbarOffset) ?? 0},
           ],
         },
       ]}>

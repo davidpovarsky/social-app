@@ -1,7 +1,7 @@
 // On web the docked reader expands via its accessible handle; native adds pan gestures.
+
 import {memo, useCallback, useMemo, useState} from 'react'
 import {
-  I18nManager,
   Pressable,
   ScrollView,
   useWindowDimensions,
@@ -15,7 +15,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {RichText as RichTextAPI} from '@bsky/sdk/richtext'
-
+import {useIsRTL} from '#/locale/layoutDirection'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
 import {POST_TOMBSTONE, usePostShadow} from '#/state/cache/post-shadow'
 import {PreviewableUserAvatar} from '#/view/com/util/UserAvatar'
@@ -40,7 +40,7 @@ export function DockedPostPanel({
   const t = useTheme()
   const insets = useSafeAreaInsets()
   const {height: winHeight} = useWindowDimensions()
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
 
   const post = usePostShadow(initialPost)
   const isTombstone = post === POST_TOMBSTONE
@@ -154,8 +154,9 @@ export function DockedPostPanel({
         },
         web({
           maxWidth: 680,
-          left: '50%',
-          transform: [{translateX: '-50%'}],
+          start: '50%',
+          end: 'auto',
+          transform: [{translateX: isRTL ? '50%' : '-50%'}],
         }),
         panelAnimatedStyle,
       ]}>

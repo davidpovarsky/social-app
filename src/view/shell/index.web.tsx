@@ -1,10 +1,12 @@
+
+
 import {useCallback, useEffect, useLayoutEffect, useState} from 'react'
 import {StyleSheet, TouchableWithoutFeedback, View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
 import {RemoveScrollBar} from 'react-remove-scroll-bar'
-
+import {useIsRTL} from '#/locale/layoutDirection'
 import {useIntentHandler} from '#/lib/hooks/useIntentHandler'
 import {type NavigationProp} from '#/lib/routes/types'
 import {useSession} from '#/state/session'
@@ -91,6 +93,7 @@ function ShellInner() {
 }
 
 function DrawerLayout({children}: {children: React.ReactNode}) {
+  const isRTL = useIsRTL()
   const t = useTheme()
   const isDrawerOpen = useIsDrawerOpen()
   const setDrawerOpen = useSetDrawerOpen()
@@ -144,7 +147,13 @@ function DrawerLayout({children}: {children: React.ReactNode}) {
               <View
                 style={[
                   styles.drawerContainer,
-                  showDrawer ? a.slide_in_left : a.slide_out_left,
+                  isRTL
+                    ? showDrawer
+                      ? a.slide_in_right
+                      : a.slide_out_right
+                    : showDrawer
+                      ? a.slide_in_left
+                      : a.slide_out_left,
                 ]}>
                 <DrawerContent />
               </View>
@@ -193,13 +202,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     top: 0,
-    left: 0,
+    start: 0,
   },
   drawerContainer: {
     display: 'flex',
     ...a.fixed,
     top: 0,
-    left: 0,
+    start: 0,
     height: '100%',
     width: 330,
     maxWidth: '80%',

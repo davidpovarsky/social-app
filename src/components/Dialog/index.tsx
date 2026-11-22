@@ -1,3 +1,5 @@
+
+
 import {
   forwardRef,
   useCallback,
@@ -40,7 +42,7 @@ import {
 import {type BottomSheetNativeComponent} from '@bsky.app/bottom-sheet/src/BottomSheetNativeComponent'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
-
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {ScrollProvider} from '#/lib/ScrollContext'
 import {logger} from '#/logger'
 import {useA11y} from '#/state/a11y'
@@ -87,6 +89,7 @@ export function Outer({
   nativeOptions,
   testID,
 }: React.PropsWithChildren<DialogOuterProps>) {
+  const direction = useAppLayoutDirection()
   const themeName = useThemeName()
   const t = useTheme(themeName)
   const ref = useRef<BottomSheetNativeComponent>(null)
@@ -326,6 +329,7 @@ export function Outer({
                 testID={testID}
                 style={[
                   a.relative,
+                  {direction},
                   isHeightConstrained && [a.flex_1, android(a.flex_shrink)],
                   presentationMaxHeight != null && {
                     maxHeight: presentationMaxHeight,

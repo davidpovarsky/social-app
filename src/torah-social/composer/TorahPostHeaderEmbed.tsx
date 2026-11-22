@@ -1,6 +1,8 @@
-import {useEffect, useState} from 'react'
-import {I18nManager, View} from 'react-native'
 
+
+import {useEffect, useState} from 'react'
+import {View} from 'react-native'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {ExternalEmbedRemoveBtn} from '#/view/com/composer/ExternalEmbedRemoveBtn'
 import {type EmbedDraft} from '#/view/com/composer/state/composer'
 import {atoms as a, useTheme} from '#/alf'
@@ -21,7 +23,7 @@ export function TorahPostHeaderEmbed({
   onRemove: () => void
 }) {
   const t = useTheme()
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   const sourceRef =
     embed.link && isSefariaSourceUri(embed.link.uri)
       ? refFromSefariaUri(embed.link.uri)

@@ -1,3 +1,5 @@
+
+
 import {useCallback, useMemo, useState} from 'react'
 import {
   type GestureResponderEvent,
@@ -10,7 +12,8 @@ import {PlatformInfo} from '@bsky.app/expo-bluesky-swiss-army'
 import {plural} from '@lingui/core/macro'
 import {Trans, useLingui} from '@lingui/react/macro'
 import {useNavigation, useNavigationState} from '@react-navigation/native'
-
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
+import {getShellLayout} from '#/components/Layout/direction'
 import {UNREAD_NOTIFICATION_CAP} from '#/lib/constants'
 import {useAccountSwitcher} from '#/lib/hooks/useAccountSwitcher'
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
@@ -97,10 +100,6 @@ import {
   UserCircle_Filled_Corner0_Rounded as UserCircleFilledIcon,
   UserCircle_Stroke2_Corner0_Rounded as UserCircleIcon,
 } from '#/components/icons/UserCircle'
-import {
-  CENTER_COLUMN_OFFSET,
-  CENTER_COLUMN_WIDTH,
-} from '#/components/Layout/const'
 import * as Menu from '#/components/Menu'
 import * as Prompt from '#/components/Prompt'
 import {Text} from '#/components/Typography'
@@ -687,6 +686,7 @@ export function DesktopLeftNav({
     aa.state.access === aa.Access.Full
   const {leftNavMinimal: leftNavMinimalBreakpoint, centerColumnOffset} =
     useLayoutBreakpoints()
+  const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
   const numUnreadNotifications = useUnreadNotifications()
   const numUnreadMessages = useUnreadMessageCount()
   const moderationInboxUnreadCountQuery = useModerationInboxUnreadCountQuery()
@@ -853,16 +853,16 @@ export function DesktopLeftNav({
           transform: [
             {
               translateX:
-                -(CENTER_COLUMN_WIDTH / 2) +
-                (centerColumnOffset ? CENTER_COLUMN_OFFSET : 0) +
-                (!IS_NATIVE &&
-                isMessagesRelatedScreen &&
-                !leftNavMinimalBreakpoint
-                  ? LEFT_NAV_MINIMAL_WIDTH - LEFT_NAV_STANDARD_WIDTH
-                  : 0),
+                layout.startNavOffset +
+                layout.sign *
+                  (!IS_NATIVE &&
+                  isMessagesRelatedScreen &&
+                  !leftNavMinimalBreakpoint
+                    ? LEFT_NAV_MINIMAL_WIDTH - LEFT_NAV_STANDARD_WIDTH
+                    : 0),
             },
-            {translateX: '-100%'},
-            ...a.scrollbar_offset.transform,
+            {translateX: layout.startNavTranslate},
+            ...(!IS_NATIVE ? [{translateX: layout.scrollbarOffset}] : []),
           ],
         },
       ]}>
@@ -888,7 +888,7 @@ export function DesktopLeftNav({
 
 const styles = StyleSheet.create({
   leftNav: {
-    left: '50%',
+    start: '50%',
     width: LEFT_NAV_STANDARD_WIDTH,
   },
 })

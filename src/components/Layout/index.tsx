@@ -1,3 +1,5 @@
+
+
 import {memo, useContext, useMemo} from 'react'
 import {
   type StyleProp,
@@ -11,7 +13,8 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
-
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
+import {getShellLayout} from '#/components/Layout/direction'
 import {useEnableMinimalShellModeForScreen} from '#/state/shell'
 import {useShellLayout} from '#/state/shell/shell-layout'
 import {useIsWithinSplitView} from '#/screens/Messages/components/splitView/context'
@@ -24,11 +27,7 @@ import {
 } from '#/alf'
 import {shouldCenterNativeTabletContent} from '#/alf/breakpoints.shared'
 import {useDialogContext} from '#/components/Dialog'
-import {
-  CENTER_COLUMN_OFFSET,
-  CENTER_COLUMN_WIDTH,
-  SCROLLBAR_OFFSET,
-} from '#/components/Layout/const'
+import {CENTER_COLUMN_WIDTH} from '#/components/Layout/const'
 import {ScrollbarOffsetContext} from '#/components/Layout/context'
 import {IS_IPAD, IS_WEB} from '#/env'
 
@@ -195,6 +194,7 @@ export const Center = memo(function LayoutCenter({
   const {isWithinOffsetView} = useContext(ScrollbarOffsetContext)
   const {gtMobile} = useBreakpoints()
   const {centerColumnOffset} = useLayoutBreakpoints()
+  const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
   const {isWithinDialog} = useDialogContext()
   const {isWithinSplitView} = useIsWithinSplitView()
   const ctx = useMemo(() => ({isWithinOffsetView: true}), [])
@@ -214,10 +214,10 @@ export const Center = memo(function LayoutCenter({
                   centerColumnOffset &&
                   !ignoreTabletLayoutOffset &&
                   !isWithinDialog
-                    ? CENTER_COLUMN_OFFSET
+                    ? layout.columnOffset
                     : 0,
               },
-              {translateX: web(SCROLLBAR_OFFSET) ?? 0},
+              {translateX: web(layout.scrollbarOffset) ?? 0},
             ],
           },
         style,
@@ -237,6 +237,7 @@ const WebCenterBorders = memo(function LayoutWebCenterBorders() {
   const t = useTheme()
   const {gtMobile} = useBreakpoints()
   const {centerColumnOffset} = useLayoutBreakpoints()
+  const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
   return gtMobile ? (
     <View
       style={[
@@ -247,11 +248,12 @@ const WebCenterBorders = memo(function LayoutWebCenterBorders() {
         t.atoms.border_contrast_low,
         web({
           width: 602,
-          left: '50%',
+          start: '50%',
+          end: 'auto',
           transform: [
-            {translateX: '-50%'},
-            {translateX: centerColumnOffset ? CENTER_COLUMN_OFFSET : 0},
-            ...a.scrollbar_offset.transform,
+            {translateX: layout.centerTranslate},
+            {translateX: centerColumnOffset ? layout.columnOffset : 0},
+            {translateX: layout.scrollbarOffset},
           ],
         }),
       ]}

@@ -1,3 +1,5 @@
+
+
 import {useCallback} from 'react'
 import {
   type LayoutChangeEvent,
@@ -16,7 +18,11 @@ import Animated, {
 } from 'react-native-reanimated'
 import {scheduleOnRN, scheduleOnUI} from 'react-native-worklets'
 import {useLingui} from '@lingui/react/macro'
-
+import {
+  type AppLayoutDirection,
+  useAppLayoutDirection,
+} from '#/locale/layoutDirection'
+import {getTabBarItemScrollOffset} from '#/view/com/pager/layout'
 import {PressableWithHover} from '#/view/com/util/PressableWithHover'
 import {BlockDrawerGesture} from '#/view/shell/BlockDrawerGesture'
 import {atoms as a, useTheme} from '#/alf'
@@ -43,7 +49,12 @@ const CONTENT_PADDING = 6
 // when deciding whether to scroll into view on tap.
 const OFFSCREEN_ITEM_WIDTH = 20
 
-export function TabBar({
+export function TabBar(props: TabBarProps) {
+  const direction = useAppLayoutDirection()
+  return <TabBarInner key={direction} {...props} direction={direction} />
+}
+
+function TabBarInner({
   testID,
   selectedPage,
   items,
@@ -54,7 +65,8 @@ export function TabBar({
   dragProgress,
   dragState,
   transparent,
-}: TabBarProps) {
+  direction,
+}: TabBarProps & {direction: AppLayoutDirection}) {
   const t = useTheme()
   const scrollElRef = useAnimatedRef<ScrollView>()
   const syncScrollState = useSharedValue<'synced' | 'unsynced' | 'needs-sync'>(
@@ -82,28 +94,17 @@ export function TabBar({
   const indexToOffset = useCallback(
     (index: number) => {
       'worklet'
-      const layout = layouts.get()[index]
-      const availableSize = containerSize.get() - 2 * CONTENT_PADDING
-      const maxOffset = Math.max(0, contentSize.get() - availableSize)
-      if (!layout) {
-        // Should not happen, but fall back to equal sizes.
-        return itemsLength > 1 ? (index / (itemsLength - 1)) * maxOffset : 0
-      }
-      if (maxOffset === 0) {
-        return 0
-      }
-      const freeSpace = availableSize - layout.width
-      const accumulatingOffset = interpolate(
+      return getTabBarItemScrollOffset({
         index,
-        // Gradually shift every next item to the left so that the first item
-        // is positioned like "left: 0" but the last item is like "right: 0".
-        [0, itemsLength - 1],
-        [0, freeSpace],
-        'clamp',
-      )
-      return Math.min(Math.max(layout.x - accumulatingOffset, 0), maxOffset)
+        itemCount: itemsLength,
+        layout: layouts.get()[index],
+        contentWidth: contentSize.get(),
+        containerWidth: containerSize.get(),
+        contentPadding: CONTENT_PADDING,
+        rtl: direction === 'rtl',
+      })
     },
-    [itemsLength, contentSize, containerSize, layouts],
+    [itemsLength, contentSize, containerSize, layouts, direction],
   )
 
   const progressToOffset = useCallback(
@@ -330,9 +331,13 @@ export function TabBar({
         <ScrollView
           testID={`${testID}-selector`}
           horizontal={true}
+          style={{direction: 'ltr'}}
           showsHorizontalScrollIndicator={false}
           ref={scrollElRef}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            {direction: 'ltr'},
+          ]}
           onLayout={e => {
             containerSize.set(e.nativeEvent.layout.width)
           }}
@@ -348,7 +353,14 @@ export function TabBar({
             onLayout={e => {
               contentSize.set(e.nativeEvent.layout.width)
             }}
-            style={[styles.items, align === 'center' && styles.itemsCentered]}>
+            style={[
+              styles.items,
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
+              },
+              align === 'center' && styles.itemsCentered,
+            ]}>
             {items.map((item, i) => {
               return (
                 <TabBarItem

@@ -1,3 +1,5 @@
+
+
 import {type JSX, useCallback, useEffect, useRef} from 'react'
 import * as Linking from 'expo-linking'
 import * as Notifications from 'expo-notifications'
@@ -16,7 +18,7 @@ import {
   NavigationContainer,
   StackActions,
 } from '@react-navigation/native'
-
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {timeout} from '#/lib/async/timeout'
 import {useAccountSwitcher} from '#/lib/hooks/useAccountSwitcher'
 import {useColorSchemeStyle} from '#/lib/hooks/useColorSchemeStyle'
@@ -958,6 +960,7 @@ let didHandlePushNotificationEntry = false
 
 /** Wrap components that need access to the navigation context. */
 function RoutesContainer({children}: React.PropsWithChildren<{}>) {
+  const direction = useAppLayoutDirection()
   const ax = useAnalytics()
   // eslint-disable-next-line react-compiler/react-compiler
   const notyLogger = ax.logger.useChild(ax.logger.Context.Notifications)
@@ -1113,6 +1116,7 @@ function RoutesContainer({children}: React.PropsWithChildren<{}>) {
 
   return (
     <NavigationContainer
+      direction={direction}
       ref={navigationRef}
       linking={LINKING}
       theme={theme}

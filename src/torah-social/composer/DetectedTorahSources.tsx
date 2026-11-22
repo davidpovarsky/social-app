@@ -1,6 +1,8 @@
-import {useEffect, useRef, useState} from 'react'
-import {I18nManager, Pressable, View} from 'react-native'
 
+
+import {useEffect, useRef, useState} from 'react'
+import {Pressable, View} from 'react-native'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useTheme} from '#/alf'
 import {Text} from '#/components/Typography'
@@ -24,7 +26,7 @@ export function DetectedTorahSources({
   onSelectUri: (uri: string) => void
 }) {
   const t = useTheme()
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   const [items, setItems] = useState<DetectedTorahSource[]>([])
   const [expanded, setExpanded] = useState(false)
   const pendingInserts = useRef(new Set<string>())

@@ -1,8 +1,10 @@
+
+
 import {useCallback, useEffect, useRef} from 'react'
 import {type ScrollView, StyleSheet, View} from 'react-native'
 import {type SharedValue} from 'react-native-reanimated'
 import {useLingui} from '@lingui/react/macro'
-
+import {useIsRTL} from '#/locale/layoutDirection'
 import {atoms as a, useBreakpoints, useTheme, web} from '#/alf'
 import {Text} from '#/components/Typography'
 import {PressableWithHover} from '../util/PressableWithHover'
@@ -44,6 +46,7 @@ export function TabBar({
   onPressSelected,
 }: TabBarProps) {
   const t = useTheme()
+  const isRTL = useIsRTL()
   const {t: l} = useLingui()
   const scrollElRef = useRef<React.ComponentRef<typeof ScrollView>>(null)
   const itemRefs = useRef<Array<Element>>([])
@@ -161,6 +164,11 @@ export function TabBar({
                     <View
                       style={[
                         styles.itemIndicator,
+                        {
+                          transform: isRTL
+                            ? 'translateX(50%)'
+                            : 'translateX(-50%)',
+                        },
                         selected && {
                           backgroundColor: t.palette.primary_500,
                         },
@@ -196,7 +204,9 @@ export function TabBar({
 const desktopStyles = StyleSheet.create({
   outer: {
     flexDirection: 'row',
-    width: 600,
+    width: '100%',
+    maxWidth: 600,
+    minWidth: 0,
   },
   contentContainer: {
     flexGrow: 1,
@@ -222,8 +232,7 @@ const desktopStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     height: 3,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    start: '50%',
     minWidth: 45,
     width: '100%',
   },
@@ -265,8 +274,7 @@ const mobileStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     height: 3,
-    left: '50%',
-    transform: 'translateX(-50%)',
+    start: '50%',
     minWidth: 45,
     width: '100%',
   },

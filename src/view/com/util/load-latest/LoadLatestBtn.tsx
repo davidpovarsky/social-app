@@ -55,7 +55,7 @@ export function LoadLatestBtn({
       style={[
         a.fixed,
         a.z_20,
-        {left: 18},
+        {start: 18},
         isDesktop &&
           (isTallViewport
             ? styles.loadLatestOutOfLine
@@ -68,7 +68,7 @@ export function LoadLatestBtn({
          * Always inline on native: the native left nav is a scroll view drawn
          * above the screen, so it would swallow taps on the out-of-line spot.
          */
-        IS_NATIVE && (isTablet || isDesktop) && {left: windowWidth / 2 - 282},
+        IS_NATIVE && (isTablet || isDesktop) && {start: windowWidth / 2 - 282},
         bottomPosition,
         showBottomBar && fabMinimalShellTransform,
       ]}>
@@ -109,12 +109,12 @@ export function LoadLatestBtn({
 
 const styles = StyleSheet.create({
   loadLatestInline: {
-    left: web('calc(50vw - 282px)'),
+    start: web('calc(50vw - 282px)'),
   },
   loadLatestInlineOffset: {
-    left: web(`calc(50vw - 282px + ${CENTER_COLUMN_OFFSET}px)`),
+    start: web(`calc(50vw - 282px + ${CENTER_COLUMN_OFFSET}px)`),
   },
   loadLatestOutOfLine: {
-    left: web('calc(50vw - 382px)'),
+    start: web('calc(50vw - 382px)'),
   },
 })
