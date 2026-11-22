@@ -875,7 +875,7 @@ def exercise_device(family, device_type, runtime, app, executable, account):
 
 # Diagnostic-only public channel probe. Never derive or accept a credential.
 PUBLIC_CLIPBOARD_CANARY = b"TorahQA-Canary2026"
-CANARY_COMMAND_TIMEOUT_SECONDS = 15
+CANARY_COMMAND_TIMEOUT_SECONDS = 60
 CANARY_STAGE_OPERATIONS = {
     "help_pbcopy": "pbcopy", "help_pbpaste": "pbpaste",
     "copy_canary": "pbcopy", "read_canary": "pbpaste",
