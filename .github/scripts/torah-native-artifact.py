@@ -91,7 +91,7 @@ def runtime_fingerprint(repo, sha):
 
 def toolchain():
     require(platform.system() == "Darwin", "Simulator builds require macOS")
-    require(platform.machine() == "x86_64", "This workflow uses Intel simulators")
+    require(platform.machine() == "arm64", "This workflow uses ARM64 simulators")
     return {
         "system": platform.system(), "architecture": platform.machine(),
         "xcode": command("xcodebuild", "-version"),
@@ -105,8 +105,8 @@ def simulator_macho(path):
         header = stream.read(32)
         require(len(header) == 32, "Truncated Mach-O header")
         magic, cpu, _, _, count, size, _, _ = struct.unpack("<8I", header)
-        require(magic == 0xFEEDFACF and cpu == 0x01000007,
-                "Expected a thin x86_64 simulator executable")
+        require(magic == 0xFEEDFACF and cpu == 0x0100000C,
+                "Expected a thin arm64 simulator executable")
         require(size <= 16 * 1024 * 1024 and count <= 65536, "Invalid Mach-O commands")
         commands = stream.read(size)
     require(len(commands) == size, "Truncated Mach-O commands")
@@ -143,7 +143,7 @@ def app_identity(app):
     simulator_macho(binary)
     return {
         "root": app.name, "bundle_id": APP_ID, "device_families": [1, 2],
-        "architecture": "x86_64", "platform": "iphonesimulator",
+        "architecture": "arm64", "platform": "iphonesimulator",
         "version": info["CFBundleShortVersionString"], "build": info["CFBundleVersion"],
         "executable": executable, "executable_sha256": digest(binary),
         "jsbundle_sha256": digest(bundle),

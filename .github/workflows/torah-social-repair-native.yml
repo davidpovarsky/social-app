@@ -28,7 +28,7 @@ concurrency:
 jobs:
   simulator:
     name: Hebrew and English on iPhone and iPad
-    runs-on: macos-26-intel
+    runs-on: macos-26
     # Aggregate hard ceiling: 91m compile + 210m UI + 29m setup/archive/cleanup.
     # Individual subprocess maxima are not an additive runtime guarantee.
     timeout-minutes: 330
@@ -169,7 +169,7 @@ jobs:
             -configuration Release -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/TorahSimulatorDerivedData" \
-            ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" AD_HOC_CODE_SIGNING_ALLOWED=YES \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO COMPILER_INDEX_STORE_ENABLE=NO \

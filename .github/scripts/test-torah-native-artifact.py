@@ -24,7 +24,7 @@ from urllib.error import HTTPError
 SPEC = importlib.util.spec_from_file_location("native_artifact", Path(__file__).with_name("torah-native-artifact.py"))
 artifact = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(artifact)
-TOOLCHAIN = {"system": "Darwin", "architecture": "x86_64", "xcode": "Xcode 26.6\nBuild version fixture", "sdk": "26.6"}
+TOOLCHAIN = {"system": "Darwin", "architecture": "arm64", "xcode": "Xcode 26.6\nBuild version fixture", "sdk": "26.6"}
 
 
 class ArtifactTests(unittest.TestCase):
@@ -41,7 +41,8 @@ class ArtifactTests(unittest.TestCase):
         self.write("pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
         self.write("app.config.js", "module.exports = {}\n")
         self.write(".github/scripts/torah-repair-native.py", "# original harness\n")
-        self.write(artifact.WORKFLOW, "name: fixture\n# original compilation flags\n")
+        self.write(artifact.WORKFLOW, "name: fixture\njobs:\n  simulator:\n    runs-on: macos-26\n"
+                   "    steps:\n      - run: xcodebuild ARCHS=arm64\n")
         self.commit()
         self.sha = self.git("rev-parse", "HEAD")
         self.app = self.root / "TorahSocial.app"
@@ -53,7 +54,7 @@ class ArtifactTests(unittest.TestCase):
             "DTPlatformName": "iphonesimulator",
         }
         self.save_info()
-        binary = struct.pack("<8I", 0xFEEDFACF, 0x01000007, 3, 2, 1, 24, 0, 0)
+        binary = struct.pack("<8I", 0xFEEDFACF, 0x0100000C, 0, 2, 1, 24, 0, 0)
         binary += struct.pack("<6I", 0x32, 24, 7, 0x100400, 0x1A0600, 0)
         (self.app / "TorahSocial").write_bytes(binary)
         (self.app / "TorahSocial").chmod(0o755)
@@ -182,9 +183,40 @@ class ArtifactTests(unittest.TestCase):
             self.validate_manifest(environment=env)
 
     def test_sdk_or_architecture_change_requires_rebuild(self):
-        for key, value in (("sdk", "27.0"), ("architecture", "arm64"), ("xcode", "different")):
+        for key, value in (("sdk", "27.0"), ("architecture", "x86_64"), ("xcode", "different")):
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, "Xcode, SDK or architecture"):
                 self.validate_manifest(toolchain={**TOOLCHAIN, key: value})
+
+    def test_arm64_toolchain_host_is_required(self):
+        with patch.object(artifact.platform, "system", return_value="Darwin"), \
+             patch.object(artifact.platform, "machine", return_value="arm64"), \
+             patch.object(artifact, "command", side_effect=[TOOLCHAIN["xcode"], TOOLCHAIN["sdk"]]):
+            self.assertEqual(artifact.toolchain(), TOOLCHAIN)
+        for system, architecture in (("Darwin", "x86_64"), ("Darwin", "unknown"), ("Linux", "arm64")):
+            with self.subTest(system=system, architecture=architecture), \
+                 patch.object(artifact.platform, "system", return_value=system), \
+                 patch.object(artifact.platform, "machine", return_value=architecture), \
+                 patch.object(artifact, "command") as run_command:
+                with self.assertRaises(ValueError):
+                    artifact.toolchain()
+                run_command.assert_not_called()
+
+    def test_old_intel_manifest_cannot_be_reused_on_arm64(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["toolchain"]["architecture"] = "x86_64"
+        manifest["app"]["architecture"] = "x86_64"
+        with self.assertRaisesRegex(ValueError, "Xcode, SDK or architecture"):
+            self.validate_manifest(manifest=manifest)
+
+    def test_native_workflow_architecture_changes_require_rebuild(self):
+        original = (self.repo / artifact.WORKFLOW).read_text()
+        for old, new in (("runs-on: macos-26", "runs-on: macos-26-intel"),
+                         ("ARCHS=arm64", "ARCHS=x86_64")):
+            with self.subTest(changed_input=old):
+                self.write(artifact.WORKFLOW, original.replace(old, new))
+                self.commit()
+                with self.assertRaisesRegex(ValueError, "Runtime source"):
+                    self.validate_manifest()
 
     def test_source_and_run_provenance_must_match(self):
         for key, value in (("source_sha", "a" * 40), ("run_id", 99), ("run_attempt", 2), ("source_tree", "b" * 40),
@@ -268,11 +300,14 @@ class ArtifactTests(unittest.TestCase):
 
     def test_device_binary_or_wrong_cpu_is_refused(self):
         original = (self.app / "TorahSocial").read_bytes()
-        for offset, value in ((4, 0x0100000C), (40, 2)):
+        cases = (("old Intel simulator", 4, 0x01000007, "thin arm64"),
+                 ("ARM64 device", 40, 2, "iOS Simulator"),
+                 ("unknown CPU", 4, 0xDEADBEEF, "thin arm64"))
+        for name, offset, value, message in cases:
             data = bytearray(original)
             struct.pack_into("<I", data, offset, value)
             (self.app / "TorahSocial").write_bytes(data)
-            with self.subTest(offset=offset), self.assertRaises(ValueError):
+            with self.subTest(case=name), self.assertRaisesRegex(ValueError, message):
                 artifact.app_identity(self.app)
         (self.app / "TorahSocial").write_bytes(original)
 
