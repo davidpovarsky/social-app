@@ -82,7 +82,7 @@ describe('independent Torah network URLs', () => {
     expect(
       linkRequiresWarning(
         'https://torah.example/profile/alice.test',
-        'https://other.test',
+        'https://other.com',
       ),
     ).toBe(true)
   })

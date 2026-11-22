@@ -13,7 +13,7 @@ afterEach(() => {
 it('uses the configured AppView and releases the timeout after success', async () => {
   const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
-    json: async () => ({version: '1'}),
+    json: () => Promise.resolve({version: '1'}),
   } as Response)
   await expect(checkServiceHealth(service + '/')).resolves.toBe(true)
   expect(fetchMock).toHaveBeenCalledWith(
@@ -26,7 +26,7 @@ it('uses the configured AppView and releases the timeout after success', async (
 it('does not treat an error page as a healthy AppView', async () => {
   jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: false,
-    json: async () => ({version: '1'}),
+    json: () => Promise.resolve({version: '1'}),
   } as Response)
   await expect(checkServiceHealth(service)).resolves.toBe(false)
   expect(jest.getTimerCount()).toBe(0)
@@ -35,7 +35,7 @@ it('does not treat an error page as a healthy AppView', async () => {
 it('rejects malformed health responses without retaining a timer', async () => {
   jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
-    json: async () => ({}),
+    json: () => Promise.resolve({}),
   } as Response)
   await expect(checkServiceHealth(service)).resolves.toBe(false)
   expect(jest.getTimerCount()).toBe(0)
@@ -55,7 +55,7 @@ it('aborts a stalled request and allows the next probe to recover', async () => 
   await expect(stalled).resolves.toBe(false)
   fetchMock.mockResolvedValueOnce({
     ok: true,
-    json: async () => ({version: 'recovered'}),
+    json: () => Promise.resolve({version: 'recovered'}),
   } as Response)
   await expect(checkServiceHealth(service)).resolves.toBe(true)
   expect(jest.getTimerCount()).toBe(0)

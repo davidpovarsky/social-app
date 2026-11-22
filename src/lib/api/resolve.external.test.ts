@@ -3,6 +3,13 @@ import {afterEach, beforeEach, expect, jest, test} from '@jest/globals'
 import {type LinkResolvers, resolveLink} from '#/lib/api/resolve'
 import {type ComposerImage, type ImageMeta} from '#/state/gallery'
 
+// These upstream cases exercise the public Bluesky URL contract. Torah URL
+// isolation is covered separately by url-helpers-torah.test.ts.
+jest.mock('#/env', () => ({
+  ...jest.requireActual<object>('#/env'),
+  TORAH_ISOLATED_NETWORK: false,
+}))
+
 const mockPreviewSpan = {setAttribute: jest.fn(), end: jest.fn()}
 const mockMetadataSpan = {setAttribute: jest.fn(), end: jest.fn()}
 const mockThumbnailSpan = {setAttribute: jest.fn(), end: jest.fn()}
