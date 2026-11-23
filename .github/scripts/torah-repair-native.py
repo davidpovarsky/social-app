@@ -8,11 +8,13 @@ Maestro 2.12.1 hierarchy JSON is used for measured input/header bounds.
 Screenshots remain necessary for glyph, clipping and typography review.
 """
 
+import hashlib
 import html
 import json
 import os
 import plistlib
 import re
+import stat
 import subprocess
 import sys
 import time
@@ -808,6 +810,157 @@ def select_device_type(inventory, runtime, family):
     ))
 
 
+@contextmanager
+def owned_locale_preferences(udid, folder, state):
+    """Open only this run's initialized, owned simulator preferences directory."""
+    require_owned_simulator(udid)
+    if state not in ("Shutdown", "Booted"):
+        raise RuntimeError("Unsupported simulator locale verification state")
+    inventory = json.loads(run(
+        ["xcrun", "simctl", "list", "-j"],
+        folder / f"locale-{state.lower()}-inventory.json",
+    ))
+    runtimes = [item for item in inventory.get("runtimes", [])
+                if item.get("identifier") == CONTROLLED_RUNTIME["identifier"]]
+    if len(runtimes) != 1 or runtimes[0].get("isAvailable") is not True or any(
+        runtimes[0].get(key) != value for key, value in CONTROLLED_RUNTIME.items()
+    ):
+        raise RuntimeError("Owned simulator locale runtime identity differs")
+    devices = [(runtime, item) for runtime, items in inventory.get("devices", {}).items()
+               for item in items if item.get("udid") == udid]
+    if len(devices) != 1:
+        raise RuntimeError("Owned simulator locale device is missing or ambiguous")
+    runtime, device = devices[0]
+    if (runtime != CONTROLLED_RUNTIME["identifier"] or device.get("state") != state
+            or device.get("isAvailable") is not True):
+        raise RuntimeError("Owned simulator locale device state differs")
+    home = Path.home().resolve(strict=True)
+    data = home / "Library/Developer/CoreSimulator/Devices" / udid / "data"
+    if device.get("dataPath") != str(data):
+        raise RuntimeError("Owned simulator locale data path differs")
+    directory = data / "Library/Preferences"
+    metadata = home.lstat()
+    if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.getuid():
+        raise RuntimeError("Owned simulator locale home is unsafe")
+    path = home
+    for part in directory.relative_to(home).parts:
+        path = path / part
+        metadata = path.lstat()
+        if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.getuid():
+            raise RuntimeError("Owned simulator locale directory is unsafe")
+    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        opened = os.fstat(descriptor)
+        if (opened.st_dev, opened.st_ino) != (metadata.st_dev, metadata.st_ino):
+            raise RuntimeError("Owned simulator locale directory changed")
+        yield descriptor, {
+            "schema": 1, "status": "passed", "device_udid": udid,
+            "runtime": dict(CONTROLLED_RUNTIME), "state": state,
+            "method": "owned_shutdown_host_plist",
+            "verification_scope": "persisted_preferences_only",
+            "owned_simulator_verified": True, "data_path_verified": True,
+            "preferences_file": ".GlobalPreferences.plist",
+        }
+    finally:
+        os.close(descriptor)
+
+
+def locale_file_identity(metadata):
+    # Reading can update atime; only identity, ownership and write metadata matter.
+    return tuple(getattr(metadata, name) for name in (
+        "st_dev", "st_ino", "st_mode", "st_uid", "st_gid", "st_nlink",
+        "st_size", "st_mtime_ns", "st_ctime_ns",
+    ))
+
+
+def read_locale_preferences(descriptor):
+    """Read a bounded regular file without following a replacement symlink."""
+    file_descriptor = os.open(
+        ".GlobalPreferences.plist", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=descriptor,
+    )
+    with os.fdopen(file_descriptor, "rb") as stream:
+        before = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid()
+                or before.st_nlink != 1 or not 0 < before.st_size <= 1024 * 1024):
+            raise RuntimeError("Owned simulator global preferences file is unsafe")
+        raw = stream.read(1024 * 1024 + 1)
+        after = os.fstat(stream.fileno())
+        if (locale_file_identity(before) != locale_file_identity(after)
+                or len(raw) != before.st_size):
+            raise RuntimeError("Owned simulator global preferences changed during read")
+    try:
+        values = plistlib.loads(raw)
+    except Exception:
+        raise RuntimeError("Owned simulator global preferences are invalid") from None
+    if not isinstance(values, dict):
+        raise RuntimeError("Owned simulator global preferences must be a dictionary")
+    return raw, values, before
+
+
+def configure_owned_simulator_locale(udid, folder):
+    """Preserve all other preferences while the initialized device is shut down."""
+    with owned_locale_preferences(udid, folder, "Shutdown") as (descriptor, receipt):
+        original, values, before = read_locale_preferences(descriptor)
+        expected = {**values, "AppleLanguages": ["he", "en"], "AppleLocale": "he_IL"}
+        binary = original.startswith(b"bplist00")
+        encoded = plistlib.dumps(expected, fmt=plistlib.FMT_BINARY if binary else plistlib.FMT_XML)
+        if len(encoded) > 1024 * 1024:
+            raise RuntimeError("Owned simulator global preferences exceed the size limit")
+        temporary = f".torah-locale-{os.getpid()}.plist"
+        created = None
+        try:
+            file_descriptor = os.open(
+                temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600, dir_fd=descriptor,
+            )
+            created = os.fstat(file_descriptor)
+            with os.fdopen(file_descriptor, "wb") as stream:
+                os.fchown(stream.fileno(), before.st_uid, before.st_gid)
+                os.fchmod(stream.fileno(), stat.S_IMODE(before.st_mode))
+                stream.write(encoded)
+                stream.flush()
+                os.fsync(stream.fileno())
+            current, _, current_stat = read_locale_preferences(descriptor)
+            if current != original or locale_file_identity(current_stat) != locale_file_identity(before):
+                raise RuntimeError("Owned simulator global preferences changed before replacement")
+            os.replace(temporary, ".GlobalPreferences.plist", src_dir_fd=descriptor, dst_dir_fd=descriptor)
+            created = None
+            persisted, readback, after = read_locale_preferences(descriptor)
+            if (readback != expected or persisted != encoded
+                    or (after.st_uid, after.st_gid, stat.S_IMODE(after.st_mode))
+                    != (before.st_uid, before.st_gid, stat.S_IMODE(before.st_mode))):
+                raise RuntimeError("Owned simulator locale write readback differs")
+        finally:
+            if created is not None:
+                remaining = os.stat(temporary, dir_fd=descriptor, follow_symlinks=False)
+                if (remaining.st_dev, remaining.st_ino) != (created.st_dev, created.st_ino):
+                    raise RuntimeError("Owned simulator locale temporary file changed")
+                os.unlink(temporary, dir_fd=descriptor)
+        receipt.update({
+            "phase": "shutdown-write", "apple_languages": ["he", "en"],
+            "apple_locale": "he_IL", "readback_matches": True,
+            "other_keys_preserved": True, "ownership_mode_preserved": True,
+            "format": "binary" if binary else "xml",
+            "before_sha256": hashlib.sha256(original).hexdigest(),
+            "after_sha256": hashlib.sha256(persisted).hexdigest(),
+        })
+        (folder / "locale-preferences-write.json").write_text(json.dumps(receipt, indent=2))
+
+
+def verify_owned_simulator_locale(udid, folder):
+    """Verify persisted keys after boot; the unchanged UI flows verify behavior."""
+    with owned_locale_preferences(udid, folder, "Booted") as (descriptor, receipt):
+        raw, values, _ = read_locale_preferences(descriptor)
+        if values.get("AppleLanguages") != ["he", "en"] or values.get("AppleLocale") != "he_IL":
+            raise RuntimeError("Owned simulator locale post-boot readback differs")
+        receipt.update({
+            "phase": "post-boot-readback", "apple_languages": ["he", "en"],
+            "apple_locale": "he_IL", "readback_matches": True,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        })
+        (folder / "locale-preferences-readback.json").write_text(json.dumps(receipt, indent=2))
+
+
 def seed_legacy_flags(udid, folder):
     """Simulate upgrading an installation that persisted old RN RTL overrides."""
     run(["xcrun", "simctl", "terminate", udid, APP_ID], folder / "terminate.log")
@@ -847,13 +1000,12 @@ def exercise_device(family, device_type, runtime, app, executable, account):
         OWNED_SIMULATOR_DEVICES.add(udid)
         run(["xcrun", "simctl", "boot", udid], folder / "boot.log")
         wait_for_boot(udid, folder / "bootstatus.log", "initial")
-        run(["xcrun", "simctl", "spawn", udid, "defaults", "write", "NSGlobalDomain", "AppleLanguages", "-array", "he", "en"], folder / "set-languages.log")
-        run(["xcrun", "simctl", "spawn", udid, "defaults", "write", "NSGlobalDomain", "AppleLocale", "-string", "he_IL"], folder / "set-locale.log")
-        # Restart SpringBoard with the language configured before the first app launch.
+        # Initialize the preference files before editing only this owned, shut-down device.
         run(["xcrun", "simctl", "shutdown", udid], folder / "locale-shutdown.log")
+        configure_owned_simulator_locale(udid, folder)
         run(["xcrun", "simctl", "boot", udid], folder / "locale-boot.log")
         wait_for_boot(udid, folder / "locale-bootstatus.log", "locale")
-        run(["xcrun", "simctl", "spawn", udid, "defaults", "read", "NSGlobalDomain", "AppleLanguages"], folder / "device-languages.log")
+        verify_owned_simulator_locale(udid, folder)
         run(["xcrun", "simctl", "install", udid, app], folder / "install.log")
         for fixture in ("fresh", "legacy"):
             if fixture == "legacy":

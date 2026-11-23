@@ -37,6 +37,34 @@ name: Existing fixture logs in through the default Torah provider and loads real
     label: 'Secure field after keyboard dismissal has ${maestro.copiedText.length} masked characters; expected ${FIXTURE_PASSWORD_LENGTH}'
 - tapOn:
     id: loginNextButton
+# The asynchronous native permission request may be absent for a prior permission
+# state. Wait for this app's exact Hebrew notification alert before deciding;
+# never dismiss another app's alert or make authenticated Home checks optional.
+- extendedWaitUntil:
+    visible:
+      text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
+      containsDescendants:
+        - text: '^סירוב$'
+        - text: '^אישור$'
+    timeout: 90000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
+        containsDescendants:
+          - text: '^סירוב$'
+          - text: '^אישור$'
+    commands:
+      - tapOn:
+          text: '^סירוב$'
+          childOf:
+            text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
+            containsDescendants:
+              - text: '^סירוב$'
+              - text: '^אישור$'
+      - assertNotVisible:
+          text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
 - extendedWaitUntil:
     visible: 'בית|אולי מאוחר יותר'
     timeout: 90000
