@@ -2,10 +2,10 @@ import {useMemo} from 'react'
 import {useQuery} from '@tanstack/react-query'
 
 import {useInterestsDisplayNames} from '#/lib/interests'
-import {useAppviewClient} from '#/state/session'
-import {app} from '#/lexicons'
 import {useActorSearch} from '#/state/queries/actor-search'
 import {useGetSuggestedOnboardingUsersQuery} from '#/state/queries/trending/useGetSuggestedOnboardingUsersQuery'
+import {useAppviewClient} from '#/state/session'
+import {app} from '#/lexicons'
 
 /**
  * Conditional hook, used in case a user is a non-english speaker, in which

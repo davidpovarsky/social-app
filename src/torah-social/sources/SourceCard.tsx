@@ -1,13 +1,9 @@
 import {useEffect, useState} from 'react'
-import {
-  I18nManager,
-  Pressable,
-  type StyleProp,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import {Pressable, type StyleProp, View, type ViewStyle} from 'react-native'
 import {Image} from 'expo-image'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {atoms as a, useTheme} from '#/alf'
 import * as Dialog from '#/components/Dialog'
 import {
@@ -38,6 +34,7 @@ export function TorahSourceCard({
   onOpen?: () => void
 }) {
   const t = useTheme()
+  const isRTL = useIsRTL()
   const reader = Dialog.useDialogControl()
   const sourceRef = refFromSefariaUri(uri)
   const [source, setSource] = useState<TorahSource>()
@@ -64,7 +61,7 @@ export function TorahSourceCard({
       : fallbackDescription)
   const allowImage = !hasNoImageParam(uri)
   const showImage = Boolean(allowImage && source?.imageUrl && !imageError)
-  const ChevronIcon = I18nManager.isRTL ? ChevronLeft : ChevronRight
+  const ChevronIcon = isRTL ? ChevronLeft : ChevronRight
 
   return (
     <>
@@ -84,12 +81,12 @@ export function TorahSourceCard({
           t.atoms.border_contrast_low,
           {
             backgroundColor: t.name === 'dark' ? '#181714' : '#faf9f6',
-            borderRightWidth: I18nManager.isRTL ? 3 : 1,
-            borderLeftWidth: I18nManager.isRTL ? 1 : 3,
-            borderRightColor: I18nManager.isRTL
+            borderRightWidth: isRTL ? 3 : 1,
+            borderLeftWidth: isRTL ? 1 : 3,
+            borderRightColor: isRTL
               ? t.palette.primary_500
               : t.atoms.border_contrast_low.borderColor,
-            borderLeftColor: I18nManager.isRTL
+            borderLeftColor: isRTL
               ? t.atoms.border_contrast_low.borderColor
               : t.palette.primary_500,
             opacity: pressed ? 0.75 : 1,
@@ -128,7 +125,10 @@ export function TorahSourceCard({
                 style={[
                   a.text_md,
                   a.font_semi_bold,
-                  {textAlign: 'right', writingDirection: 'rtl'},
+                  {
+                    ...getPhysicalTextAlignStyle('right'),
+                    writingDirection: 'rtl',
+                  },
                 ]}>
                 {title}
               </Text>
@@ -140,7 +140,10 @@ export function TorahSourceCard({
                     a.text_sm,
                     a.leading_snug,
                     t.atoms.text_contrast_high,
-                    {textAlign: 'right', writingDirection: 'rtl'},
+                    {
+                      ...getPhysicalTextAlignStyle('right'),
+                      writingDirection: 'rtl',
+                    },
                   ]}>
                   {preview}
                 </Text>

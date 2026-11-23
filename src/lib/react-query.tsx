@@ -12,11 +12,19 @@ import {
   PersistQueryClientProvider,
 } from '@tanstack/react-query-persist-client'
 
+import {PUBLIC_BSKY_SERVICE} from '#/lib/constants'
+import {checkServiceHealth} from '#/lib/network-health'
+import {getPageSignal} from '#/lib/page-lifecycle-fetch'
 import {createPersistedQueryStorage} from '#/lib/persisted-query-storage'
 import {listenNetworkConfirmed, listenNetworkLost} from '#/state/events'
 import {isQueryPersisted} from '#/state/queries/util'
 import * as env from '#/env'
 import {IS_NATIVE, IS_WEB} from '#/env'
+import {
+  isFollowingSnapshotQuery,
+  loadFollowingSnapshot,
+  saveFollowingSnapshot,
+} from '#/features/followingV2/home/queries/followingSnapshot'
 
 declare global {
   interface Window {
@@ -24,25 +32,8 @@ declare global {
   }
 }
 
-async function checkIsOnline(): Promise<boolean> {
-  try {
-    const controller = new AbortController()
-    setTimeout(() => {
-      controller.abort()
-    }, 15e3)
-    const res = await fetch('https://public.api.bsky.app/xrpc/_health', {
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-    const json = await res.json()
-    if (json.version) {
-      return true
-    } else {
-      return false
-    }
-  } catch (e) {
-    return false
-  }
+function checkIsOnline(): Promise<boolean> {
+  return checkServiceHealth(PUBLIC_BSKY_SERVICE)
 }
 
 let receivedNetworkLost = false
@@ -60,28 +51,32 @@ listenNetworkConfirmed(() => {
 })
 
 let checkPromise: Promise<void> | undefined
+let checkPageSignal: AbortSignal | undefined
 function checkIsOnlineIfNeeded() {
-  if (checkPromise) {
+  const pageSignal = getPageSignal()
+  if (pageSignal?.aborted || (checkPromise && checkPageSignal === pageSignal)) {
     return
   }
+  checkPageSignal = pageSignal
   receivedNetworkLost = false
   receivedNetworkConfirmed = false
-  checkPromise = checkIsOnline().then(nextIsOnline => {
+  const currentCheck: Promise<void> = checkIsOnline().then(nextIsOnline => {
+    // A BFCache restoration can start a fresh check before this one settles.
+    if (checkPromise !== currentCheck) return
     checkPromise = undefined
-    if (nextIsOnline && receivedNetworkLost) {
-      isNetworkStateUnclear = true
-    }
-    if (!nextIsOnline && receivedNetworkConfirmed) {
-      isNetworkStateUnclear = true
-    }
+    if (pageSignal?.aborted) return
+    isNetworkStateUnclear =
+      (nextIsOnline && receivedNetworkLost) ||
+      (!nextIsOnline && receivedNetworkConfirmed)
     if (!isNetworkStateUnclear) {
       onlineManager.setOnline(nextIsOnline)
     }
   })
+  checkPromise = currentCheck
 }
 
 setInterval(() => {
-  if (AppState.currentState === 'active') {
+  if (!getPageSignal()?.aborted && AppState.currentState === 'active') {
     if (!onlineManager.isOnline() || isNetworkStateUnclear) {
       checkIsOnlineIfNeeded()
     }
@@ -139,7 +134,10 @@ const createQueryClient = () =>
 const dehydrateOptions: DehydrateOptions = {
   shouldDehydrateMutation: (_: any) => false,
   shouldDehydrateQuery: query => {
-    return isQueryPersisted(query.queryKey) && query.state.status === 'success'
+    return (
+      (isQueryPersisted(query.queryKey) || isFollowingSnapshotQuery(query)) &&
+      query.state.status === 'success'
+    )
   },
 }
 
@@ -182,6 +180,9 @@ function QueryProviderInner({
     const asyncPersister = createAsyncStoragePersister({
       storage,
       key: 'queryClient-' + (currentDid ?? 'logged-out'),
+      // JSON, as by default, but with Following v2's Home Following snapshot.
+      serialize: client => JSON.stringify(saveFollowingSnapshot(client)),
+      deserialize: cached => loadFollowingSnapshot(JSON.parse(cached)),
     })
     return {
       persister: asyncPersister,

@@ -3,9 +3,35 @@ import fs from 'node:fs'
 const appviewHost = process.env.EXPO_PUBLIC_TORAH_APPVIEW_HOST
 const appviewDid = process.env.EXPO_PUBLIC_BLUESKY_PROXY_DID
 const pdsDid = process.env.EXPO_PUBLIC_TORAH_PDS_DID
+const pdsHost = process.env.EXPO_PUBLIC_TORAH_PDS_HOST
 
-for (const [name, value] of Object.entries({appviewHost, appviewDid, pdsDid})) {
+for (const [name, value] of Object.entries({
+  appviewHost,
+  appviewDid,
+  pdsDid,
+  pdsHost,
+})) {
   if (!value) throw new Error(`Missing required Torah isolation env: ${name}`)
+}
+
+for (const [name, value] of Object.entries({appviewHost, pdsHost})) {
+  const url = new URL(value)
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    /(^|\.)bsky\.(app|social|network)$/.test(url.hostname)
+  ) {
+    throw new Error(`Invalid isolated Torah service origin: ${name}`)
+  }
+}
+for (const [name, value] of Object.entries({appviewDid, pdsDid})) {
+  if (!/^did:[a-z]+:[a-zA-Z0-9._:%-]+$/.test(value)) {
+    throw new Error(`Invalid isolated Torah service DID: ${name}`)
+  }
 }
 
 function replaceRequired(source, before, after, label) {
@@ -71,6 +97,29 @@ constants = replaceRequired(
   'PUBLIC_APPVIEW',
 )
 
+// Never use Bluesky's messaging and embed services in our independent network.
+constants = replaceRequired(
+  constants,
+  "export const CHAT_SERVICE = 'https://api.bsky.chat'",
+  "export const CHAT_SERVICE = ''",
+  'CHAT_SERVICE',
+)
+constants = replaceRequired(
+  constants,
+  "export const EMBED_SERVICE = 'https://embed.bsky.app'",
+  "export const EMBED_SERVICE = ''",
+  'EMBED_SERVICE',
+)
+const torahWebHost =
+  process.env.EXPO_PUBLIC_TORAH_WEB_HOST ||
+  'https://torah-130-110-238-163.nip.io'
+constants = replaceRequired(
+  constants,
+  "export const BSKY_DOWNLOAD_URL = 'https://bsky.app/download'",
+  `export const BSKY_DOWNLOAD_URL = '${torahWebHost}'`,
+  'BSKY_DOWNLOAD_URL',
+)
+
 constants = replaceRequired(
   constants,
   "export const GIF_SERVICE = 'https://gifs.bsky.app'",
@@ -110,13 +159,9 @@ if (commonEnv.includes("'did:web:api.bsky.chat'")) {
 
 const reactQueryPath = 'src/lib/react-query.tsx'
 let reactQuery = fs.readFileSync(reactQueryPath, 'utf8').replace(/\r\n/g, '\n')
-reactQuery = replaceRequired(
-  reactQuery,
-  "fetch('https://public.api.bsky.app/xrpc/_health', {",
-  `fetch('${appviewHost}/xrpc/_health', {`,
-  'network health AppView',
-)
-fs.writeFileSync(reactQueryPath, reactQuery)
+if (!reactQuery.includes('checkServiceHealth(PUBLIC_BSKY_SERVICE)')) {
+  throw new Error('Network recovery must check the configured AppView')
+}
 
 // Keep the Torah-specific composer UI out of the upstream Composer.tsx source.
 // If not already present in the codebase, inject the hooks.
@@ -180,6 +225,8 @@ const forbiddenServices = [
   {target: 'https://ip.bsky.app', label: 'Bluesky Geolocation API'},
   {target: 'https://gifs.bsky.app', label: 'Bluesky GIF Service'},
   {target: 'https://video.bsky.app', label: 'Bluesky Video Service'},
+  {target: 'https://api.bsky.chat', label: 'Public Bluesky Chat Service'},
+  {target: 'https://embed.bsky.app', label: 'Public Bluesky Embed Service'},
 ]
 
 for (const {target, label} of forbiddenServices) {

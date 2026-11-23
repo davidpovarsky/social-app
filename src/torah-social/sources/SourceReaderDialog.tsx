@@ -10,6 +10,7 @@ import {setStringAsync} from 'expo-clipboard'
 import {Image} from 'expo-image'
 
 import {shareUrl} from '#/lib/sharing'
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {atoms as a, useTheme, web} from '#/alf'
 import * as Dialog from '#/components/Dialog'
 import {ArrowShareRight_Stroke2_Corner2_Rounded as ShareIcon} from '#/components/icons/ArrowShareRight'
@@ -315,7 +316,10 @@ export function SourceReaderDialog({
                 style={[
                   a.text_lg,
                   a.font_semi_bold,
-                  {textAlign: 'right', writingDirection: 'rtl'},
+                  {
+                    ...getPhysicalTextAlignStyle('right'),
+                    writingDirection: 'rtl',
+                  },
                 ]}
                 numberOfLines={1}>
                 {title}
@@ -325,7 +329,7 @@ export function SourceReaderDialog({
                   style={[
                     a.text_xs,
                     t.atoms.text_contrast_medium,
-                    {textAlign: 'right'},
+                    getPhysicalTextAlignStyle('right'),
                   ]}
                   numberOfLines={1}>
                   {source.category}
@@ -387,7 +391,10 @@ export function SourceReaderDialog({
               <Text
                 style={[
                   a.text_md,
-                  {color: t.palette.negative_400, textAlign: 'right'},
+                  {
+                    color: t.palette.negative_400,
+                    ...getPhysicalTextAlignStyle('right'),
+                  },
                 ]}>
                 {error}
               </Text>
@@ -406,11 +413,15 @@ export function SourceReaderDialog({
                               a.text_lg,
                               a.leading_relaxed,
                               {
-                                textAlign: 'right',
+                                ...getPhysicalTextAlignStyle('right'),
                                 writingDirection: 'rtl',
                               },
                             ]
-                          : [a.text_md, a.leading_normal, {textAlign: 'left'}],
+                          : [
+                              a.text_md,
+                              a.leading_normal,
+                              getPhysicalTextAlignStyle('left'),
+                            ],
                       ]}>
                       {line}
                     </Text>
@@ -420,7 +431,7 @@ export function SourceReaderDialog({
                     style={[
                       a.text_sm,
                       t.atoms.text_contrast_medium,
-                      {textAlign: 'right'},
+                      getPhysicalTextAlignStyle('right'),
                     ]}>
                     טקסט המקור אינו זמין בתצוגה מהירה.
                   </Text>
@@ -476,7 +487,7 @@ export function SourceReaderDialog({
                       style={[
                         a.text_sm,
                         a.font_semi_bold,
-                        {textAlign: 'right'},
+                        getPhysicalTextAlignStyle('right'),
                       ]}>
                       {ms.manuscript?.he_title ||
                         ms.manuscript?.title ||
@@ -487,7 +498,7 @@ export function SourceReaderDialog({
                         style={[
                           a.text_xs,
                           t.atoms.text_contrast_medium,
-                          {textAlign: 'right'},
+                          getPhysicalTextAlignStyle('right'),
                         ]}>
                         עמוד / דף: {ms.page_id}
                       </Text>
@@ -519,7 +530,7 @@ export function SourceReaderDialog({
                         style={[
                           a.text_xs,
                           t.atoms.text_contrast_medium,
-                          {textAlign: 'right'},
+                          getPhysicalTextAlignStyle('right'),
                         ]}>
                         {ms.manuscript.description}
                       </Text>
@@ -536,7 +547,7 @@ export function SourceReaderDialog({
                   style={[
                     a.text_2xs,
                     t.atoms.text_contrast_medium,
-                    {textAlign: 'right'},
+                    getPhysicalTextAlignStyle('right'),
                   ]}>
                   {source.versionTitle}
                   {source.license ? ` · ${source.license}` : ''}

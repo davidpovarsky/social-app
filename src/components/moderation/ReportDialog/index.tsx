@@ -65,7 +65,12 @@ import {
   useReportOptions,
 } from './utils/useReportOptions'
 
+export {useCopyForSubject, useGetCopyForSubject} from './copy'
 export {type ReportSubject} from './types'
+export {
+  getAssociatedReportSubjects,
+  parseReportSubject,
+} from './utils/parseReportSubject'
 export {useDialogControl as useReportDialogControl} from '#/components/Dialog'
 
 export function useGlobalReportDialogControl() {
@@ -74,7 +79,13 @@ export function useGlobalReportDialogControl() {
 
 export function GlobalReportDialog() {
   const {value, control} = useGlobalReportDialogControl()
-  return <ReportDialog control={control} subject={value?.subject} />
+  return (
+    <ReportDialog
+      control={control}
+      subject={value?.subject}
+      onAfterSubmit={value?.onAfterSubmit}
+    />
+  )
 }
 
 export function ReportDialog(
@@ -273,6 +284,7 @@ function Inner(
       )
       setIsSuccess(true)
       ax.metric('reportDialog:success', {
+        subjectType: props.subject.type,
         reason: state.selectedOption?.reason ?? '',
         labeler: state.selectedLabeler?.creator.handle ?? '',
         details: !!state.details,
@@ -281,7 +293,7 @@ function Inner(
       // give time for user feedback
       setTimeout(() => {
         props.control.close(() => {
-          props.onAfterSubmit?.()
+          props.onAfterSubmit?.({reason: state.selectedOption?.reason})
         })
       }, 1e3)
     } catch (err) {

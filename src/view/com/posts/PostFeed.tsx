@@ -30,7 +30,6 @@ import {isNetworkError} from '#/lib/strings/errors'
 import {logger} from '#/logger'
 import {usePostAuthorShadowFilter} from '#/state/cache/profile-shadow'
 import {listenPostCreated} from '#/state/events'
-import {useFeedFeedbackContext} from '#/state/feed-feedback'
 import {useTrendingSettings} from '#/state/preferences/trending'
 import {STALE} from '#/state/queries'
 import {
@@ -48,10 +47,9 @@ import {useSession} from '#/state/session'
 import {useProgressGuide} from '#/state/shell/progress-guide'
 import {useSelectedFeed} from '#/state/shell/selected-feed'
 import {List, type ListRef} from '#/view/com/util/List'
-import {PostFeedLoadingPlaceholder} from '#/view/com/util/LoadingPlaceholder'
 import {LoadMoreRetryBtn} from '#/view/com/util/LoadMoreRetryBtn'
 import {type VideoFeedSourceContext} from '#/screens/VideoFeed/types'
-import {atoms as a, useBreakpoints, useLayoutBreakpoints, useTheme} from '#/alf'
+import {atoms as a, useLayoutBreakpoints, useTheme} from '#/alf'
 import {
   AgeAssuranceDismissibleFeedBanner,
   useInternalState as useAgeAssuranceBannerState,
@@ -60,13 +58,17 @@ import {ProgressGuide, SuggestedFollows} from '#/components/FeedInterstitials'
 import {
   PostFeedVideoGridRow,
   PostFeedVideoGridRowPlaceholder,
+  useVideoGridColumns,
 } from '#/components/feeds/PostFeedVideoGridRow'
+import {RepliesFeedLimited} from '#/components/feeds/RepliesFeedLimited'
 import {FeedTrendingTopicsInterstitial} from '#/components/interstitials/FeedTrendingTopics'
 import {TrendingVideos as TrendingVideosInterstitial} from '#/components/interstitials/TrendingVideos'
 import {isStandardSiteEmbed} from '#/components/Post/Embed/StandardSiteEmbed/utils'
+import {PostFeedSkeleton} from '#/components/PostFeedSkeleton'
 import {RichText} from '#/components/RichText'
 import {useAnalytics} from '#/analytics'
 import {IS_IOS, IS_NATIVE, IS_WEB} from '#/env'
+import {useFeedFeedbackContext} from '#/features/feedFeedback'
 import {DiscoverFeedLiveEventFeedsAndTrendingBanner} from '#/features/liveEvents/components/DiscoverFeedLiveEventFeedsAndTrendingBanner'
 import {
   isStatusStillActive,
@@ -262,7 +264,7 @@ let PostFeed = ({
   // eslint-disable-next-line react-hooks/purity
   const lastFetchRef = useRef<number>(Date.now())
   const [feedType, feedUriOrActorDid, feedTab] = feed.split('|')
-  const {gtMobile} = useBreakpoints()
+  const videoGridColumns = useVideoGridColumns()
   const {rightNavVisible} = useLayoutBreakpoints()
   const areVideoFeedsEnabled = IS_NATIVE
 
@@ -302,6 +304,7 @@ let PostFeed = ({
     error,
     refetch,
     hasNextPage,
+    isPageFillLimited,
     isFetchingNextPage,
     fetchNextPage,
   } = usePostFeedQuery(feed, feedParams, opts)
@@ -442,7 +445,8 @@ let PostFeed = ({
     } else if (
       feedType === 'author' &&
       (feedTab === 'posts_and_author_threads' ||
-        feedTab === 'posts_with_replies')
+        feedTab === 'posts_with_replies' ||
+        feedTab === 'posts_and_replies_only')
     ) {
       feedKind = 'profile'
     }
@@ -501,13 +505,12 @@ let PostFeed = ({
           for (let i = 0; i < videos.length; i++) {
             const video = videos[i]
             const item = video.item
-            const cols = gtMobile ? 3 : 2
             const rowItem = {
               item,
               feedContext: video.feedContext,
               reqId: video.reqId,
             }
-            if (i % cols === 0) {
+            if (i % videoGridColumns === 0) {
               rows.push([rowItem])
             } else {
               rows[rows.length - 1].push(rowItem)
@@ -728,7 +731,7 @@ let PostFeed = ({
     hasSession,
     showProgressInterstitial,
     trendingVideoDisabled,
-    gtMobile,
+    videoGridColumns,
     isVideoFeed,
     areVideoFeedsEnabled,
     hasPressedShowLessUris,
@@ -809,7 +812,7 @@ let PostFeed = ({
   const renderItem = useCallback(
     ({item: row, index: rowIndex}: ListRenderItemInfo<FeedRow>) => {
       if (row.type === 'empty') {
-        return renderEmptyState()
+        return isPageFillLimited ? <RepliesFeedLimited /> : renderEmptyState()
       } else if (row.type === 'error') {
         return (
           <PostFeedErrorMessage
@@ -827,7 +830,7 @@ let PostFeed = ({
           />
         )
       } else if (row.type === 'loading') {
-        return <PostFeedLoadingPlaceholder />
+        return <PostFeedSkeleton />
       } else if (row.type === 'feedShutdownMsg') {
         return <FeedShutdownMsg feedUri={feedUriOrActorDid} />
       } else if (row.type === 'description') {
@@ -932,6 +935,7 @@ let PostFeed = ({
     },
     [
       renderEmptyState,
+      isPageFillLimited,
       feed,
       error,
       onPressTryAgain,
@@ -947,8 +951,15 @@ let PostFeed = ({
     ],
   )
 
+  const shouldRenderPageFillLimit =
+    isPageFillLimited && !isEmpty && !isFetching && !isError
   const shouldRenderEndOfFeed =
-    !hasNextPage && !isEmpty && !isFetching && !isError && !!renderEndOfFeed
+    !hasNextPage &&
+    !isPageFillLimited &&
+    !isEmpty &&
+    !isFetching &&
+    !isError &&
+    !!renderEndOfFeed
   const bottomBarOffset = useBottomBarOffset()
   const FeedFooter = useCallback(() => {
     /*
@@ -966,6 +977,10 @@ let PostFeed = ({
         <ActivityIndicator />
         <View style={{height: offset}} />
       </View>
+    ) : shouldRenderPageFillLimit ? (
+      <View style={{minHeight: offset}}>
+        <RepliesFeedLimited hasPosts />
+      </View>
     ) : shouldRenderEndOfFeed ? (
       <View style={{minHeight: offset}}>{renderEndOfFeed()}</View>
     ) : (
@@ -973,6 +988,7 @@ let PostFeed = ({
     )
   }, [
     isFetchingNextPage,
+    shouldRenderPageFillLimit,
     shouldRenderEndOfFeed,
     renderEndOfFeed,
     headerOffset,
@@ -1159,7 +1175,7 @@ let PostFeed = ({
         }}
         onScrolledDownChange={handleScrolledDownChange}
         onEndReached={() => void onEndReached()}
-        onEndReachedThreshold={2} // number of posts left to trigger load more
+        onEndReachedThreshold={2} // screen heights from the end, not posts
         removeClippedSubviews={true}
         extraData={extraData}
         desktopFixedHeight={

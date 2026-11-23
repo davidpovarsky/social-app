@@ -1,0 +1,72 @@
+# AppLanguageDropdown is available in the signup footer on native.
+# Change the actual persisted app preference; do not inject storage/locale state.
+appId: ${APP_ID}
+name: Change Hebrew to English in the app and navigate back
+---
+- tapOn: "חזור"
+- extendedWaitUntil:
+    visible:
+      id: createAccountButton
+    timeout: 30000
+- tapOn:
+    id: createAccountButton
+- extendedWaitUntil:
+    visible:
+      id: emailInput
+    timeout: 30000
+- assertVisible:
+    id: passwordInput
+- assertNotVisible: "לא ניתן ליצור קשר עם השירות שלך. אנא בדוק את חיבור האינטרנט שלך."
+- takeScreenshot: 03-hebrew-signup
+- scrollUntilVisible:
+    element:
+      text: "שנה את שפת האפליקציה"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 100
+- tapOn: "שנה את שפת האפליקציה"
+- assertVisible: "בחר שפה"
+- takeScreenshot: 04-hebrew-language-picker
+- tapOn: "^English$"
+- extendedWaitUntil:
+    visible: "Change app language"
+    timeout: 15000
+- takeScreenshot: 05-english-signup-footer
+- scrollUntilVisible:
+    element:
+      text: "Your account"
+    direction: UP
+    timeout: 15000
+    visibilityPercentage: 100
+- assertVisible: "Your account"
+- assertVisible:
+    id: emailInput
+- assertVisible:
+    id: passwordInput
+- assertNotVisible: "Unable to contact your service. Please check your Internet connection."
+- takeScreenshot: 06-english-signup
+- scrollUntilVisible:
+    element:
+      text: "Go back to previous step"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 100
+- tapOn: "Go back to previous step"
+- extendedWaitUntil:
+    visible:
+      id: signInButton
+    timeout: 15000
+- assertVisible: "Sign in"
+- takeScreenshot: 07-english-landing
+- tapOn:
+    id: signInButton
+- extendedWaitUntil:
+    visible:
+      id: loginUsernameInput
+    timeout: 15000
+- assertVisible:
+    id: loginPasswordInput
+- assertVisible:
+    id: selectServiceButton
+- assertVisible: "Go back"
+- takeScreenshot: 08-english-login

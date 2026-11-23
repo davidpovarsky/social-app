@@ -6,9 +6,31 @@ import {type Platform} from 'react-native'
 
 import {type NotificationReason} from '#/lib/hooks/useNotificationHandler'
 import {type VideoCompressSkipReason} from '#/lib/media/video/types'
+import {type GroupedNotificationsFeed} from '#/state/queries/notifications/grouped/types'
 import {type NotificationType} from '#/state/queries/notifications/types'
 import {type FeedDescriptor} from '#/state/queries/post-feed'
+import {
+  type AtmosphereAppMetricContext,
+  type AtmosphereContentMetricContext,
+  type AtmosphereMetricContext,
+  type AtmosphereTab,
+} from '#/screens/Atmosphere/metrics/types'
+import {type SharePlatformId} from '#/components/ShareDialog/catalog'
+import {type ShareSubjectType} from '#/components/ShareDialog/types'
 import {type LiveEventFeedMetricContext} from '#/features/liveEvents/types'
+
+/** Where the system share sheet was opened from. */
+type NativeShareEntryPoint = 'ShareMenu' | 'LongPress' | 'PostMenu'
+
+/** Which control saved or removed a post. */
+export type BookmarkEntryPoint = 'BookmarkButton' | 'PostMenu' | 'ShareMenu'
+
+/**
+ * What the share sheet was sharing. Unset from the share menu before the
+ * redesign and from long-pressing a post's share button, which only share
+ * posts.
+ */
+type ShareSubjectField = {subjectType?: ShareSubjectType}
 
 export type Events = {
   // App events
@@ -60,9 +82,92 @@ export type Events = {
     notificationType: NotificationType
     authorCount: number
   }
-  'state:background': {
-    secondsActive: number
+  /**
+   * A tab of the Notifications screen came into view: the tab it's on when
+   * the screen gains focus, which includes mounting, and each tab the user
+   * switches to. A switch is logged once, as the pager settles on the new
+   * tab.
+   */
+  'notifications:tabDisplayed': {
+    tab: GroupedNotificationsFeed
+    /** The tab's position in the tab pills, from 0. */
+    index: number
+    /**
+     * - `focus`: the screen gained focus, or mounted, on the tab. Web mounts
+     *   the screen on every visit.
+     * - `tap`: the user pressed the tab's pill.
+     * - `swipe`: the user swiped the pager to the tab, which only native
+     *   does.
+     */
+    reason: 'focus' | 'tap' | 'swipe'
   }
+  /**
+   * A tab of the Notifications screen started loading its newest
+   * notifications, in place of what it shows. Not the tab's first load or a
+   * retry of it, nor a check that only asks whether there's anything new, as
+   * a quick return to the app or a switch between tabs does, or any return
+   * while the user is partway down the tab. Nor the refresh of "All" that
+   * refreshing any other tab sets off behind it.
+   */
+  'notifications:refresh': {
+    tab: GroupedNotificationsFeed
+    /**
+     * - `pullToRefresh`: the user pulled the tab down.
+     * - `softReset`: the user pressed Notifications in the app's navigation,
+     *   or the tab's own pill, while already on the tab.
+     * - `pill`: the user pressed the "Refresh" pill.
+     * - `focus`: the screen came back into view, e.g. from a post opened
+     *   from it, or mounted with the tab already loaded, as web's does on
+     *   every visit.
+     * - `significantReturn`: the user came back to the app after a while
+     *   away, with the screen in view.
+     * - `pushOpened`: the user opened a push notification with the screen in
+     *   view.
+     */
+    reason:
+      | 'pullToRefresh'
+      | 'softReset'
+      | 'pill'
+      | 'focus'
+      | 'significantReturn'
+      | 'pushOpened'
+  }
+  /**
+   * The "Refresh" pill came into view on a Notifications tab, offering what an
+   * unread check, or a peek at the tab, found that it hasn't loaded. Only
+   * while the tab is the one in view, on the focused screen, with the app in
+   * the foreground, and again each time it comes back into view still up. One
+   * hide follows each.
+   */
+  'notifications:refreshPill:impression': {
+    tab: GroupedNotificationsFeed
+  }
+  /**
+   * The user pressed the pill, which loads the tab's newest notifications.
+   */
+  'notifications:refreshPill:press': {
+    tab: GroupedNotificationsFeed
+    /** How long since it came into view. */
+    shownMs: number
+  }
+  /** The pill went, after it came into view. */
+  'notifications:refreshPill:hide': {
+    tab: GroupedNotificationsFeed
+    /**
+     * - `pressed`: the user pressed it.
+     * - `left`: the tab went out of view: the user switched tab, opened
+     *   another screen, or left the app, or the screen closed, as web's does
+     *   on every navigation away.
+     * - `refreshed`: the tab started loading its newest notifications some
+     *   other way, e.g. a pull-to-refresh.
+     * - `gone`: a later unread check found nothing new for the tab to load,
+     *   e.g. once the notifications were seen somewhere else.
+     */
+    reason: 'pressed' | 'left' | 'refreshed' | 'gone'
+    /** How long it was in view. */
+    shownMs: number
+  }
+  'state:background': {}
   'state:foreground': {}
   'router:navigate': {
     from?: string
@@ -91,6 +196,7 @@ export type Events = {
     item:
       | 'home'
       | 'search'
+      | 'atmosphere'
       | 'chat'
       | 'notifications'
       | 'profile'
@@ -123,8 +229,20 @@ export type Events = {
     activeStep: number
   }
   'signup:captchaSuccess': {}
-  'signup:captchaFailure': {}
-  'signup:captchaBackPress': {}
+  'signup:captchaFailure': {
+    reason: 'state-mismatch' | 'webview-error' | 'http-error'
+    host?: string
+    statusCode?: number
+  }
+  'signup:captchaSlow': {}
+  'signup:captchaBlockedLoad': {
+    host: string
+    isTopFrame: boolean
+  }
+  'signup:captchaBackPress': {
+    phase?: 'attesting' | 'challenge'
+  }
+  'signup:attestTimeout': {}
   'signup:createAccountFailure': {
     reason: string
   }
@@ -216,18 +334,54 @@ export type Events = {
     feedType: string
     reason: 'pull-to-refresh' | 'soft-reset' | 'load-latest'
   }
-  'feed:save': {
-    feedUrl: string
-  }
-  'feed:unsave': {
-    feedUrl: string
-  }
-  'feed:pin': {
-    feedUrl: string
-  }
-  'feed:unpin': {
-    feedUrl: string
-  }
+  'feed:save': {feedUrl: string} & (
+    | {
+        logContext?: never
+        recId?: never
+        position?: never
+      }
+    | {
+        logContext: 'Explore'
+        recId: string
+        position: number
+      }
+  )
+  'feed:unsave': {feedUrl: string} & (
+    | {
+        logContext?: never
+        recId?: never
+        position?: never
+      }
+    | {
+        logContext: 'Explore'
+        recId: string
+        position: number
+      }
+  )
+  'feed:pin': {feedUrl: string} & (
+    | {
+        logContext?: never
+        recId?: never
+        position?: never
+      }
+    | {
+        logContext: 'Explore'
+        recId: string
+        position: number
+      }
+  )
+  'feed:unpin': {feedUrl: string} & (
+    | {
+        logContext?: never
+        recId?: never
+        position?: never
+      }
+    | {
+        logContext: 'Explore'
+        recId: string
+        position: number
+      }
+  )
   'feed:like': {
     feedUrl: string
   }
@@ -239,9 +393,15 @@ export type Events = {
   }
   'feed:suggestion:seen': {
     feedUrl: string
+    logContext: 'Explore'
+    recId?: string
+    position: number
   }
   'feed:suggestion:press': {
     feedUrl: string
+    logContext: 'Explore'
+    recId?: string
+    position: number
   }
   'post:showMore': {
     uri: string
@@ -403,6 +563,8 @@ export type Events = {
     uri: string
     authorDid: string
     logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
+    /** Which control saved it. `logContext` is where the post was shown. */
+    entryPoint: BookmarkEntryPoint
     feedDescriptor?: string
     position?: number
   }
@@ -410,6 +572,8 @@ export type Events = {
     uri: string
     authorDid: string
     logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
+    /** Which control removed it. `logContext` is where the post was shown. */
+    entryPoint: BookmarkEntryPoint
     feedDescriptor?: string
     position?: number
   }
@@ -448,6 +612,10 @@ export type Events = {
     feedDescriptor?: string
     position?: number
   }
+  'post:quotes:view': {
+    uri: string
+    quoteSort: 'top' | 'latest'
+  }
   'post:view': {
     uri: string
     authorDid: string
@@ -463,6 +631,7 @@ export type Events = {
       | 'Hashtag'
       | 'Topic'
       | 'PostQuotes'
+    quoteSort?: 'top' | 'latest'
     feedDescriptor?: string
     position?: number
   }
@@ -493,6 +662,9 @@ export type Events = {
       | 'FindContacts'
       | 'GroupChat'
       | 'NotificationExpandedProfileCard'
+      | 'NotificationFollowRow'
+      | 'NotificationFollowersTabRow'
+      | 'NotificationContactMatchRow'
   }
   'profile:followers:view': {
     contextProfileDid: string
@@ -607,6 +779,9 @@ export type Events = {
       | 'FindContacts'
       | 'GroupChat'
       | 'NotificationExpandedProfileCard'
+      | 'NotificationFollowRow'
+      | 'NotificationFollowersTabRow'
+      | 'NotificationContactMatchRow'
   }
   'chat:create': {
     logContext:
@@ -716,6 +891,20 @@ export type Events = {
     logContext: 'StarterPackProfilesList' | 'Onboarding'
     starterPack: string
     count: number
+    recId?: string
+    position?: number
+  }
+  'starterPack:suggestion:seen': {
+    logContext: 'Explore' | 'Onboarding'
+    starterPack: string
+    recId: string
+    position: number
+  }
+  'starterPack:suggestion:press': {
+    logContext: 'Explore'
+    starterPack: string
+    recId: string
+    position: number
   }
   'starterPack:delete': {}
   'starterPack:optOut': {
@@ -774,15 +963,39 @@ export type Events = {
   }
   'trendingTopic:seen': {
     context: 'sidebar' | 'interstitial' | 'explore'
+    feedUri?: string
     recId?: string
     rank: number
     feedSliceIndex?: number
   }
   'trendingTopic:click': {
-    context: 'sidebar' | 'interstitial' | 'explore'
+    context: 'sidebar' | 'interstitial' | 'explore' | 'widget'
+    feedUri?: string
     recId?: string
     rank: number
     feedSliceIndex?: number
+  }
+  /**
+   * The trending topics home screen widget was seen installed on this device,
+   * having not been installed the last time we checked.
+   */
+  'trendingWidget:installed': {}
+  /**
+   * The last trending topics home screen widget was removed from this device.
+   * Only checked when the app comes to the foreground, so it can lag the
+   * actual removal.
+   */
+  'trendingWidget:uninstalled': {}
+  /**
+   * The trending topics widget was tapped outside a topic, which opens
+   * Explore. On the small iOS widget that's every tap, because it can't have
+   * per-topic links. Topic taps log `trendingTopic:click` instead.
+   */
+  'trendingWidget:explore:click': {
+    /**
+     * The iOS widget family, e.g. `systemSmall`. Android doesn't report it.
+     */
+    size?: string
   }
   'trendingVideos:show': {
     context: 'settings'
@@ -832,6 +1045,11 @@ export type Events = {
     position: number
   }
 
+  'search:recent:clearAll': {
+    termCount: number
+    profileCount: number
+  }
+
   'search:autocomplete:press': {
     profileDid: string
     position: number
@@ -865,11 +1083,34 @@ export type Events = {
     listType: 'mute' | 'block'
   }
 
+  'moderation:inbox:view': {
+    tab: 'reports' | 'account'
+  }
+  'moderation:inbox:filter': {
+    tab: 'reports' | 'account'
+    filter: 'all' | 'pending' | 'resolved' | 'unread'
+  }
+  'moderation:inbox:markAllAsRead': {
+    tab: 'reports' | 'account'
+  }
+  'moderation:inbox:viewAccountStatus': {
+    status: 'warning' | 'atRisk'
+  }
+  'moderation:inbox:viewReport': {}
+  'moderation:inbox:viewNotice': {}
+  'moderation:inbox:startAppeal': {
+    type?: string
+  }
+  'moderation:inbox:submitAppeal': {
+    type?: string
+  }
+
   'reportDialog:open': {
     subjectType: string
   }
   'reportDialog:close': {}
   'reportDialog:success': {
+    subjectType: string
     reason: string
     labeler: string
     details: boolean
@@ -1118,12 +1359,99 @@ export type Events = {
     postContext: 'feed' | 'thread'
     position?: number
   }
-  'share:press:copyLink': {}
-  'share:press:nativeShare': {}
-  'share:press:openDmSearch': {}
-  'share:press:dmSelected': {}
-  'share:press:recentDm': {}
-  'share:press:embed': {}
+  'share:press:copyLink': {uri: string} & ShareSubjectField
+  /**
+   * Fires when the user opens the system share sheet, or the browser's on
+   * desktop web ("Share via…").
+   */
+  'share:press:nativeShare': ShareSubjectField & {
+    uri: string
+    authorDid: string
+    entryPoint: NativeShareEntryPoint
+    os: Platform['OS']
+  }
+  /**
+   * Fires when the system share sheet closes after sharing. Not logged from
+   * the post menu, or on Android builds without the native share module.
+   */
+  'share:nativeShare:result': ShareSubjectField & {
+    uri: string
+    authorDid: string
+    entryPoint: NativeShareEntryPoint
+    /**
+     * `failed` is web only: the browser refused to open its share sheet, so
+     * the link was copied instead. That isn't counted as a share.
+     */
+    status: 'shared' | 'dismissed' | 'failed'
+    /**
+     * The app the user picked: the `activityType` on iOS, the package name on
+     * Android. Android reports the chooser's own actions (e.g. Copy) as
+     * `dismissed` with no target. Never set on web, since browsers don't say.
+     */
+    target?: string
+  }
+  'share:press:openDmSearch': ShareSubjectField & {
+    uri: string
+    authorDid: string
+  }
+  /**
+   * Fires when the user picks a chat from the "Send via chat" search.
+   */
+  'share:press:dmSelected': ShareSubjectField & {
+    uri: string
+    authorDid: string
+  }
+  'share:press:recentDm': ShareSubjectField & {
+    uri: string
+    authorDid: string
+    /**
+     * 0-based index among the recent chats. Later chats are only seen by
+     * people who scroll.
+     */
+    position: number
+  }
+  /**
+   * Fires when the user sends a message with a post attached from the share
+   * menu (a recent chat or "Send via chat"). The share-menu events above only
+   * mean a chat was opened; this one means the user sent the post. It fires
+   * once the message is queued, not when the server confirms it.
+   */
+  'share:dm:send': {
+    uri: string
+    authorDid: string
+    convoId: string
+    isGroup: boolean
+    /**
+     * How the chat was picked. Unset when the chat was opened with the post
+     * some other way, e.g. a link.
+     */
+    source?: 'recentChat' | 'chatSearch'
+  }
+  'share:press:embed': {uri: string}
+  /**
+   * Fires when the user picks an app from the share sheet's row of apps, e.g.
+   * `x` or `whatsapp`. Which apps were shown is never logged, since that
+   * reveals which apps are installed.
+   */
+  'share:press:platform': ShareSubjectField & {
+    uri: string
+    authorDid: string
+    platform: SharePlatformId
+    /**
+     * 0-based index in the apps row. The row scrolls, so later apps are only
+     * seen by people who swipe.
+     */
+    position: number
+  }
+  /**
+   * Fires when the app picked from the share sheet's row couldn't be opened,
+   * e.g. it was uninstalled after the row was shown.
+   */
+  'share:platform:openFailed': ShareSubjectField & {
+    uri: string
+    authorDid: string
+    platform: SharePlatformId
+  }
 
   'embed:standardSite:view': {url: string}
   'embed:standardSite:article:press': {url: string}
@@ -1195,6 +1523,166 @@ export type Events = {
    * Specifically for the `BlockedGeoOverlay`
    */
   'blockedGeoOverlay:shown': {}
+
+  /** The user dismissed the Atmosphere introduction banner. */
+  'atmosphere:nux:bannerDismissed': {}
+  /** The user opened the About Atmosphere dialog from the banner. */
+  'atmosphere:nux:learnMore': {}
+  /**
+   * The screen gained focus on this tab, or the pager reported a tab change.
+   * Returning from the background alone does not count.
+   */
+  'atmosphere:tab:displayed': {
+    tab: AtmosphereTab
+    /** The tab switched from. Unset for `focus`. */
+    previousTab?: AtmosphereTab
+    /**
+     * - `focus`: the screen gained focus, or mounted, on the tab.
+     * - `tap`: the user pressed the tab.
+     * - `swipe`: the user swiped the pager to the tab, which only native
+     *   does.
+     * - `seeMoreApps`: Explore's "See more" on featured apps opened Apps.
+     */
+    reason: 'focus' | 'tap' | 'swipe' | 'seeMoreApps'
+  }
+  /**
+   * Time with the tab selected, the screen focused, and the app in the
+   * foreground, logged when that period ends. This is not reading time:
+   * dialogs can cover the tab without stopping the timer. Whether the native
+   * in-app browser stops the timer has not been verified on-device.
+   */
+  'atmosphere:tab:duration': {
+    tab: AtmosphereTab
+    durationMs: number
+    /**
+     * - `switched`: the user switched to another tab.
+     * - `blurred`: the screen lost focus, e.g. another screen opened over
+     *   it, or it closed.
+     * - `backgrounded`: the app left the foreground.
+     */
+    endReason: 'switched' | 'blurred' | 'backgrounded'
+  }
+  /**
+   * Discover, Following and the activity list only. Each uri
+   * counts once until its list is unmounted, regardless of position or
+   * activity group. Switching tabs does not reset the count.
+   *
+   * List waits 500 ms. Native needs 40% of the row visible; web needs any part
+   * visible above the bottom 200px of the browser viewport. The platforms use
+   * different visibility rules. Blurred cards never count, even if revealed.
+   *
+   * Rows reported while the tab or screen is inactive wait until it is shown,
+   * then count if still in the data and allowed by moderation. They may no
+   * longer be visible, and the 500 ms may have elapsed while inactive.
+   */
+  'atmosphere:content:impression': AtmosphereContentMetricContext
+  /**
+   * The user pressed a content card. Repeated presses count again. `external`
+   * does not confirm that its site or app opened, or that the content was read.
+   *
+   * Presses can occur without an impression, including Explore and revealed
+   * blurred cards. Dividing presses by impressions does not give the share of
+   * shown cards that were pressed. Opening an article from an iOS link preview
+   * is not counted (bluesky-social/toolbox#95; not tested on-device).
+   */
+  'atmosphere:content:press': AtmosphereContentMetricContext & {
+    destination: 'external' | 'photoDialog'
+  }
+  /** The user pressed a link to someone's profile. */
+  'atmosphere:profile:press': AtmosphereMetricContext & {
+    profileDid: string
+    source: 'activityHeader' | 'cardMenu' | 'photoDialog'
+  }
+  /** The user pressed a section's "See more", which switches tabs. */
+  'atmosphere:section:seeMore': AtmosphereMetricContext & {
+    section: 'apps'
+    destinationTab: 'apps'
+  }
+  /** The user opened an Apps tab card's details dialog. */
+  'atmosphere:app:detailsOpened': AtmosphereAppMetricContext
+  /** The user pressed an app's website link. Does not confirm it opened. */
+  'atmosphere:app:websitePressed': AtmosphereAppMetricContext & {
+    source: 'featuredCard' | 'appDialog'
+  }
+  /** The user pressed an app's Bluesky profile link. */
+  'atmosphere:app:profilePressed': AtmosphereAppMetricContext & {
+    source: 'featuredCard' | 'appDialog'
+  }
+  /** The user picked another category in the Apps tab. */
+  'atmosphere:apps:categorySelected': AtmosphereMetricContext & {
+    /** Category key, e.g. `writing`, or `all`. */
+    category: string
+    previousCategory: string
+    /** Apps shown in the new category. */
+    resultCount: number
+  }
+  /**
+   * The photo dialog reported another image as the leading one. A long swipe
+   * can log several changes. Use as a sign of photo browsing, not an exact
+   * count of gestures or every image viewed.
+   */
+  'atmosphere:photo:imageChanged': AtmosphereContentMetricContext & {
+    fromIndex: number
+    toIndex: number
+    imageCount: number
+  }
+  /**
+   * The user pressed an image, or the dialog's call-to-action button (`cta`,
+   * e.g. "View on Grain"), to open the gallery in its photo app. imageIndex
+   * identifies the pressed image. Does not confirm the gallery opened.
+   */
+  'atmosphere:photo:externalPressed': AtmosphereContentMetricContext & {
+    source: 'image' | 'cta'
+    imageIndex?: number
+  }
+  /**
+   * How a tab's or activity list's first load went for the user, logged once
+   * per mount, when its outcome is in view. A load that settles while the
+   * user is away logs when they come back.
+   */
+  'atmosphere:content:loaded': AtmosphereMetricContext & {
+    state: 'populated' | 'empty' | 'error'
+    itemCount: number
+  }
+  /** The user pulled to refresh a tab or activity list. */
+  'atmosphere:content:refresh': AtmosphereMetricContext
+  /**
+   * Following or the activity list added a page after the initial load.
+   * Initial/cached pages and refetches with no added pages do not count.
+   * This does not mean the user saw the new items.
+   */
+  'atmosphere:list:pageLoaded': AtmosphereMetricContext & {
+    /** 0-based; page 0 is the initial load and does not emit this event. */
+    pageIndex: number
+    /** Rows in the new page, including blurred cards and warnings. */
+    itemCount: number
+    /** Rows through this page, not unique content or impressions. */
+    totalItemCount: number
+  }
+  /** The user opened a content card's options menu. */
+  'atmosphere:menu:opened': AtmosphereContentMetricContext
+  /**
+   * The user picked an action from a content card's options menu. This is
+   * intent, e.g. `createPost` opens the composer, but doesn't mean they
+   * posted, and `report` opens the report dialog.
+   */
+  'atmosphere:menu:action': AtmosphereContentMetricContext & {
+    action:
+      | 'share'
+      | 'copyLink'
+      | 'createPost'
+      | 'sendViaChat'
+      | 'viewExternal'
+      | 'viewProfile'
+      | 'report'
+    /** `report` only: the collection of the record being reported. */
+    reportCollection?: string
+  }
+  /** The user opened an activity group's "View all" list. */
+  'atmosphere:activity:viewAll': AtmosphereMetricContext & {
+    subjectCount: number
+    collection: string
+  }
 
   'geo:debug': {}
 
@@ -1313,6 +1801,96 @@ export type Events = {
   'profile:associated:germ:self-disconnect': {}
   'profile:associated:germ:self-reconnect': {}
 
+  'profile:links:click': {
+    /**
+     * The profile the link is on, not the viewer.
+     */
+    profileDid: string
+    /**
+     * The link's `app.bsky.actor.link` record, which tells apart two links to
+     * the same site. Editing a link keeps its record.
+     */
+    linkUri: string | undefined
+    domain: string
+    /**
+     * Name of the recognized support provider, if the link is a support link.
+     */
+    supportProvider: string | undefined
+    isOwnProfile: boolean
+  }
+  /**
+   * A profile showing links was viewed. The denominator for tap rate.
+   */
+  'profile:links:impression': {
+    profileDid: string
+    linkCount: number
+    supportLinkCount: number
+    /**
+     * The `app.bsky.actor.link` records of the links shown, in display order,
+     * including any folded behind "+N". The per-link denominator for tap rate.
+     */
+    linkUris: string[]
+    isOwnProfile: boolean
+  }
+  /**
+   * Edit Profile was opened, from any profile header.
+   */
+  'profile:edit:open': {}
+  /**
+   * Edit Profile saved a change to the profile's pronouns. Never includes the
+   * pronouns themselves.
+   */
+  'profile:pronouns:save':
+    | {action: 'remove'}
+    | {
+        action: 'add' | 'edit'
+        /**
+         * How the saved pronouns were entered: one suggestion, several
+         * suggestions combined, or custom text.
+         */
+        source: 'preset' | 'combined' | 'custom'
+      }
+  /**
+   * Edit Profile was opened with the Links section available.
+   */
+  'profile:links:editorOpen': {
+    linkCount: number
+  }
+  /**
+   * Logged on save, one event per link actually added or removed.
+   */
+  'profile:links:add': {
+    linkUri: string | undefined
+    domain: string
+    supportProvider: string | undefined
+  }
+  'profile:links:remove': {
+    linkUri: string | undefined
+    domain: string
+    supportProvider: string | undefined
+  }
+  /**
+   * A visitor opened a link's details, e.g. by long-pressing it.
+   */
+  'profile:links:preview': {
+    profileDid: string
+    linkUri: string | undefined
+    domain: string
+    supportProvider: string | undefined
+    isOwnProfile: boolean
+  }
+  /**
+   * A link couldn't be added, e.g. because its site is blocked.
+   */
+  'profile:links:rejected': {
+    reason: 'safelink' | 'shortener' | 'insecure'
+    /**
+     * Left out for Safelink blocks, which can be sensitive sites. The other
+     * reasons come from public lists in the app.
+     */
+    domain?: string
+  }
+
   // Post photo embed events
   'post:photoEmbed:impression': {
     layout: 'single' | 'grid' | 'carousel'
@@ -1424,6 +2002,28 @@ export type Events = {
     context: 'embed' | 'immersiveFeed'
     presentation: 'video' | 'gif'
     autoplay: boolean
+  }
+  /**
+   * Incremental, non-overlapping wall-clock watch time. Segments are uniquely
+   * identified by playbackSessionId + segmentIndex for downstream deduping.
+   */
+  'video:playback:duration': {
+    playbackSessionId: string
+    segmentIndex: number
+    durationMs: number
+    postUri?: string
+    postAuthorDid?: string
+    context: 'embed' | 'immersiveFeed'
+    presentation: 'video' | 'gif'
+    endReason:
+      | 'paused'
+      | 'deactivated'
+      | 'backgrounded'
+      | 'buffering'
+      | 'checkpoint'
+      | 'ended'
+      | 'error'
+      | 'unmounted'
   }
   /**
    * The user activated a third-party media player. Cross-origin players do

@@ -7,6 +7,7 @@ import {RemoveScrollBar} from 'react-remove-scroll-bar'
 
 import {useIntentHandler} from '#/lib/hooks/useIntentHandler'
 import {type NavigationProp} from '#/lib/routes/types'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {useSession} from '#/state/session'
 import {useIsDrawerOpen, useSetDrawerOpen} from '#/state/shell'
 import {useCloseAllActiveElements} from '#/state/util'
@@ -91,6 +92,7 @@ function ShellInner() {
 }
 
 function DrawerLayout({children}: {children: React.ReactNode}) {
+  const isRTL = useIsRTL()
   const t = useTheme()
   const isDrawerOpen = useIsDrawerOpen()
   const setDrawerOpen = useSetDrawerOpen()
@@ -144,7 +146,13 @@ function DrawerLayout({children}: {children: React.ReactNode}) {
               <View
                 style={[
                   styles.drawerContainer,
-                  showDrawer ? a.slide_in_left : a.slide_out_left,
+                  isRTL
+                    ? showDrawer
+                      ? a.slide_in_right
+                      : a.slide_out_right
+                    : showDrawer
+                      ? a.slide_in_left
+                      : a.slide_out_left,
                 ]}>
                 <DrawerContent />
               </View>
@@ -193,13 +201,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     top: 0,
-    left: 0,
+    start: 0,
   },
   drawerContainer: {
     display: 'flex',
     ...a.fixed,
     top: 0,
-    left: 0,
+    start: 0,
     height: '100%',
     width: 330,
     maxWidth: '80%',

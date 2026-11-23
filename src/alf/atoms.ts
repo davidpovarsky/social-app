@@ -103,6 +103,13 @@ export const atoms = {
     animation: 'slideOutLeft ease-in 0.15s',
     animationFillMode: 'forwards',
   }),
+  slide_in_right: web({
+    animation: 'slideInRight cubic-bezier(0.16, 1, 0.3, 1) 0.5s',
+  }),
+  slide_out_right: web({
+    animation: 'slideOutRight ease-in 0.15s',
+    animationFillMode: 'forwards',
+  }),
   // special composite animation for dialogs
   zoom_fade_in: web({
     animation: `zoomIn ${EXP_CURVE} 0.3s, fadeIn ${EXP_CURVE} 0.3s`,

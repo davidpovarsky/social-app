@@ -29,7 +29,6 @@ import Animated, {
   FadeOut,
   interpolateColor,
   LayoutAnimationConfig,
-  LinearTransition,
   scrollTo,
   useAnimatedRef,
   useAnimatedScrollHandler,
@@ -46,6 +45,7 @@ import * as FileSystem from 'expo-file-system'
 import {type ImagePickerAsset} from 'expo-image-picker'
 import {type Client, type UriString} from '@atproto/lex'
 import {AtUri, type AtUriString} from '@atproto/syntax'
+import {BottomSheetPortalProvider} from '@bsky.app/bottom-sheet'
 import {type RichText} from '@bsky/sdk/richtext'
 import {plural} from '@lingui/core/macro'
 import {Trans, useLingui} from '@lingui/react/macro'
@@ -137,6 +137,7 @@ import {useAnalytics} from '#/analytics'
 import {
   IS_ANDROID,
   IS_IOS,
+  IS_IPAD,
   IS_LIQUID_GLASS,
   IS_NATIVE,
   IS_WEB,
@@ -149,7 +150,6 @@ import {TorahComposerSourceButton} from '#/torah-social/composer/TorahComposerSo
 import {TorahPostHeaderEmbed} from '#/torah-social/composer/TorahPostHeaderEmbed'
 import {isSefariaSourceUri} from '#/torah-social/sources/url'
 import * as bsky from '#/types/bsky'
-import {BottomSheetPortalProvider} from '../../../../modules/bottom-sheet'
 import {
   draftToComposerPosts,
   extractLocalRefs,
@@ -292,7 +292,7 @@ export const ComposePost = ({
   const discardPromptControl = Prompt.usePromptControl()
   const emptyPostsPromptControl = Prompt.usePromptControl()
   const skipEmptyConfirmedRef = useRef(false)
-  const {mutateAsync: saveDraft, isPending: _isSavingDraft} =
+  const {mutateAsync: saveDraft, isPending: isSavingDraft} =
     useSaveDraftMutation()
   const {mutate: cleanupPublishedDraft} = useCleanupPublishedDraftMutation()
   const {closeAllDialogs} = useDialogStateControlContext()
@@ -312,11 +312,10 @@ export const ComposePost = ({
   >(null)
 
   /**
-   * A temporary local reference to a language suggestion that the user has
-   * accepted. This overrides the global post language preference, but is not
-   * stored permanently.
+   * A manual selection or accepted suggestion applies only to this composer
+   * session, without changing the primary language preference.
    */
-  const [acceptedLanguageSuggestion, setAcceptedLanguageSuggestion] = useState<
+  const [selectedPostLanguage, setSelectedPostLanguage] = useState<
     string | null
   >(null)
 
@@ -328,24 +327,23 @@ export const ComposePost = ({
   )
 
   /**
-   * The currently selected languages of the post. Prefer local temporary
-   * language suggestion over global lang prefs, if available.
+   * Default to the primary language, ignoring the legacy sticky post language
+   * preference. Manual selections and accepted suggestions apply locally.
    */
   const currentLanguages = useMemo(
     () =>
-      acceptedLanguageSuggestion
-        ? [acceptedLanguageSuggestion]
-        : toPostLanguages(langPrefs.postLanguage),
-    [acceptedLanguageSuggestion, langPrefs.postLanguage],
+      selectedPostLanguage
+        ? toPostLanguages(selectedPostLanguage)
+        : [langPrefs.primaryLanguage],
+    [selectedPostLanguage, langPrefs.primaryLanguage],
   )
 
   /**
    * When the user selects a language from the composer language selector,
-   * clear any temporary language suggestions they may have selected
-   * previously, and any we might try to suggest to them.
+   * override the current selection and clear reply language suggestions.
    */
-  const onSelectLanguage = () => {
-    setAcceptedLanguageSuggestion(null)
+  const onSelectLanguage = (language: string) => {
+    setSelectedPostLanguage(language)
     setReplyToLanguages([])
   }
 
@@ -879,13 +877,16 @@ export const ComposePost = ({
   const insets = useSafeAreaInsets()
   const viewStyles = useMemo(
     () => ({
-      paddingTop: IS_ANDROID ? insets.top : 0,
+      paddingTop: IS_ANDROID || IS_IPAD ? insets.top : 0,
       paddingBottom: insets.bottom,
     }),
     [insets.top, insets.bottom],
   )
 
   const onPressCancel = useCallback(() => {
+    if (isSavingDraft) {
+      return
+    }
     if (textInputRef.current?.maybeClosePopup()) {
       return
     }
@@ -906,6 +907,7 @@ export const ComposePost = ({
       onClose()
     }
   }, [
+    isSavingDraft,
     thread,
     composerState.draftId,
     composerState.isDirty,
@@ -1026,7 +1028,7 @@ export const ComposePost = ({
   }, [thread])
 
   const onPressPublish = useCallback(async () => {
-    if (isPublishing) {
+    if (isPublishing || isSavingDraft) {
       return
     }
 
@@ -1213,7 +1215,7 @@ export const ComposePost = ({
         originalLocalRefs: composerState.originalLocalRefs,
       })
     }
-    setLangPrefs.savePostLanguageToHistory()
+    setLangPrefs.savePostLanguageToHistory(fromPostLanguages(currentLanguages))
     if (initQuote) {
       // We want to wait for the quote count to update before we call `onPost`, which will refetch data
       void whenAppViewReady(client, initQuote.uri, res => {
@@ -1268,6 +1270,7 @@ export const ComposePost = ({
     pdsClient,
     canPost,
     isPublishing,
+    isSavingDraft,
     currentLanguages,
     onClose,
     onPost,
@@ -1388,7 +1391,7 @@ export const ComposePost = ({
         text={activePost.richtext.text}
         replyToLanguages={replyToLanguages}
         currentLanguages={currentLanguages}
-        onAcceptSuggestedLanguage={setAcceptedLanguageSuggestion}
+        onAcceptSuggestedLanguage={setSelectedPostLanguage}
         onNudge={onLanguageNudge}
       />
       <ComposerPills
@@ -1427,6 +1430,7 @@ export const ComposePost = ({
         testID="composePostView"
         behavior={IS_IOS ? 'padding' : 'height'}
         keyboardVerticalOffset={keyboardVerticalOffset}
+        automaticOffset={IS_IPAD}
         style={a.flex_1}>
         <View
           style={[a.flex_1, viewStyles]}
@@ -1437,6 +1441,7 @@ export const ComposePost = ({
             isReply={!!replyTo}
             isPublishQueued={publishOnUpload}
             isPublishing={isPublishing}
+            isSavingDraft={isSavingDraft}
             isThread={thread.posts.length > 1}
             publishingStage={publishingStage}
             topBarAnimatedStyle={topBarAnimatedStyle}
@@ -1465,7 +1470,6 @@ export const ComposePost = ({
 
           <Animated.ScrollView
             ref={scrollViewRef}
-            layout={native(LinearTransition)}
             onScroll={scrollHandler}
             contentContainerStyle={a.flex_grow}
             style={[
@@ -1808,6 +1812,7 @@ function ComposerTopBar({
   isReply,
   isPublishQueued,
   isPublishing,
+  isSavingDraft,
   isThread,
   publishingStage,
   onCancel,
@@ -1824,6 +1829,7 @@ function ComposerTopBar({
   children,
 }: {
   isPublishing: boolean
+  isSavingDraft: boolean
   publishingStage: string
   canPost: boolean
   isReply: boolean
@@ -1846,9 +1852,7 @@ function ComposerTopBar({
   const {t: l} = useLingui()
 
   return (
-    <Animated.View
-      style={topBarAnimatedStyle}
-      layout={native(LinearTransition)}>
+    <Animated.View style={topBarAnimatedStyle}>
       <View
         style={[
           a.flex_row,
@@ -1865,6 +1869,7 @@ function ComposerTopBar({
           style={[{paddingLeft: 7, paddingRight: 7}]}
           hoverStyle={[a.bg_transparent, {opacity: 0.5}]}
           onPress={onCancel}
+          disabled={isSavingDraft}
           accessibilityHint={l`Closes post composer and discards post draft`}>
           <ButtonText style={[a.text_md]} maxFontSizeMultiplier={2}>
             <Trans>Cancel</Trans>
@@ -1890,6 +1895,7 @@ function ComposerTopBar({
                 isEmpty={isEmpty}
                 isDirty={isDirty}
                 isEditingDraft={isEditingDraft}
+                isSaving={isSavingDraft}
                 canSaveDraft={canSaveDraft}
                 textLength={textLength}
               />
@@ -1924,7 +1930,7 @@ function ComposerTopBar({
               color="primary"
               size="small"
               onPress={onPublish}
-              disabled={!canPost || isPublishQueued}>
+              disabled={!canPost || isPublishQueued || isSavingDraft}>
               <ButtonText style={[a.text_md]} maxFontSizeMultiplier={2}>
                 {isReply ? (
                   <Trans context="action">Reply</Trans>
@@ -2160,7 +2166,7 @@ function ComposerFooter({
   ) => void | Promise<void>
   onAddPost: () => void
   currentLanguages: string[]
-  onSelectLanguage?: (language: string) => void
+  onSelectLanguage: (language: string) => void
   languageNudgeAt: number
   openGallery?: boolean
   textInputRef: React.RefObject<TextInputRef | null>
@@ -2481,6 +2487,9 @@ function useKeyboardVerticalOffset() {
   // the keyboardavoidingview has bottom padding to avoid being obscured by the safe area when keyboard is closed.
   // however, this leads to a gap when the keyboard is open. we account for that by subtracting the bottom inset when open.
   let keyboardVerticalOffset = insets.bottom * -1
+
+  // iPad sheets measure their own position via automaticOffset.
+  if (IS_IPAD) return keyboardVerticalOffset
 
   // iOS requires a bit of extra offset to account for the native sheet not being at the top of the screen
   if (IS_IOS) {

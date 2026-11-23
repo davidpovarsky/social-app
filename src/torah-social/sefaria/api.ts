@@ -27,15 +27,240 @@ function apiUrl(
   return url.toString()
 }
 
-async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, {
-    headers: {Accept: 'application/json'},
-    signal,
-  })
-  if (!response.ok) {
-    throw new Error(`Sefaria request failed (${response.status})`)
+// Local client policy, not a claim about Sefaria's published rate limit.
+const REQUEST_INTERVAL_MS = 1_000
+const REQUEST_DEADLINE_MS = 15_000
+const MAX_RATE_LIMIT_RETRIES = 2
+const REF_CACHE_TTL_MS = 5 * 60_000
+const REF_CACHE_LIMIT = 128
+
+export class SefariaRateLimitError extends Error {
+  readonly status = 429
+  readonly retryAfterMs?: number
+
+  constructor(retryAfterMs?: number) {
+    super('Sefaria is temporarily busy. Please try again shortly.')
+    this.name = 'SefariaRateLimitError'
+    this.retryAfterMs = retryAfterMs
   }
-  return (await response.json()) as T
+}
+
+export class SefariaTimeoutError extends Error {
+  constructor() {
+    super('Sefaria did not respond in time. Please try again.')
+    this.name = 'SefariaTimeoutError'
+  }
+}
+
+type ValidatedRef = {
+  ref: string
+  heRef: string
+  category?: string
+  addressTypes?: string[]
+}
+
+const refCache = new Map<string, {value: ValidatedRef; expiresAt: number}>()
+let requestQueue: Promise<void> = Promise.resolve()
+let nextRequestAt = 0
+let rateLimitedUntil = 0
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason
+}
+
+function rethrowRequiredFailure(error: unknown, signal?: AbortSignal) {
+  throwIfAborted(signal)
+  if (error instanceof SefariaRateLimitError) throw error
+}
+
+function cloneRef(value: ValidatedRef): ValidatedRef {
+  return {...value, addressTypes: value.addressTypes?.slice()}
+}
+
+function cachedRef(key: string): ValidatedRef | undefined {
+  const entry = refCache.get(key)
+  if (!entry) return undefined
+  if (entry.expiresAt <= Date.now()) {
+    refCache.delete(key)
+    return undefined
+  }
+  refCache.delete(key)
+  refCache.set(key, entry)
+  return cloneRef(entry.value)
+}
+
+function cacheRef(input: string, value: ValidatedRef) {
+  const entry = {
+    value: cloneRef(value),
+    expiresAt: Date.now() + REF_CACHE_TTL_MS,
+  }
+  for (const key of new Set([input, value.ref])) {
+    refCache.delete(key)
+    refCache.set(key, entry)
+    while (refCache.size > REF_CACHE_LIMIT) {
+      const oldest = refCache.keys().next().value
+      if (oldest === undefined) break
+      refCache.delete(oldest)
+    }
+  }
+}
+
+function requestScope(signal?: AbortSignal) {
+  const controller = new AbortController()
+  const deadline = Date.now() + REQUEST_DEADLINE_MS
+  let stopped = false
+  let reason: unknown
+  let rejectStopped: (error: unknown) => void = () => {}
+  const stoppedPromise = new Promise<never>((_, reject) => {
+    rejectStopped = reject
+  })
+  // A queued caller can cancel before the queue starts awaiting this promise.
+  void stoppedPromise.catch(() => {})
+
+  function stop(error: unknown) {
+    if (stopped) return
+    stopped = true
+    reason = error
+    controller.abort(error)
+    rejectStopped(error)
+  }
+
+  function check() {
+    if (signal?.aborted) stop(signal.reason)
+    if (!stopped && Date.now() >= deadline) stop(new SefariaTimeoutError())
+    if (stopped) throw reason
+  }
+
+  const onAbort = () => stop(signal?.reason)
+  signal?.addEventListener('abort', onAbort, {once: true})
+  if (signal?.aborted) onAbort()
+  const timer = setTimeout(
+    () => stop(new SefariaTimeoutError()),
+    REQUEST_DEADLINE_MS,
+  )
+
+  async function race<T>(work: Promise<T>): Promise<T> {
+    try {
+      const value = await Promise.race([work, stoppedPromise])
+      check()
+      return value
+    } catch (error) {
+      check()
+      throw error
+    }
+  }
+
+  async function waitUntil(at: number) {
+    check()
+    const delay = at - Date.now()
+    if (delay <= 0) return
+    let waitTimer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await race(
+        new Promise<void>(resolve => {
+          waitTimer = setTimeout(resolve, delay)
+        }),
+      )
+    } finally {
+      clearTimeout(waitTimer)
+    }
+  }
+
+  return {
+    deadline,
+    signal: controller.signal,
+    check,
+    race,
+    waitUntil,
+    dispose() {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      // Error responses may have an unread body. End only this request's
+      // owned transport after its result has settled, never the caller signal.
+      controller.abort()
+    },
+  }
+}
+
+function retryAfterDelay(
+  value: string | null,
+  now: number,
+): number | undefined {
+  if (value !== null) {
+    const trimmed = value.trim()
+    if (/^\d+$/.test(trimmed)) {
+      const seconds = Number(trimmed)
+      if (
+        !Number.isSafeInteger(seconds) ||
+        seconds > Math.floor((Number.MAX_SAFE_INTEGER - now) / 1_000)
+      ) {
+        return undefined
+      }
+      return seconds * 1_000
+    }
+    // HTTP dates have a textual weekday/month; do not parse a decimal as a date.
+    if (/^[A-Za-z]{3,9}[, ]/.test(trimmed)) {
+      const date = Date.parse(trimmed)
+      return Number.isSafeInteger(date) ? Math.max(0, date - now) : undefined
+    }
+  }
+  return REQUEST_INTERVAL_MS
+}
+
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  throwIfAborted(signal)
+  const scope = requestScope(signal)
+  const queued = requestQueue.then(async () => {
+    for (let attempt = 0; ; attempt++) {
+      scope.check()
+      if (rateLimitedUntil >= scope.deadline) {
+        throw new SefariaRateLimitError(rateLimitedUntil - Date.now())
+      }
+      await scope.waitUntil(Math.max(nextRequestAt, rateLimitedUntil))
+      scope.check()
+      nextRequestAt = Date.now() + REQUEST_INTERVAL_MS
+      const response = await scope.race(
+        fetch(url, {
+          headers: {Accept: 'application/json'},
+          signal: scope.signal,
+        }),
+      )
+      if (response.status === 429) {
+        const delay = retryAfterDelay(
+          response.headers.get('Retry-After'),
+          Date.now(),
+        )
+        // An unrepresentable header must not cause an early retry or poison
+        // the shared cooldown with Infinity. This operation stops immediately.
+        if (delay === undefined) throw new SefariaRateLimitError()
+        rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + delay)
+        if (
+          attempt >= MAX_RATE_LIMIT_RETRIES ||
+          rateLimitedUntil >= scope.deadline
+        ) {
+          throw new SefariaRateLimitError(
+            Math.max(0, rateLimitedUntil - Date.now()),
+          )
+        }
+        continue
+      }
+      if (!response.ok) {
+        throw new Error('Sefaria request failed (' + response.status + ')')
+      }
+      return await scope.race(response.json() as Promise<T>)
+    }
+  })
+  // A cancelled queued caller stays in the chain until its predecessor settles;
+  // releasing its slot early would let a later request bypass serial ordering.
+  requestQueue = queued.then(
+    () => {},
+    () => {},
+  )
+  try {
+    return await scope.race(queued)
+  } finally {
+    scope.dispose()
+  }
 }
 
 function flattenText(value: unknown): string[] {
@@ -82,6 +307,7 @@ export async function autocompleteRefs(
   query: string,
   signal?: AbortSignal,
 ): Promise<SefariaCompletion[]> {
+  throwIfAborted(signal)
   const value = query.trim()
   if (value.length < 2) return []
 
@@ -101,6 +327,7 @@ export async function autocompleteRefs(
     signal,
   )
 
+  throwIfAborted(signal)
   return (data.completion_objects ?? [])
     .filter(item => item.type == null || item.type === 'ref')
     .flatMap(item => {
@@ -118,6 +345,7 @@ export async function searchTorahSources(
   query: string,
   signal?: AbortSignal,
 ): Promise<SefariaCompletion[]> {
+  throwIfAborted(signal)
   const value = query.trim()
   if (value.length < 2) return []
 
@@ -125,6 +353,14 @@ export async function searchTorahSources(
     validateRef(value, signal),
     autocompleteRefs(value, signal),
   ])
+
+  throwIfAborted(signal)
+  for (const result of [validatedResult, autocompleteResult]) {
+    if (result.status === 'rejected') {
+      rethrowRequiredFailure(result.reason, signal)
+      if (result.reason instanceof SefariaTimeoutError) throw result.reason
+    }
+  }
 
   const results: SefariaCompletion[] = []
   const seenRefs = new Set<string>()
@@ -146,7 +382,7 @@ export async function searchTorahSources(
     // If it's a Talmud daf without amud (e.g. "Rosh Hashanah 22" or "Berakhot 2"),
     // generate daf/amud candidates: 22a (ע״א) and 22b (ע״ב)
     const talmudDafMatch = valid.ref.match(/^(.+?)\s+(\d+)$/)
-    if (talmudDafMatch) {
+    if (valid.addressTypes?.[0] === 'Talmud' && talmudDafMatch) {
       const [, tractate, dafNum] = talmudDafMatch
       const amudA = `${tractate} ${dafNum}a`
       const amudB = `${tractate} ${dafNum}b`
@@ -156,7 +392,12 @@ export async function searchTorahSources(
         validateRef(amudB, signal),
       ])
 
+      throwIfAborted(signal)
       for (const cand of amudCandidates) {
+        if (cand.status === 'rejected') {
+          rethrowRequiredFailure(cand.reason, signal)
+          if (cand.reason instanceof SefariaTimeoutError) throw cand.reason
+        }
         if (cand.status === 'fulfilled' && cand.value) {
           const c = cand.value
           if (!seenRefs.has(c.ref.toLowerCase())) {
@@ -185,13 +426,14 @@ export async function searchTorahSources(
     }
   }
 
+  throwIfAborted(signal)
   return results
 }
 
 export async function validateRef(
   input: string,
   signal?: AbortSignal,
-): Promise<{ref: string; heRef: string; category?: string}> {
+): Promise<ValidatedRef> {
   type RefResponse = {
     is_ref?: boolean
     ref?: string
@@ -204,10 +446,17 @@ export async function validateRef(
     primary_category?: string
     primaryCategory?: string
     index_title?: string
+    address_types?: unknown
   }
 
+  throwIfAborted(signal)
   const value = input.trim()
   if (!value) throw new Error('יש להזין מקור')
+  const cached = cachedRef(value)
+  if (cached) {
+    throwIfAborted(signal)
+    return cached
+  }
 
   const data = await getJson<RefResponse>(
     apiUrl(`/api/ref/${encodeURIComponent(value)}`),
@@ -215,15 +464,28 @@ export async function validateRef(
   )
 
   const resolvedRef = data.normalized || data.ref || data.url_ref
-  if (data.is_ref === false || !resolvedRef) {
+  throwIfAborted(signal)
+  if (
+    data.is_ref === false ||
+    typeof resolvedRef !== 'string' ||
+    !resolvedRef
+  ) {
     throw new Error('המקור לא זוהה בספריית Sefaria')
   }
 
-  return {
+  const resolved: ValidatedRef = {
     ref: resolvedRef,
     heRef: data.hebrew || data.he_ref || data.heRef || resolvedRef,
     category: data.primary_category || data.primaryCategory || data.index_title,
+    addressTypes:
+      Array.isArray(data.address_types) &&
+      data.address_types.every(item => typeof item === 'string')
+        ? data.address_types.slice()
+        : undefined,
   }
+  throwIfAborted(signal)
+  cacheRef(value, resolved)
+  return cloneRef(resolved)
 }
 
 export function getTorahSourceImageUrl(
@@ -258,7 +520,8 @@ export async function getManuscripts(
       signal,
     )
     return Array.isArray(data) ? data : []
-  } catch {
+  } catch (error) {
+    rethrowRequiredFailure(error, signal)
     return []
   }
 }
@@ -285,11 +548,13 @@ export async function resolveTorahSource(
 
   try {
     text = await getText(normalized.ref, signal)
-  } catch {
+  } catch (error) {
+    rethrowRequiredFailure(error, signal)
     // A valid ref can exist even when a requested primary text is unavailable.
     // The source remains attachable; the reader can retry without blocking post creation.
   }
 
+  throwIfAborted(signal)
   const version = selectPrimaryVersion(text?.versions)
   const preview = flattenText(version?.text).slice(0, 2).join(' ').trim()
   const imageUrl = getTorahSourceImageUrl(normalized.ref)

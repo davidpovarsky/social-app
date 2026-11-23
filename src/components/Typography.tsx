@@ -1,5 +1,8 @@
+import {createContext, useContext} from 'react'
 import {UITextView} from '@bsky.app/react-native-uitextview'
 
+import {getInterfaceTextDirectionStyle} from '#/lib/strings/text-direction'
+import {TextDirectionContext} from '#/locale/textDirectionContext'
 import {logger} from '#/logger'
 import {atoms as a, type TextStyleProp, useAlf, useTheme, web} from '#/alf'
 import {
@@ -8,9 +11,13 @@ import {
   renderChildrenWithEmoji,
   type TextProps,
 } from '#/alf/typography'
+import {IS_NATIVE} from '#/env'
 
 export type {TextProps}
 export {Text as Span} from 'react-native'
+
+// Nested spans inherit their paragraph, including mixed-language rich text.
+const NativeTextAncestorContext = createContext(false)
 
 /**
  * Our main text component. Use this most of the time.
@@ -26,6 +33,8 @@ export function Text({
   allowFontScaling = true,
   ...rest
 }: TextProps) {
+  const isTextDescendant = useContext(NativeTextAncestorContext)
+  const appDirection = useContext(TextDirectionContext)
   const {fonts, flags} = useAlf()
   const t = useTheme()
   const s = normalizeTextStyles(
@@ -42,6 +51,10 @@ export function Text({
       flags,
     },
   )
+  const directionStyle =
+    !isTextDescendant && appDirection
+      ? getInterfaceTextDirectionStyle(appDirection, s)
+      : undefined
 
   if (__DEV__) {
     if (!emoji && childHasEmoji(children)) {
@@ -56,16 +69,22 @@ export function Text({
     uiTextView: true,
     selectable,
     numberOfLines,
-    style: s,
+    style: directionStyle ? {...s, ...directionStyle} : s,
     dataSet: Object.assign({tooltip: title}, dataSet || {}),
     allowFontScaling,
     ...rest,
   }
 
-  return (
+  const text = (
     <UITextView {...shared}>
       {renderChildrenWithEmoji(children, shared, emoji ?? false)}
     </UITextView>
+  )
+
+  return IS_NATIVE ? (
+    <NativeTextAncestorContext value={true}>{text}</NativeTextAncestorContext>
+  ) : (
+    text
   )
 }
 

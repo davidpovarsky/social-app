@@ -11,6 +11,8 @@ import {
 
 import {HITSLOP_20} from '#/lib/constants'
 import {mergeRefs} from '#/lib/merge-refs'
+import {getInterfaceTextDirectionStyle} from '#/lib/strings/text-direction'
+import {TextDirectionContext} from '#/locale/textDirectionContext'
 import {
   applyFonts,
   atoms as a,
@@ -156,13 +158,6 @@ export type InputProps = Omit<
   'value' | 'onChangeText' | 'placeholder'
 > & {
   label: string
-  /**
-   * @deprecated Controlled inputs are *strongly* discouraged. Use `defaultValue` instead where possible.
-   *
-   * See https://github.com/facebook/react-native-website/pull/4247
-   *
-   * Note: This guidance no longer applies once we migrate to the New Architecture!
-   */
   value?: string
   onChangeText?: (value: string) => void
   isInvalid?: boolean
@@ -192,6 +187,7 @@ export function createInput(Component: typeof TextInput) {
   }: InputProps) {
     const t = useTheme()
     const {fonts} = useAlf()
+    const appDirection = useContext(TextDirectionContext)
     const ctx = useContext(Context)
     const withinRoot = Boolean(ctx.inputRef)
 
@@ -247,6 +243,9 @@ export function createInput(Component: typeof TextInput) {
     }
 
     applyFonts(flattened, fonts.family)
+    const directionStyle = appDirection
+      ? getInterfaceTextDirectionStyle(appDirection, flattened)
+      : undefined
 
     if (flattened.fontSize) {
       flattened.fontSize = Math.round(
@@ -284,7 +283,7 @@ export function createInput(Component: typeof TextInput) {
           }
           placeholderTextColor={t.palette.contrast_500}
           keyboardAppearance={t.name === 'light' ? 'light' : 'dark'}
-          style={flattened}
+          style={directionStyle ? {...flattened, ...directionStyle} : flattened}
         />
 
         <View

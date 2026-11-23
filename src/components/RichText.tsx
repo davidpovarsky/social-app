@@ -2,7 +2,7 @@ import {useMemo} from 'react'
 import {type StyleProp, type TextStyle} from 'react-native'
 import {RichText as RichTextAPI} from '@bsky/sdk/richtext'
 
-import {isRTLText} from '#/lib/strings/text-direction'
+import {getRichTextDirectionStyle} from '#/lib/strings/text-direction'
 import {toShortUrl} from '#/lib/strings/url-helpers'
 import {android, atoms as a, flatten, type TextStyleProp} from '#/alf'
 import {isOnlyEmoji} from '#/alf/typography'
@@ -10,7 +10,6 @@ import {InlineLinkText, type LinkProps} from '#/components/Link'
 import {ProfileHoverCard} from '#/components/ProfileHoverCard'
 import {RichTextTag} from '#/components/RichTextTag'
 import {Text, type TextProps} from '#/components/Typography'
-import {IS_NATIVE} from '#/env'
 import {app} from '#/lexicons'
 import {hasTorahQuoteBlock} from '#/torah-social/sources/quoteBlock'
 import {TorahInlineLink} from '#/torah-social/sources/TorahInlineLink'
@@ -101,7 +100,7 @@ export function RichText(props: RichTextProps) {
   }
   const plainStyles: StyleProp<TextStyle> = [
     style,
-    IS_NATIVE && isRTLText(text) ? {textAlign: 'right'} : null,
+    getRichTextDirectionStyle(text),
   ]
   const suffixStyles =
     suffix && suffixOffset

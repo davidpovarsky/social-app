@@ -5,7 +5,7 @@ import {useQueryClient} from '@tanstack/react-query'
 
 import {makeProfileLink} from '#/lib/routes/links'
 import {type NavigationProp} from '#/lib/routes/types'
-import {shareText, shareUrl} from '#/lib/sharing'
+import {shareUrl, simpleShareText} from '#/lib/sharing'
 import {toShareUrl} from '#/lib/strings/url-helpers'
 import {type Shadow} from '#/state/cache/types'
 import {
@@ -51,6 +51,10 @@ import {
   useReportDialogControl,
 } from '#/components/moderation/ReportDialog'
 import * as Prompt from '#/components/Prompt'
+import {
+  ShareSheet,
+  useShareSheetEnabled,
+} from '#/components/ShareDialog/ShareSheet'
 import * as Toast from '#/components/Toast'
 import {useFullVerificationState} from '#/components/verification'
 import {VerificationCreatePrompt} from '#/components/verification/VerificationCreatePrompt'
@@ -61,6 +65,10 @@ import {useActorStatus, useLiveNowConfig} from '#/features/liveNow'
 import {EditLiveDialog} from '#/features/liveNow/components/EditLiveDialog'
 import {GoLiveDialog} from '#/features/liveNow/components/GoLiveDialog'
 import {GoLiveDisabledDialog} from '#/features/liveNow/components/GoLiveDisabledDialog'
+import {
+  ReportLinkDialog,
+  useReportableProfileLinks,
+} from '#/features/profileLinks'
 import {type app} from '#/lexicons'
 import {useDevMode} from '#/storage/hooks/dev-mode'
 
@@ -100,6 +108,10 @@ let ProfileMenu = ({
   const goLiveDisabledDialogControl = useDialogControl()
   const addToStarterPacksDialogControl = useDialogControl()
   const addToListsDialogControl = useDialogControl()
+  const reportLinkDialogControl = useDialogControl()
+  const shareSheetControl = useDialogControl()
+  const shareSheetEnabled = useShareSheetEnabled()
+  const reportableLinks = useReportableProfileLinks(profile)
 
   const showLoggedOutWarning = useMemo(() => {
     return (
@@ -256,11 +268,11 @@ let ProfileMenu = ({
   }, [reportDialogControl])
 
   const onPressShareATUri = useCallback(() => {
-    void shareText(`at://${profile.did}`)
+    void simpleShareText(`at://${profile.did}`)
   }, [profile.did])
 
   const onPressShareDID = useCallback(() => {
-    void shareText(profile.did)
+    void simpleShareText(profile.did)
   }, [profile.did])
 
   const onPressSearch = useCallback(() => {
@@ -304,7 +316,10 @@ let ProfileMenu = ({
               testID="profileHeaderDropdownShareBtn"
               label={IS_WEB ? l`Copy link to profile` : l`Share via...`}
               onPress={() => {
-                if (showLoggedOutWarning) {
+                if (shareSheetEnabled) {
+                  // the sheet shows the logged-out warning itself
+                  shareSheetControl.open()
+                } else if (showLoggedOutWarning) {
                   loggedOutWarningPromptControl.open()
                 } else {
                   onPressShare()
@@ -365,10 +380,10 @@ let ProfileMenu = ({
                 )}
                 <Menu.Item
                   testID="profileHeaderDropdownStarterPackAddRemoveBtn"
-                  label={l`Add to starter packs`}
+                  label={l`Add to Starter Packs`}
                   onPress={onPressAddToStarterPacks}>
                   <Menu.ItemText>
-                    <Trans>Add to starter packs</Trans>
+                    <Trans>Add to Starter Packs</Trans>
                   </Menu.ItemText>
                   <Menu.ItemIcon icon={StarterPackIcon} />
                 </Menu.Item>
@@ -520,6 +535,17 @@ let ProfileMenu = ({
                       </Menu.ItemText>
                       <Menu.ItemIcon icon={FlagIcon} />
                     </Menu.Item>
+                    {reportableLinks.length > 0 && (
+                      <Menu.Item
+                        testID="profileHeaderDropdownReportLinkBtn"
+                        label={l`Report a link`}
+                        onPress={() => reportLinkDialogControl.open()}>
+                        <Menu.ItemText>
+                          <Trans>Report a link</Trans>
+                        </Menu.ItemText>
+                        <Menu.ItemIcon icon={FlagIcon} />
+                      </Menu.Item>
+                    )}
                   </>
                 )}
               </Menu.Group>
@@ -569,11 +595,36 @@ let ProfileMenu = ({
           $type: 'app.bsky.actor.defs#profileViewDetailed',
         }}
       />
+      {reportableLinks.length > 0 && (
+        <ReportLinkDialog
+          control={reportLinkDialogControl}
+          links={reportableLinks}
+        />
+      )}
       <BlockDialog
         control={blockPromptControl}
         profile={profile}
         onBlock={blockAccount}
       />
+      {shareSheetEnabled && (
+        <ShareSheet
+          control={shareSheetControl}
+          subject={{
+            type: 'profile',
+            uri: `at://${profile.did}`,
+            authorDid: profile.did,
+            url: toShareUrl(makeProfileLink(profile)),
+            title: l({
+              message: `@${profile.handle} on Bluesky`,
+              comment:
+                'Prefilled subject line when sharing a profile to email or Reddit',
+            }),
+            loggedInOnlyNotice: showLoggedOutWarning
+              ? l`This profile is only visible to logged-in users.`
+              : undefined,
+          }}
+        />
+      )}
       <Prompt.Basic
         control={loggedOutWarningPromptControl}
         title={l`Note about sharing`}

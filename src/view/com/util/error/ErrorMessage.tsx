@@ -1,7 +1,7 @@
 import {type StyleProp, View, type ViewStyle} from 'react-native'
 import {useLingui} from '@lingui/react/macro'
 
-import {atoms as a, useGutters, useTheme, utils} from '#/alf'
+import {atoms as a, useGutters, useTheme, utils, web} from '#/alf'
 import {Button} from '#/components/Button'
 import {ArrowRotateClockwise_Stroke2_Corner0_Rounded as ArrowRotateIcon} from '#/components/icons/ArrowRotate'
 import {Warning_Stroke2_Corner0_Rounded as WarningIcon} from '#/components/icons/Warning'
@@ -30,6 +30,8 @@ export function ErrorMessage({
         style={[
           a.flex_row,
           a.align_center,
+          a.w_full,
+          {minWidth: 0},
           gutter,
           a.py_sm,
           {backgroundColor: t.palette.pink},
@@ -40,6 +42,8 @@ export function ErrorMessage({
         <Text
           style={[
             a.flex_1,
+            {minWidth: 0},
+            web({overflowWrap: 'anywhere'}),
             a.font_medium,
             a.leading_snug,
             a.text_md,

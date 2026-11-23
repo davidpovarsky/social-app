@@ -1,11 +1,5 @@
 import {memo, useCallback, useMemo, useState} from 'react'
-import {
-  I18nManager,
-  Pressable,
-  ScrollView,
-  useWindowDimensions,
-  View,
-} from 'react-native'
+import {Pressable, ScrollView, useWindowDimensions, View} from 'react-native'
 import {Gesture, GestureDetector} from 'react-native-gesture-handler'
 import Animated, {
   interpolate,
@@ -18,6 +12,8 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {RichText as RichTextAPI} from '@bsky/sdk/richtext'
 
 import {useOpenComposer} from '#/lib/hooks/useOpenComposer'
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {POST_TOMBSTONE, usePostShadow} from '#/state/cache/post-shadow'
 import {PreviewableUserAvatar} from '#/view/com/util/UserAvatar'
 import {atoms as a, useTheme, web} from '#/alf'
@@ -41,7 +37,7 @@ export function DockedPostPanel({
   const t = useTheme()
   const insets = useSafeAreaInsets()
   const {height: winHeight} = useWindowDimensions()
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
 
   const post = usePostShadow(initialPost)
   const isTombstone = post === POST_TOMBSTONE
@@ -189,8 +185,9 @@ export function DockedPostPanel({
         },
         web({
           maxWidth: 680,
-          left: '50%',
-          transform: [{translateX: '-50%'}],
+          start: '50%',
+          end: 'auto',
+          transform: [{translateX: isRTL ? '50%' : '-50%'}],
         }),
         panelAnimatedStyle,
       ]}>
@@ -232,7 +229,7 @@ export function DockedPostPanel({
                   a.text_sm,
                   a.font_semi_bold,
                   {
-                    textAlign: isRTL ? 'right' : 'left',
+                    ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                     writingDirection: isRTL ? 'rtl' : 'ltr',
                   },
                 ]}>
@@ -244,7 +241,7 @@ export function DockedPostPanel({
                   a.text_xs,
                   t.atoms.text_contrast_medium,
                   {
-                    textAlign: isRTL ? 'right' : 'left',
+                    ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                     writingDirection: 'ltr',
                   },
                 ]}>
@@ -284,7 +281,7 @@ export function DockedPostPanel({
                 a.leading_snug,
                 t.atoms.text_contrast_high,
                 {
-                  textAlign: isRTL ? 'right' : 'left',
+                  ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                   writingDirection: isRTL ? 'rtl' : 'ltr',
                 },
               ]}>
@@ -308,7 +305,7 @@ export function DockedPostPanel({
                     a.text_md,
                     a.leading_normal,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}

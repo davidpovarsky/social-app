@@ -6,7 +6,9 @@
 
 המטרה אינה ליצור client חלופי ל־Bluesky אלא רשת נפרדת משלנו: משתמשים, חשבונות, פוסטים, follows, likes, reposts, feeds ו־AppView משלנו.
 
-נכון לעכשיו הרשת כבר מנותקת מתוכן Bluesky, והפיד נבדק בפועל ומופיע ריק, כפי שצריך להיות לפני שנוצר תוכן משלנו.
+בבדיקת 22.11.2026 אומתו חשבונות ופוסטים קיימים ברשת העצמאית. קריאת `getTimeline` מאומתת דרך ה־PDS וה־AppView החזירה תוכן בהצלחה. תקינות ה־API ותקינות התצוגה נבדקות בנפרד; בדיקות הדפדפן והמכשירים הן שער הקבלה לגרסת הלקוח.
+
+סטטוס העבודה והפריסה בפועל מנוהל ב־[Asana](https://app.asana.com/1/1219597879016953/project/1220231286382128). אין להסיק מתיאור רכיב במסמך שהוא עבר בדיקות קבלה בגרסה הנוכחית.
 
 ---
 
@@ -14,8 +16,9 @@
 
 ### Client / Web / iOS
 - **URL**: https://github.com/davidpovarsky/social-app
-- **Branch פעיל**: `codex/torah-social-foundation`
-- **קישור ישיר**: https://github.com/davidpovarsky/social-app/tree/codex/torah-social-foundation
+- **ענף האינטגרציה המתוחזק**: `codex/torah-social-runtime-repair`
+- **קישור ישיר**: https://github.com/davidpovarsky/social-app/tree/codex/torah-social-runtime-repair
+- תיקונים נבדקים בענף עבודה לפני מיזוג לענף האינטגרציה; פריסה מזוהה לפי commit ותוצר בנייה שנבדק.
 - זה fork של `bluesky-social/social-app`.
 
 ### AT Protocol / AppView backend
@@ -26,8 +29,8 @@
 
 ### PDS / Deployment
 - **URL**: https://github.com/davidpovarsky/pds
-- **Branch פעיל**: `codex/torah-social-foundation`
-- **קישור**: https://github.com/davidpovarsky/pds/tree/codex/torah-social-foundation
+- **Branch פעיל**: `codex/torah-social-runtime-repair`
+- **קישור**: https://github.com/davidpovarsky/pds/tree/codex/torah-social-runtime-repair
 - בתוך הריפו נמצאים סקריפטים של ההתקנה והפריסה של Torah Social.
 
 ---
@@ -57,7 +60,7 @@
 
 ### Torah Social AppView
 - **URL**: https://appview-130-110-238-163.nip.io
-- **AppView DID הנוכחי**: `did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H`
+- **AppView DID הנוכחי**: `did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H`
 
 ---
 
@@ -104,14 +107,15 @@ Torah Social PostgreSQL (port 5432)
 
 ## Web Build והגדרות סביבה
 
-ב־Dockerfile של `social-app` שלב ה־build משתמש ב־`node:24-bookworm` עם `pnpm@11.21.0`.
+ב־Dockerfile של `social-app` שלב ה־build משתמש ב־`node:24-bookworm` עם `pnpm@12.16.1`.
 בעת build מבודד מועברים:
 
 ```bash
+EXPO_PUBLIC_TORAH_WEB_HOST=https://torah-130-110-238-163.nip.io
 EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-130-110-238-163.nip.io
 EXPO_PUBLIC_TORAH_PDS_DID=did:web:pds-130-110-238-163.nip.io
 EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-130-110-238-163.nip.io
-EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H
+EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
 EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true
 ```
 
@@ -130,20 +134,35 @@ EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true
 
 ## פריסה ועדכון האתר בשרת (Deployment)
 
-תהליך עדכון ה־Web Client בשרת האורקל:
-1. שינויים נדחפים ל-GitHub בענף `codex/torah-social-foundation`.
-2. בשרת Oracle Cloud (דרך SSH או Cloud Shell):
-   - משיכת השינויים בריפו `social-app`.
-   - בנייה מחדש של ה-Container `torah-social-web` עם ארגומנטי הבידוד.
-   - הפעלה מחדש של הקונטיינר.
+המסלול לשרת ARM64 בעל שטח דיסק מוגבל הוא בנייה ב־GitHub Actions ופריסת התוצר המוכן:
 
-קובץ עזר מקומי [`.env.deployment`](file:///C:/Users/DAVID/Code/social-app/.env.deployment) מאפשר להגדיר טוקן גישה ל-GitHub וחיבור SSH לשרת, וסקריפט [`scripts/torah-deploy.mjs`](file:///C:/Users/DAVID/Code/social-app/scripts/torah-deploy.mjs) מנהל את הפעולות.
+1. הפעילו את workflow `torah-social-repair-web.yml` עבור commit ידוע. בדקו את תוצאות Jest, TypeScript, lint, Go ובדיקות הדפדפן בפועל. צעדי אבחון עשויים להמשיך אחרי כישלון; תוצאת צעד מעטפת לבדה אינה אישור קבלה.
+2. השתמשו בתוצר `torah-social-web-arm64-<SHA>` רק לאחר הצלחת כל שערי ה־Web. תוצר `torah-social-web-candidate-<SHA>` מוקדם מיועד לאבחון בפורט loopback נפרד בלבד.
+3. אמתו את `COMMIT`, את `SHA256SUMS` ואת ארכיטקטורת ELF ‏AArch64. בנו את image הריצה הקטן מתוך `Dockerfile.torah-runtime`, ללא התקנת Node, pnpm או תלויות האפליקציה בשרת.
+4. בדקו מועמד ב־`127.0.0.1:8101`: מסמך HTML, קובצי JavaScript, כתובות canonical/OpenGraph, כניסה וטעינת תוכן. שמרו את הקונטיינר וה־image הפעילים לצורך חזרה לאחור.
+5. החליפו את שירות ה־Web ב־`127.0.0.1:8100`, אמתו את כתובת ה־HTTPS הציבורית וחזרו לקונטיינר הקודם אם בדיקות הפריסה נכשלות. הגבילו לוגים ל־`max-size=10m` ו־`max-file=3`.
+
+הגדרות שרת ה־Web בריצה:
+
+```bash
+ATP_APPVIEW_HOST=https://appview-130-110-238-163.nip.io
+BSKY_WEB_ORIGIN=https://torah-130-110-238-163.nip.io
+FEATURE_GATE_BOOTSTRAP=false
+HTTP_ADDRESS=:8100
+ROBOTS_DISALLOW_ALL=true
+```
+
+`BSKY_WEB_ORIGIN` שולט בכתובות המטא־דאטה של שרת ה־Go; הגדרות `EXPO_PUBLIC_*` נצרבות בנפרד בלקוח. שני Dockerfiles כוללים ברירת מחדל של Torah Social, ויש להעביר את הכתובת המתאימה כשמשנים דומיין.
+
+Caddy משתף את השרת עם Tailscale. בתצורה הנוכחית הוא נקשר ל־`10.42.1.135` באמצעות `default_bind`; מאזין wildcard על443 מתנגש בשירות הקיים. helper ההתקנה בענף PDS המתוחזק מאמת ושומר את התצורה הקיימת לפני החלפה.
+
+קובץ `.env.deployment` מקומי וסקריפט [`scripts/torah-deploy.mjs`](../scripts/torah-deploy.mjs) מתארים גם מסלול בנייה ישירה ישן. מסלול זה אינו מספק את בדיקות התוצר, המועמד והחזרה לאחור של תהליך הקבלה לעיל.
 
 ---
 
-## אינטגרציית Sefaria (מצב עדכני — הושלם במלואו!)
+## אינטגרציית Sefaria
 
-האינטגרציה ל-Sefaria בוצעה במלואה ומרוכזת בתיקייה [`src/torah-social/`](file:///C:/Users/DAVID/Code/social-app/src/torah-social):
+מימוש האינטגרציה ל־Sefaria מרוכז בתיקייה [`src/torah-social/`](../src/torah-social):
 
 ### 1. מנוע ה-API (`src/torah-social/sefaria/api.ts`)
 - **השלמה אוטומטית (`autocompleteRefs`)**: חיפוש פסוקים, פרקים, מסכתות, הלכות וספרים מול Sefaria Name API (`/api/name/{query}?type=ref`).
@@ -157,33 +176,29 @@ EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true
 - תומך בזיהוי מקורות רב-משמעיים (`ambiguous`) ונמנע מהצמדה שגויה.
 
 ### 3. ממשק משתמש ורכיבים
-- **כרטיס מקור בפיד ([`TorahSourceCard.tsx`](file:///C:/Users/DAVID/Code/social-app/src/torah-social/sources/SourceCard.tsx))**: מציג את תמונת הציטוט המעוצבת מ-Sefaria בראש הכרטיס, שם המקור, טקסט הפסוק/סוגיה, וכפתור לפתיחת קורא מלא.
-- **קורא מקורות מורחב ([`SourceReaderDialog.tsx`](file:///C:/Users/DAVID/Code/social-app/src/torah-social/sources/SourceReaderDialog.tsx))**: חלונית קריאה עם 3 לשוניות:
+- **כרטיס מקור בפיד ([`TorahSourceCard.tsx`](../src/torah-social/sources/SourceCard.tsx))**: מציג את תמונת הציטוט המעוצבת מ-Sefaria בראש הכרטיס, שם המקור, טקסט הפסוק/סוגיה, וכפתור לפתיחת קורא מלא.
+- **קורא מקורות מורחב ([`SourceReaderDialog.tsx`](../src/torah-social/sources/SourceReaderDialog.tsx))**: חלונית קריאה עם 3 לשוניות:
   1. **טקסט**: קריאה נוחה של הטקסט המנוקד בעברית לצד התרגום האנגלי.
   2. **תמונת מקור**: צפייה בכרטיסייה הגרפית ברזולוציה מלאה.
   3. **כתבי יד מקוריים**: גלריית סריקות של כתבי היד העתיקים האותנטיים עם שמות כתבי היד והמוסדות האקדמיים שסרקו אותם.
 - **קומפוזר פוסטים**:
-  - כפתור "מקור" ייעודי בסרגל הכלים ([`TorahComposerSourceButton.tsx`](file:///C:/Users/DAVID/Code/social-app/src/torah-social/composer/TorahComposerSourceButton.tsx)) עם חלונית חיפוש והצמדה.
-  - סרגל הצעות ציטוט אוטומטי מעל שורת הכלים ([`TorahComposerExtensions.tsx`](file:///C:/Users/DAVID/Code/social-app/src/torah-social/composer/TorahComposerExtensions.tsx)).
-  - תמונת הציטוט מועברת אוטומטית כ-`thumb` לתוך ה-`external embed` ([`useTorahSourceSelection.ts`](file:///C:/Users/DAVID/Code/social-app/src/torah-social/composer/useTorahSourceSelection.ts)), כך שכל שיתוף פוסט מקבל תצוגה מקדימה עשירה.
+  - כפתור "מקור" ייעודי בסרגל הכלים ([`TorahComposerSourceButton.tsx`](../src/torah-social/composer/TorahComposerSourceButton.tsx)) עם חלונית חיפוש והצמדה.
+  - סרגל הצעות ציטוט אוטומטי מעל שורת הכלים ([`TorahComposerExtensions.tsx`](../src/torah-social/composer/TorahComposerExtensions.tsx)).
+  - תמונת הציטוט מועברת אוטומטית כ-`thumb` לתוך ה-`external embed` ([`useTorahSourceSelection.ts`](../src/torah-social/composer/useTorahSourceSelection.ts)), כך שכל שיתוף פוסט מקבל תצוגה מקדימה עשירה.
 
 ### 4. בדיקות אינטגרציה
-קובץ הבדיקות [`scripts/test-torah-sefaria.mjs`](file:///C:/Users/DAVID/Code/social-app/scripts/test-torah-sefaria.mjs) מוודא שכל 7 נקודות הקצה פעילות ומחזירות נתונים תקינים בזמן אמת.
+קובץ הבדיקות [`scripts/test-torah-sefaria.mjs`](../scripts/test-torah-sefaria.mjs) מוודא שכל 7 נקודות הקצה פעילות ומחזירות נתונים תקינים בזמן אמת.
 
 ---
 
-## שלבים הבאים
+## בדיקות קבלה ופעולות המשך
 
-1. ליצור משתמש ראשון על ה־PDS שלנו (`https://pds-130-110-238-163.nip.io`).
-2. ליצור פוסט ראשון עם מקור תורני ותמונת מקור.
-3. לוודא שהוא נכנס ל־AppView ולפיד.
-4. ליצור משתמש שני ולבדוק Follow / Like / Reply / Repost.
-5. להוסיף Hebrew localization + RTL מלא ל-UI הכללי.
-6. ~~לחבר Sefaria ל־composer וליצור Torah Source Card~~ — **בוצע במלואו!**
-7. להחליף את nip.io בדומיין אמיתי קבוע (עם הגדרת DNS ו-SSL ב-Caddy).
-8. להסיר/להחליף בהדרגה שירותי upstream משניים שנותרו ב־client כגון chat/video/metrics.
-9. לבנות moderation/Ozone משלנו.
-10. בהמשך להחליט האם לבודד גם את plc.directory.
+- השתמשו בחשבונות ובפוסטים הקיימים לבדיקות קריאה וכניסה. יצירת חשבונות או פרסום תוכן אינם נחוצים לבדיקת פריסה.
+- אמתו Hebrew/English, מסכים צרים ורחבים, טעינת הפיד האישי והפרופיל, טיוטה שלא פורסמה, בחירת מקור, טקסט מקור אמיתי ופוסט מעוגן מצומצם ומורחב.
+- בדקו שגיאת פיד ארוכה וחזרה ממנה באמצעות ניסיון נוסף מול השרת. טקסט פוסט שמור במטמון אינו הוכחה להתאוששות.
+- השלימו בנפרד בדיקות iPhone/iPad עבור אותו קוד אפליקציה.
+- שירותי chat/video/metrics/moderation הציבוריים אינם תחליף לשירותים עצמאיים. יש להתאים יכולות לקיים בשרת ולתעד במפורש יכולות שאינן זמינות.
+- החלפת nip.io בדומיין קבוע, שירות moderation/Ozone עצמאי והחלטה על plc.directory הם פרויקטים נפרדים.
 
 ---
 

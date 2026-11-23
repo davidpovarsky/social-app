@@ -1,6 +1,8 @@
 import {useEffect, useState} from 'react'
-import {I18nManager, View} from 'react-native'
+import {View} from 'react-native'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {ExternalEmbedRemoveBtn} from '#/view/com/composer/ExternalEmbedRemoveBtn'
 import {type EmbedDraft} from '#/view/com/composer/state/composer'
 import {atoms as a, useTheme} from '#/alf'
@@ -21,7 +23,7 @@ export function TorahPostHeaderEmbed({
   onRemove: () => void
 }) {
   const t = useTheme()
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   const sourceRef =
     embed.link && isSefariaSourceUri(embed.link.uri)
       ? refFromSefariaUri(embed.link.uri)
@@ -78,7 +80,7 @@ export function TorahPostHeaderEmbed({
           a.text_2xs,
           t.atoms.text_contrast_medium,
           {
-            textAlign: isRTL ? 'right' : 'left',
+            ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
             writingDirection: isRTL ? 'rtl' : 'ltr',
           },
         ]}>
@@ -90,7 +92,7 @@ export function TorahPostHeaderEmbed({
           a.text_sm,
           a.font_semi_bold,
           {
-            textAlign: isRTL ? 'right' : 'left',
+            ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
             writingDirection: isRTL ? 'rtl' : 'ltr',
           },
         ]}>

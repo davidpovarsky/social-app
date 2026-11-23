@@ -6,6 +6,7 @@ import {Trans} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 
 import {FEEDBACK_FORM_URL, HELP_DESK_URL} from '#/lib/constants'
+import {useAppLayoutDirection} from '#/locale/layoutDirection'
 import {useSession} from '#/state/session'
 import {useLogoVariant} from '#/view/icons/useLogoVariant'
 import {DesktopFeeds} from '#/view/shell/desktop/Feeds'
@@ -19,7 +20,7 @@ import {
   web,
 } from '#/alf'
 import {AppLanguageDropdown} from '#/components/AppLanguageDropdown'
-import {CENTER_COLUMN_OFFSET} from '#/components/Layout'
+import {getShellLayout} from '#/components/Layout/direction'
 import {InlineLinkText} from '#/components/Link'
 import {ProgressGuideList} from '#/components/ProgressGuide/List'
 import {Text} from '#/components/Typography'
@@ -56,6 +57,7 @@ export function DesktopRightNav({routeName}: {routeName: string}) {
     !isSearchScreen || (isSearchScreen && !!searchQuery)
   const {rightNavVisible, centerColumnOffset, leftNavMinimal} =
     useLayoutBreakpoints()
+  const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
 
   if (!rightNavVisible || isMessagesRelatedScreen) {
     return null
@@ -71,12 +73,12 @@ export function DesktopRightNav({routeName}: {routeName: string}) {
         a.pr_2xs,
         web({
           position: 'fixed',
-          left: '50%',
+          start: '50%',
           transform: [
             {
-              translateX: 300 + (centerColumnOffset ? CENTER_COLUMN_OFFSET : 0),
+              translateX: layout.endNavOffset,
             },
-            ...a.scrollbar_offset.transform,
+            {translateX: layout.scrollbarOffset},
           ],
           /**
            * Compensate for the right padding above (2px) to retain intended width.

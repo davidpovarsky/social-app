@@ -1,0 +1,96 @@
+appId: ${APP_ID}
+name: Existing fixture logs in through the default Torah provider and loads real posts
+---
+# This is deliberately a bare username. Full handles could auto-detect a PDS
+# and hide a wrong-default regression. Never open or override the provider.
+- assertVisible:
+    id: selectServiceButton
+- assertVisible:
+    id: loginUsernameInput
+- takeScreenshot: 20-initial-default-provider
+- tapOn:
+    id: loginUsernameInput
+- inputText:
+    text: ${FIXTURE_USERNAME}
+    label: Enter existing project fixture username
+- tapOn:
+    id: loginPasswordInput
+# The driver populated only this simulator's pasteboard and verified it privately.
+# This is the native iOS Paste menu; Maestro pasteText would type characters.
+# Never reveal the field or put the password in Maestro environment/arguments.
+- longPressOn:
+    id: loginPasswordInput
+- assertVisible: '^(הדבק|הדבקה|Paste)$'
+- tapOn: '^(הדבק|הדבקה|Paste)$'
+- copyTextFrom:
+    id: loginPasswordInput
+- evalScript: ${console.log("TORAH_QA_SECURE_MASK_BEFORE_HIDE_LENGTH=" + maestro.copiedText.length)}
+- assertTrue:
+    condition: ${maestro.copiedText.length === Number(FIXTURE_PASSWORD_LENGTH) && maestro.copiedText.replace(/[\u2022\u25cf]/g, '').length === 0}
+    label: 'Secure field before keyboard dismissal has ${maestro.copiedText.length} masked characters; expected ${FIXTURE_PASSWORD_LENGTH}'
+- hideKeyboard
+- copyTextFrom:
+    id: loginPasswordInput
+- evalScript: ${console.log("TORAH_QA_SECURE_MASK_AFTER_HIDE_LENGTH=" + maestro.copiedText.length)}
+- assertTrue:
+    condition: ${maestro.copiedText.length === Number(FIXTURE_PASSWORD_LENGTH) && maestro.copiedText.replace(/[\u2022\u25cf]/g, '').length === 0}
+    label: 'Secure field after keyboard dismissal has ${maestro.copiedText.length} masked characters; expected ${FIXTURE_PASSWORD_LENGTH}'
+- tapOn:
+    id: loginNextButton
+# The asynchronous native permission request may be absent for a prior permission
+# state. Wait for this app's exact Hebrew notification alert before deciding;
+# never dismiss another app's alert or make authenticated Home checks optional.
+- extendedWaitUntil:
+    visible:
+      text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
+      containsDescendants:
+        - text: '^סירוב$'
+        - text: '^אישור$'
+    timeout: 90000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
+        containsDescendants:
+          - text: '^סירוב$'
+          - text: '^אישור$'
+    commands:
+      - tapOn:
+          text: '^סירוב$'
+          childOf:
+            text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
+            containsDescendants:
+              - text: '^סירוב$'
+              - text: '^אישור$'
+      - assertNotVisible:
+          text: '^״[\u2066-\u2069]*Torah Social[\u2066-\u2069]*״ מבקש לשלוח לך עדכונים$'
+- extendedWaitUntil:
+    visible: 'בית|אולי מאוחר יותר'
+    timeout: 90000
+- runFlow:
+    when:
+      visible: 'אולי מאוחר יותר'
+    commands:
+      - tapOn: 'אולי מאוחר יותר'
+- extendedWaitUntil:
+    visible:
+      id: HomeScreen
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: postText
+    timeout: 60000
+# Native iPad windows >= 800pt use the sidebar compose button instead of a FAB.
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR === 'true'}
+    commands:
+      - assertVisible: 'כתוב פוסט חדש'
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR !== 'true'}
+    commands:
+      - assertVisible:
+          id: composeFAB
+- takeScreenshot: 21-authenticated-hebrew-feed

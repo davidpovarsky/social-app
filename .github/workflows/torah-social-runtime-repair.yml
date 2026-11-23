@@ -7,11 +7,20 @@ on:
       - codex/torah-social-runtime-repair
   workflow_dispatch:
     inputs:
-      skip_e2e:
-        description: 'Skip iOS Simulator E2E (for fast static-only runs)'
+      run_production_mutating_e2e:
+        description: 'Create production accounts, posts and replies; change likes/reposts in legacy E2E'
         required: false
-        default: 'false'
-        type: string
+        default: false
+        type: boolean
+      notify_live_activity:
+        description: 'Send Notify live-activity updates for this manual run'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
 
 concurrency:
   group: torah-runtime-repair-${{ github.ref }}
@@ -45,7 +54,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -53,10 +63,11 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -64,13 +75,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -78,13 +90,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -95,7 +108,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -106,7 +120,8 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -117,7 +132,8 @@ jobs:
         run: pnpm typecheck:ios
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -128,7 +144,8 @@ jobs:
         run: pnpm typecheck:android
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -139,7 +156,8 @@ jobs:
         run: pnpm typecheck:web
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -150,7 +168,8 @@ jobs:
         run: pnpm lint
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -162,7 +181,8 @@ jobs:
         continue-on-error: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -173,8 +193,8 @@ jobs:
         run: node scripts/test-torah.mjs
 
       - name: Live Activity · refresh
-        if: always()
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -183,7 +203,7 @@ jobs:
           github_token: ${{ github.token }}
       - name: 📊 Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: unit-test-results
           path: |
@@ -202,7 +222,8 @@ jobs:
     needs: static-checks
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -210,10 +231,11 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -221,13 +243,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -235,13 +258,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -252,7 +276,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -263,7 +288,8 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -274,7 +300,8 @@ jobs:
         run: node scripts/torah-isolate-client.mjs
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -285,7 +312,8 @@ jobs:
         run: pnpm build-web
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -293,94 +321,30 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🚀 Upload web build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-web-${{ github.sha }}
-          path: web-build
+          path: bskyweb/
           if-no-files-found: error
           retention-days: 7
 
-  # -----------------------------------------------------------------------
-  # Job 2.5: Deploy to Oracle Cloud server
-  # -----------------------------------------------------------------------
-  web-deploy:
-    name: Deploy to Oracle Cloud (torah-social-web)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [static-checks, web-build]
-    if: always() && needs.static-checks.result == 'success' && needs.web-build.result == 'success'
-    steps:
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
-      - name: ⬇️ Checkout
-        uses: actions/checkout@v4
-
-      - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
-        continue-on-error: true
-        with:
-          event: refresh
-          device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
-          token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
-          github_token: ${{ github.token }}
-      - name: 🚀 Deploy to Oracle Cloud Server via SSH
-        env:
-          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
-          ORACLE_USER: ${{ secrets.ORACLE_USER }}
-          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
-        run: |
-          if [ -z "$ORACLE_SSH_KEY" ]; then
-            echo "::error::ORACLE_SSH_KEY is not configured in repository secrets."
-            exit 1
-          fi
-          mkdir -p ~/.ssh
-          echo "$ORACLE_SSH_KEY" > ~/.ssh/id_oracle
-          chmod 600 ~/.ssh/id_oracle
-          HOST="$(echo "${ORACLE_HOST:-130.110.238.163}" | tr -cd '0-9.')"
-          USER="$(echo "${ORACLE_USER:-ubuntu}" | tr -cd 'a-zA-Z0-9_-')"
-          echo "Connecting to $USER@$HOST to update torah-social-web..."
-          ssh -i ~/.ssh/id_oracle -o StrictHostKeyChecking=no "$USER@$HOST" \
-            "sudo git -C /opt/torah-social/social-app fetch origin codex/torah-social-runtime-repair && \
-             sudo git -C /opt/torah-social/social-app checkout -B codex/torah-social-runtime-repair FETCH_HEAD && \
-             sudo docker build \
-               --build-arg EXPO_PUBLIC_TORAH_PDS_HOST=https://pds-130-110-238-163.nip.io \
-               --build-arg EXPO_PUBLIC_TORAH_PDS_DID=did:web:pds-130-110-238-163.nip.io \
-               --build-arg EXPO_PUBLIC_TORAH_APPVIEW_HOST=https://appview-130-110-238-163.nip.io \
-               --build-arg EXPO_PUBLIC_BLUESKY_PROXY_DID=did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Guq8H \
-               --build-arg EXPO_PUBLIC_TORAH_ISOLATED_NETWORK=true \
-               --build-arg EXPO_PUBLIC_ENV=production \
-               -t torah-social-web:latest \
-               /opt/torah-social/social-app && \
-             sudo docker stop torah-social-web || true && \
-             sudo docker rm torah-social-web || true && \
-             sudo docker run -d \
-               --name torah-social-web \
-               --restart unless-stopped \
-               -p 127.0.0.1:8100:8100 \
-               -e ATP_APPVIEW_HOST=https://appview-130-110-238-163.nip.io \
-               -e HTTP_ADDRESS=:8100 \
-               -e ROBOTS_DISALLOW_ALL=true \
-               torah-social-web:latest"
-          echo "✓ Deployment completed successfully on Oracle server."
+  # Production deployment is outside this validation workflow.
+  # Promote the separately verified immutable release artifact using the
+  # backup, health-check and rollback procedure in docs/torah-social-infrastructure.md.
 
   # -----------------------------------------------------------------------
-  # Job 3: iOS Simulator E2E (macos-15, resilient orchestrator)
+  # Job 3: iOS Simulator E2E (macos-26, resilient orchestrator)
   # -----------------------------------------------------------------------
   ios-simulator-e2e:
     name: iOS Simulator E2E (Maestro)
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 180
     needs: static-checks
-    if: ${{ inputs.skip_e2e != 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_production_mutating_e2e }}
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -388,37 +352,38 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: 🛠️ Select Xcode 16
+      - name: Select Xcode 26.6 (Expo SDK 58 compatible)
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '26.6'
+      - name: Verify required iOS simulator SDK before dependency installation
+        shell: bash
         run: |
-          for xcode_path in \
-            "/Applications/Xcode.app" \
-            "/Applications/Xcode_16.4.app" \
-            "/Applications/Xcode_16.4.0.app" \
-            "/Applications/Xcode_16.3.app" \
-            "/Applications/Xcode_16.2.app"; do
-            if [ -d "$xcode_path" ]; then
-              echo "Selecting Xcode at $xcode_path"
-              sudo xcode-select -s "$xcode_path"
-              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
-              break
-            fi
-          done
-          sudo xcodebuild -runFirstLaunch
+          set -euo pipefail
           xcodebuild -version
-          swift --version
+          IOS_SDK="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          python3 - "$IOS_SDK" <<'PY'
+          import sys
+          v = tuple(int(x) for x in sys.argv[1].split('.')[:2])
+          if v < (26, 4):
+              raise SystemExit(f"Expo SDK 58 needs iOS SDK >= 26.4; got {sys.argv[1]}")
+          print(f"Compatible iOS SDK: {sys.argv[1]}")
+          PY
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -426,13 +391,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -440,13 +406,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -457,7 +424,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -468,7 +436,8 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -479,7 +448,8 @@ jobs:
         run: node scripts/torah-isolate-client.mjs
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -500,7 +470,8 @@ jobs:
           maestro --version || "$RUNNER_TEMP/maestro/bin/maestro" --version
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -542,7 +513,8 @@ jobs:
           echo "Booted: $udid"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -550,23 +522,15 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🏗️ Generate iOS project and install pods
+        shell: bash
         run: |
-          node scripts/fix-expo-modules-jsi.mjs || true
-          pnpm exec expo prebuild --platform ios --skip-dependency-update '*' 2>&1 | tail -20
-          node -e '
-            const fs=require("fs");
-            const pbx="ios/Pods/Pods.xcodeproj/project.pbxproj";
-            if(fs.existsSync(pbx)){
-              let c=fs.readFileSync(pbx,"utf8");
-              c=c.replace(/SWIFT_TREAT_WARNINGS_AS_ERRORS = YES/g,"SWIFT_TREAT_WARNINGS_AS_ERRORS = NO");
-              c=c.replace(/SWIFT_VERSION = 6\.0;/g,"SWIFT_VERSION = 5.0;");
-              c=c.replace(/SWIFT_STRICT_CONCURRENCY = complete;/g,"SWIFT_STRICT_CONCURRENCY = minimal;");
-              fs.writeFileSync(pbx,c,"utf8");
-            }
-          '
+          set -euo pipefail
+          node scripts/patch-expo-jsi-concurrency.mjs
+          pnpm prebuild --platform ios
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -600,7 +564,8 @@ jobs:
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -613,7 +578,8 @@ jobs:
           echo "Installed app: $APP_PATH"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -625,8 +591,8 @@ jobs:
           bash .github/scripts/run-torah-e2e.sh ios "$IOS_UDID"
 
       - name: Live Activity · refresh
-        if: always()
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -655,8 +621,8 @@ jobs:
           fi
 
       - name: Live Activity · refresh
-        if: always()
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -665,7 +631,7 @@ jobs:
           github_token: ${{ github.token }}
       - name: 🚀 Upload E2E artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-e2e-ios-${{ github.run_id }}
           path: artifacts/ios
@@ -674,17 +640,18 @@ jobs:
 
   # -----------------------------------------------------------------------
   # Job 4: iOS Device IPA build (depends on static checks passing)
-  # Only runs after E2E passes or if E2E is explicitly skipped
+  # Independent of optional production-writing E2E; static checks must pass.
   # -----------------------------------------------------------------------
   ios-device-ipa:
     name: iOS unsigned device IPA
-    runs-on: macos-15
+    runs-on: macos-26-intel
     timeout-minutes: 90
     needs: static-checks
     if: always() && needs.static-checks.result == 'success'
     steps:
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -692,36 +659,38 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: ⬇️ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
           device_id: ${{ secrets.NOTIFY_DEVICE_ID }}
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
-      - name: 🛠️ Select Xcode 16
+      - name: Select Xcode 26.6 (Expo SDK 58 compatible)
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '26.6'
+      - name: Verify required iOS device SDK before dependency installation
+        shell: bash
         run: |
-          for xcode_path in \
-            "/Applications/Xcode.app" \
-            "/Applications/Xcode_16.4.app" \
-            "/Applications/Xcode_16.4.0.app" \
-            "/Applications/Xcode_16.3.app" \
-            "/Applications/Xcode_16.2.app"; do
-            if [ -d "$xcode_path" ]; then
-              echo "Selecting Xcode at $xcode_path"
-              sudo xcode-select -s "$xcode_path"
-              echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
-              break
-            fi
-          done
-          sudo xcodebuild -runFirstLaunch
+          set -euo pipefail
           xcodebuild -version
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+          python3 - "$IOS_SDK" <<'PY'
+          import sys
+          v = tuple(int(x) for x in sys.argv[1].split('.')[:2])
+          if v < (26, 4):
+              raise SystemExit(f"Expo SDK 58 needs iOS SDK >= 26.4; got {sys.argv[1]}")
+          print(f"Compatible iOS SDK: {sys.argv[1]}")
+          PY
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -729,13 +698,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
-          version: 11.21.0
+          version: 12.16.1
           run_install: false
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -743,13 +713,14 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🔧 Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -760,7 +731,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -771,7 +743,8 @@ jobs:
         run: pnpm intl:compile
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -782,7 +755,8 @@ jobs:
         run: node scripts/torah-isolate-client.mjs
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -790,23 +764,15 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🏗️ Generate iOS project
+        shell: bash
         run: |
-          node scripts/fix-expo-modules-jsi.mjs || true
-          pnpm exec expo prebuild --platform ios --skip-dependency-update '*'
-          node -e '
-            const fs=require("fs");
-            const pbx="ios/Pods/Pods.xcodeproj/project.pbxproj";
-            if(fs.existsSync(pbx)){
-              let c=fs.readFileSync(pbx,"utf8");
-              c=c.replace(/SWIFT_TREAT_WARNINGS_AS_ERRORS = YES/g,"SWIFT_TREAT_WARNINGS_AS_ERRORS = NO");
-              c=c.replace(/SWIFT_VERSION = 6\.0;/g,"SWIFT_VERSION = 5.0;");
-              c=c.replace(/SWIFT_STRICT_CONCURRENCY = complete;/g,"SWIFT_STRICT_CONCURRENCY = minimal;");
-              fs.writeFileSync(pbx,c,"utf8");
-            }
-          '
+          set -euo pipefail
+          node scripts/patch-expo-jsi-concurrency.mjs
+          pnpm prebuild --platform ios
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -836,7 +802,8 @@ jobs:
             build
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -863,7 +830,8 @@ jobs:
           echo "IPA_NAME=$IPA_NAME" >> "$GITHUB_ENV"
 
       - name: Live Activity · refresh
-        uses: davidpovarsky/github-automation/live-refresh@main
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.notify_live_activity }}
+        uses: davidpovarsky/github-automation/live-refresh@61b34ae6d31e94afb6ceb8a836742275c495b0e2
         continue-on-error: true
         with:
           event: refresh
@@ -871,7 +839,7 @@ jobs:
           token: ${{ secrets.NOTIFY_DEVICE_TOKEN }}
           github_token: ${{ github.token }}
       - name: 🚀 Upload unsigned IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: torah-social-ipa-${{ github.sha }}
           path: ${{ runner.temp }}/${{ env.IPA_NAME }}

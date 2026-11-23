@@ -15,8 +15,6 @@ import {PostMenuItems} from './PostMenuItems'
 let PostMenuButton = ({
   testID,
   post,
-  postFeedContext,
-  postReqId,
   big,
   record,
   richText,
@@ -26,11 +24,10 @@ let PostMenuButton = ({
   hitSlop,
   logContext,
   forceGoogleTranslate,
+  includeControls,
 }: {
   testID: string
   post: Shadow<app.bsky.feed.defs.PostView>
-  postFeedContext: string | undefined
-  postReqId: string | undefined
   big?: boolean
   record: app.bsky.feed.post.Main
   richText: RichTextAPI
@@ -40,6 +37,11 @@ let PostMenuButton = ({
   hitSlop?: Insets
   logContext: 'FeedItem' | 'PostThreadItem' | 'Post' | 'ImmersiveVideo'
   forceGoogleTranslate: boolean
+  /**
+   * Adds repost, quote, share and save to the top of the menu, for surfaces
+   * that don't render the full `PostControls`, e.g. notification rows.
+   */
+  includeControls?: boolean
 }): React.ReactNode => {
   const {t: l} = useLingui()
 
@@ -48,11 +50,11 @@ let PostMenuButton = ({
   const lazyMenuControl = useMemo(
     () => ({
       ...menuControl,
-      open() {
+      open(options?: Parameters<typeof menuControl.open>[0]) {
         setHasBeenOpen(true)
         // HACK. We need the state update to be flushed by the time
         // menuControl.open() fires but RN doesn't expose flushSync.
-        setTimeout(menuControl.open)
+        setTimeout(() => menuControl.open(options))
       },
     }),
     [menuControl, setHasBeenOpen],
@@ -79,8 +81,6 @@ let PostMenuButton = ({
           <PostMenuItems
             testID={testID}
             post={post}
-            postFeedContext={postFeedContext}
-            postReqId={postReqId}
             record={record}
             richText={richText}
             timestamp={timestamp}
@@ -88,6 +88,7 @@ let PostMenuButton = ({
             onShowLess={onShowLess}
             logContext={logContext}
             forceGoogleTranslate={forceGoogleTranslate}
+            includeControls={includeControls}
           />
         )}
       </Menu.Root>

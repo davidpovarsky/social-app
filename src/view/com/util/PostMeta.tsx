@@ -7,7 +7,6 @@ import {useQueryClient} from '@tanstack/react-query'
 
 import {makeProfileLink} from '#/lib/routes/links'
 import {forceLTR} from '#/lib/strings/bidi'
-import {NON_BREAKING_SPACE} from '#/lib/strings/constants'
 import {sanitizeDisplayName} from '#/lib/strings/display-names'
 import {sanitizeHandle} from '#/lib/strings/handles'
 import {niceDate} from '#/lib/strings/time'
@@ -85,7 +84,7 @@ let PostMeta = (opts: PostMetaOpts): React.ReactNode => {
       )}
       <View style={[a.flex_row, a.align_end, a.flex_shrink]}>
         <ProfileHoverCard did={author.did}>
-          <View style={[a.flex_row, a.align_end, a.flex_shrink]}>
+          <View style={[a.flex_row, a.align_end, a.flex_shrink, a.gap_xs]}>
             <MaybeLinkText
               emoji
               numberOfLines={1}
@@ -109,11 +108,7 @@ let PostMeta = (opts: PostMetaOpts): React.ReactNode => {
                 ),
               )}
             </MaybeLinkText>
-            <ProfileBadges
-              profile={author}
-              size="sm"
-              style={[a.pl_2xs, a.self_center]}
-            />
+            <ProfileBadges profile={author} size="sm" style={[a.self_center]} />
             <MaybeLinkText
               emoji
               numberOfLines={1}
@@ -128,7 +123,7 @@ let PostMeta = (opts: PostMetaOpts): React.ReactNode => {
                 a.leading_tight,
                 {flexShrink: 10},
               ]}>
-              {NON_BREAKING_SPACE + sanitizeHandle(handle, '@')}
+              {sanitizeHandle(handle, '@')}
             </MaybeLinkText>
           </View>
         </ProfileHoverCard>

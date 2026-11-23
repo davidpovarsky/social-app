@@ -10,6 +10,8 @@ import {View} from 'react-native'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 
+import {getCurrentState, useOnAppStateChange} from '#/lib/appState'
+import {createPlaybackDurationTracker} from '#/lib/media/video/analytics'
 import {ErrorBoundary} from '#/view/com/util/ErrorBoundary'
 import {atoms as a, useTheme} from '#/alf'
 import {useIsWithinMessage} from '#/components/dms/MessageContext'
@@ -23,7 +25,6 @@ import {
   VideoNotFoundError,
 } from '#/components/Post/Embed/VideoEmbed/VideoEmbedInner/VideoEmbedInnerWeb'
 import {useAnalytics} from '#/analytics'
-import {IS_WEB_FIREFOX} from '#/env'
 import {type app} from '#/lexicons'
 import {useActiveVideoWeb} from './ActiveVideoWebContext'
 import * as VideoFallback from './VideoEmbedInner/VideoFallback'
@@ -63,6 +64,34 @@ export function VideoEmbed({
   const isGif = embed.presentation === 'gif'
   // GIFs don't participate in the "one video at a time" system
   const active = isGif || activeFromContext
+  const [durationTracker] = useState(() => {
+    const tracker = createPlaybackDurationTracker({
+      enabled: !isGif,
+      onSegment: segment => {
+        ax.metric('video:playback:duration', {
+          ...segment,
+          postUri: post?.uri,
+          postAuthorDid: post?.author.did,
+          context: 'embed',
+          presentation: isGif ? 'gif' : 'video',
+        })
+      },
+    })
+    tracker.setForeground(getCurrentState() === 'active')
+    return tracker
+  })
+
+  useOnAppStateChange(state => {
+    durationTracker.setForeground(state === 'active')
+  })
+
+  useEffect(() => {
+    durationTracker.setActive(active && onScreen)
+  }, [active, durationTracker, onScreen])
+
+  useEffect(() => {
+    return () => durationTracker.flush('unmounted')
+  }, [durationTracker])
 
   useEffect(() => {
     if (!meaningfullyVisible || impressionTrackedRef.current) return
@@ -77,7 +106,8 @@ export function VideoEmbed({
 
   useEffect(() => {
     if (!ref.current) return
-    if (isFullscreen && !IS_WEB_FIREFOX) return
+    // paused while fullscreen - see ViewportObserver
+    if (isFullscreen) return
     const observer = new IntersectionObserver(
       entries => {
         const entry = entries[0]
@@ -214,6 +244,14 @@ export function VideoEmbed({
                 autoplay,
               })
             }}
+            onPlaybackProgress={progressSeconds => {
+              durationTracker.observeProgress(progressSeconds)
+            }}
+            onPlaybackStateChange={state => {
+              durationTracker.setBuffering(state === 'buffering')
+              durationTracker.setPlaying(state === 'playing')
+            }}
+            onPlaybackEnd={() => durationTracker.flush('ended')}
           />
         </OnlyNearScreen>
       </ErrorBoundary>
@@ -268,7 +306,13 @@ function ViewportObserver({
   // observing a div of 100vh height
   useEffect(() => {
     if (!ref.current) return
-    if (isFullscreen && !IS_WEB_FIREFOX) return
+    /*
+     * Pause while any video is fullscreen. Fullscreen resizes the window, so
+     * the page behind the video can reflow into another layout (e.g. mobile to
+     * desktop) and move this embed offscreen. Observing that would unmount the
+     * fullscreen player via OnlyNearScreen, which exits fullscreen.
+     */
+    if (isFullscreen) return
     const observer = new IntersectionObserver(
       entries => {
         const entry = entries[0]

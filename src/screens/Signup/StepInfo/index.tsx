@@ -15,9 +15,9 @@ import {DeviceLocationRequestDialog} from '#/components/dialogs/DeviceLocationRe
 import * as DateField from '#/components/forms/DateField'
 import {type DateFieldRef} from '#/components/forms/DateField/types'
 import {HostingProvider} from '#/components/forms/HostingProvider'
+import {PasswordField} from '#/components/forms/PasswordField'
 import * as TextField from '#/components/forms/TextField'
 import {Envelope_Stroke2_Corner0_Rounded as Envelope} from '#/components/icons/Envelope'
-import {Lock_Stroke2_Corner0_Rounded as Lock} from '#/components/icons/Lock'
 import {Ticket_Stroke2_Corner0_Rounded as Ticket} from '#/components/icons/Ticket'
 import {createStaticClick, SimpleInlineLinkText} from '#/components/Link'
 import {Loader} from '#/components/Loader'
@@ -62,24 +62,37 @@ function preloadViewShot() {
 export function StepInfo({
   onPressBack,
   isServerError,
+  isServiceReady,
+  isServiceFetching,
   refetchServer,
   isLoadingStarterPack,
 }: {
   onPressBack: () => void
   isServerError: boolean
+  isServiceReady: boolean
+  isServiceFetching: boolean
   refetchServer: () => void
   isLoadingStarterPack: boolean
 }) {
   const {t: l} = useLingui()
   const ax = useAnalytics()
   const {state, dispatch} = useSignupContext()
+  const isLoading =
+    state.isLoading ||
+    isLoadingStarterPack ||
+    (!isServerError && !isServiceReady) ||
+    (isServerError && isServiceFetching)
+  const error = isServerError
+    ? l`Unable to contact your service. Please check your Internet connection.`
+    : state.error
   const preemptivelyCompleteActivePolicyUpdate =
     usePreemptivelyCompleteActivePolicyUpdate()
 
-  const inviteCodeValueRef = useRef<string>(state.inviteCode)
-  const emailValueRef = useRef<string>(state.email)
+  /**
+   * The last email we ran the "did you really mean this?" check against, so
+   * the warning is only shown once per distinct address.
+   */
   const prevEmailValueRef = useRef<string>(state.email)
-  const passwordValueRef = useRef<string>(state.password)
 
   const emailInputRef = useRef<React.ComponentRef<typeof TextInput>>(null)
   const passwordInputRef = useRef<React.ComponentRef<typeof TextInput>>(null)
@@ -111,10 +124,8 @@ export function StepInfo({
   }, [])
 
   const onNextPress = () => {
-    const inviteCode = inviteCodeValueRef.current
-    const email = emailValueRef.current
+    const {inviteCode, email, password} = state
     const emailChanged = prevEmailValueRef.current !== email
-    const password = passwordValueRef.current
 
     if (!isOverRegionMinAccessAge) {
       return
@@ -168,11 +179,15 @@ export function StepInfo({
         field: 'password',
       })
     }
+    if (!state.dateOfBirth) {
+      return dispatch({
+        type: 'setError',
+        value: l`Please enter your date of birth.`,
+        field: 'date-of-birth',
+      })
+    }
 
     preemptivelyCompleteActivePolicyUpdate()
-    dispatch({type: 'setInviteCode', value: inviteCode})
-    dispatch({type: 'setEmail', value: email})
-    dispatch({type: 'setPassword', value: password})
     dispatch({type: 'next'})
     ax.metric('signup:nextPressed', {
       activeStep: state.activeStep,
@@ -182,21 +197,19 @@ export function StepInfo({
   return (
     <>
       <View style={[a.gap_md, a.pt_lg]}>
-        {state.error && (
-          <Admonition.Admonition type="error">
-            {state.error}
-          </Admonition.Admonition>
+        {!!error && (
+          <Admonition.Admonition type="error">{error}</Admonition.Admonition>
         )}
         <HostingProvider
           minimal
           serviceUrl={state.serviceUrl}
           onSelectServiceUrl={v => dispatch({type: 'setServiceUrl', value: v})}
         />
-        {state.isLoading || isLoadingStarterPack ? (
+        {isLoading ? (
           <View style={[a.align_center]}>
             <Loader size="xl" />
           </View>
-        ) : state.serviceDescription ? (
+        ) : isServiceReady && state.serviceDescription ? (
           <>
             {state.serviceDescription.inviteCodeRequired && (
               <View>
@@ -207,7 +220,7 @@ export function StepInfo({
                   <TextField.Icon icon={Ticket} />
                   <TextField.Input
                     onChangeText={value => {
-                      inviteCodeValueRef.current = value.trim()
+                      dispatch({type: 'setInviteCode', value: value.trim()})
                       if (
                         state.errorField === 'invite-code' &&
                         value.trim().length > 0
@@ -216,7 +229,7 @@ export function StepInfo({
                       }
                     }}
                     label={l`Required for this provider`}
-                    defaultValue={state.inviteCode}
+                    value={state.inviteCode}
                     autoCapitalize="none"
                     autoComplete="email"
                     keyboardType="email-address"
@@ -239,7 +252,7 @@ export function StepInfo({
                   testID="emailInput"
                   inputRef={emailInputRef}
                   onChangeText={value => {
-                    emailValueRef.current = value.trim()
+                    dispatch({type: 'setEmail', value: value.trim()})
                     if (hasWarnedEmail) {
                       setHasWarnedEmail(false)
                     }
@@ -252,7 +265,7 @@ export function StepInfo({
                     }
                   }}
                   label={l`Enter your email address`}
-                  defaultValue={state.email}
+                  value={state.email}
                   autoCapitalize="none"
                   autoComplete="email"
                   keyboardType="email-address"
@@ -268,30 +281,26 @@ export function StepInfo({
               <TextField.LabelText>
                 <Trans>Password</Trans>
               </TextField.LabelText>
-              <TextField.Root isInvalid={state.errorField === 'password'}>
-                <TextField.Icon icon={Lock} />
-                <TextField.Input
-                  testID="passwordInput"
-                  inputRef={passwordInputRef}
-                  onChangeText={value => {
-                    passwordValueRef.current = value
-                    if (state.errorField === 'password' && value.length >= 8) {
-                      dispatch({type: 'clearError'})
-                    }
-                  }}
-                  label={l`Choose your password`}
-                  defaultValue={state.password}
-                  secureTextEntry
-                  autoComplete="new-password"
-                  autoCapitalize="none"
-                  returnKeyType="next"
-                  submitBehavior={native('blurAndSubmit')}
-                  onSubmitEditing={native(() =>
-                    birthdateInputRef.current?.focus(),
-                  )}
-                  passwordRules="minlength: 8;"
-                />
-              </TextField.Root>
+              <PasswordField
+                isInvalid={state.errorField === 'password'}
+                testID="passwordInput"
+                inputRef={passwordInputRef}
+                onChangeText={value => {
+                  dispatch({type: 'setPassword', value})
+                  if (state.errorField === 'password' && value.length >= 8) {
+                    dispatch({type: 'clearError'})
+                  }
+                }}
+                label={l`Choose your password`}
+                value={state.password}
+                autoComplete="new-password"
+                returnKeyType="next"
+                submitBehavior={native('blurAndSubmit')}
+                onSubmitEditing={native(() =>
+                  birthdateInputRef.current?.focus(),
+                )}
+                passwordRules="minlength: 8;"
+              />
             </View>
             <View>
               <DateField.LabelText>
@@ -300,14 +309,19 @@ export function StepInfo({
               <DateField.DateField
                 testID="date"
                 inputRef={birthdateInputRef}
-                value={state.dateOfBirth}
+                value={state.dateOfBirth ?? ''}
+                isInvalid={state.errorField === 'date-of-birth'}
                 onChangeDate={date => {
                   dispatch({
                     type: 'setDateOfBirth',
                     value: sanitizeDate(new Date(date)),
                   })
+                  if (state.errorField === 'date-of-birth') {
+                    dispatch({type: 'clearError'})
+                  }
                 }}
                 label={l`Date of birth`}
+                placeholder={l`Select your date of birth`}
                 accessibilityHint={l`Select your date of birth`}
                 maximumDate={new Date()}
               />
@@ -377,7 +391,7 @@ export function StepInfo({
       <BackNextButtons
         hideNext={!isOverRegionMinAccessAge}
         showRetry={isServerError}
-        isLoading={state.isLoading}
+        isLoading={isLoading}
         onBackPress={onPressBack}
         onNextPress={onNextPress}
         onRetryPress={refetchServer}

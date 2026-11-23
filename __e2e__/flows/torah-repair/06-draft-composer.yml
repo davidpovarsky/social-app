@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+name: Mixed Hebrew and English unsaved composer stays inside the viewport
+---
+- assertVisible:
+    id: HomeScreen
+# Native iPad windows >= 800pt use the sidebar compose button instead of a FAB.
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR === 'true'}
+    commands:
+      - tapOn: 'כתוב פוסט חדש'
+- runFlow:
+    when:
+      true: ${NATIVE_SIDEBAR !== 'true'}
+    commands:
+      - tapOn:
+          id: composeFAB
+- extendedWaitUntil:
+    visible:
+      id: composerTextInput
+    timeout: 15000
+- tapOn:
+    id: composerTextInput
+- inputText:
+    text: 'Torah QA 123 — בדיקת תצוגה בלבד. שורה ארוכה בעברית ובאנגלית לבדיקת רוחב העורך וכיוון הטקסט, ללא פרסום וללא שמירת טיוטה. This mixed-language text must stay inside the composer.'
+    label: Type an unsaved mixed Hebrew and English layout fixture
+- assertVisible:
+    id: composePostView
+# Assert only. This suite never taps the publish button.
+- assertVisible:
+    id: composerPublishBtn
+- assertVisible: 'הוסף מקור תורני'
+- takeScreenshot: 22-unsaved-mixed-language-composer

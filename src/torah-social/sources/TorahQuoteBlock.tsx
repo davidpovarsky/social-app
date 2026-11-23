@@ -1,5 +1,6 @@
 import {Linking, Pressable, StyleSheet, View} from 'react-native'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {atoms as a, useTheme, web} from '#/alf'
 import * as Dialog from '#/components/Dialog'
 import {SquareArrowTopRight_Stroke2_Corner0_Rounded as ExternalLinkIcon} from '#/components/icons/SquareArrowTopRight'
@@ -51,7 +52,10 @@ export function TorahQuoteBlock({
                 a.text_sm,
                 a.font_semi_bold,
                 t.atoms.text_contrast_high,
-                {textAlign: 'right', writingDirection: 'rtl'},
+                {
+                  ...getPhysicalTextAlignStyle('right'),
+                  writingDirection: 'rtl',
+                },
               ]}>
               {displayRef}
             </Text>
@@ -91,7 +95,7 @@ export function TorahQuoteBlock({
               t.atoms.text_contrast_high,
               a.mb_xs,
               {
-                textAlign: 'right',
+                ...getPhysicalTextAlignStyle('right'),
                 writingDirection: 'rtl',
                 fontStyle: 'normal',
               },

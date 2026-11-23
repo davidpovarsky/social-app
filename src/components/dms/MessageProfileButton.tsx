@@ -15,6 +15,7 @@ import {canBeMessaged} from '#/components/dms/util'
 import {Message_Stroke2_Corner0_Rounded as Message} from '#/components/icons/Message'
 import * as Toast from '#/components/Toast'
 import {useAnalytics} from '#/analytics'
+import {CHAT_ENABLED} from '#/env'
 import {type app} from '#/lexicons'
 
 export function MessageProfileButton({
@@ -62,6 +63,8 @@ export function MessageProfileButton({
       </Trans>,
     ],
   })
+
+  if (!CHAT_ENABLED) return null
 
   if (!convoAvailability) {
     // show pending state based on declaration

@@ -2,13 +2,10 @@ import {Suspense, useRef} from 'react'
 import {Pressable, View} from 'react-native'
 import {type ViewShotRef} from 'react-native-view-shot'
 import {setStringAsync} from 'expo-clipboard'
-import {
-  requestPermissionsAsync,
-  saveToLibraryAsync,
-} from 'expo-media-library/legacy'
 import {useLingui} from '@lingui/react/macro'
 import {useNavigation} from '@react-navigation/native'
 
+import {Asset, requestPermissionsAsync} from '#/lib/media/media-library'
 import {type NavigationProp} from '#/lib/routes/types'
 import {shareUrl as nativeShareUrl} from '#/lib/sharing'
 import {logger} from '#/logger'
@@ -96,10 +93,8 @@ export function InviteFriendsDialogInner({
     }
 
     try {
-      // saveToLibraryAsync writes without reading the asset back, so it works
-      // with the add-only permission. createAssetAsync fetches the created
-      // asset, which triggers the full library read prompt on iOS (APP-2374).
-      await saveToLibraryAsync(`file://${uri}`)
+      // Asset.create supports the add-only permission on iOS (APP-2374).
+      await Asset.create(`file://${uri}`)
       ax.metric('invite:action:download', {})
       Toast.show(l`QR code saved to your camera roll!`)
     } catch (err) {
@@ -112,8 +107,6 @@ export function InviteFriendsDialogInner({
 
   const onScan = () => {
     ax.metric('invite:action:scan', {})
-    // Close dialog first, then navigate (control.close callback per CLAUDE.md
-    // Dialog footgun rule — prevents race with the navigation push).
     control.close(() => {
       navigation.navigate('InviteScanner')
     })
@@ -127,7 +120,7 @@ export function InviteFriendsDialogInner({
     try {
       await setStringAsync(canonicalShareUrl)
       ax.metric('invite:action:copy', {})
-      Toast.show(l`Invite link copied`)
+      Toast.show(l`Profile link copied`)
     } catch (err) {
       logger.error('InviteFriendsDialog: copy failed', {safeMessage: err})
       Toast.show(l`Failed to copy link`, {type: 'error'})

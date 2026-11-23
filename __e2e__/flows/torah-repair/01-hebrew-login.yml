@@ -1,0 +1,30 @@
+# Selectors come from NativeSplashScreen, LoginForm and AuthLayout.Header.
+appId: ${APP_ID}
+name: Hebrew cold launch and sign-in layout
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible:
+      id: signInButton
+    timeout: 60000
+- assertVisible:
+    id: createAccountButton
+- assertVisible: "התחבר"
+- takeScreenshot: 01-hebrew-landing
+- tapOn:
+    id: signInButton
+- extendedWaitUntil:
+    visible:
+      id: loginUsernameInput
+    timeout: 30000
+- assertVisible:
+    id: loginPasswordInput
+- assertVisible:
+    id: selectServiceButton
+- assertVisible: "חזור"
+- assertVisible: "התחבר"
+- takeScreenshot: 02-hebrew-login

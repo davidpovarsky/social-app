@@ -6,14 +6,21 @@ import {BSKY_SERVICE} from '#/lib/constants'
 import {isInvalidHandle} from '#/lib/strings/handles'
 import {startUriToStarterPackUri} from '#/lib/strings/starter-pack'
 import {logger} from '#/logger'
+import {TORAH_ISOLATED_NETWORK, TORAH_WEB_HOST} from '#/env'
 
-export const BSKY_APP_HOST = 'https://bsky.app'
+export const BSKY_APP_HOST = TORAH_ISOLATED_NETWORK
+  ? TORAH_WEB_HOST
+  : 'https://bsky.app'
 export const BSKY_HOSTING_ENDSWITH = '.host.bsky.network'
 const BSKY_TRUSTED_HOSTS = [
-  'bsky\\.app',
-  'bsky\\.social',
-  'blueskyweb\\.xyz',
-  'blueskyweb\\.zendesk\\.com',
+  ...(TORAH_ISOLATED_NETWORK
+    ? [new URL(TORAH_WEB_HOST).host.replaceAll('.', '\\.')]
+    : [
+        'bsky\\.app',
+        'bsky\\.social',
+        'blueskyweb\\.xyz',
+        'blueskyweb\\.zendesk\\.com',
+      ]),
   ...(__DEV__ ? ['localhost:19006', 'localhost:8100'] : []),
 ]
 
@@ -24,7 +31,7 @@ const BSKY_TRUSTED_HOSTS = [
 const TRUSTED_REGEX = new RegExp(
   `^(http(s)?://(([\\w-]+\\.)?${BSKY_TRUSTED_HOSTS.join(
     '|([\\w-]+\\.)?',
-  )})|/|#)`,
+  )})(?=[/?#]|$)|/(?!/)|#)`,
 )
 
 export function canParseUrl(url: string | URL, base?: string | URL): boolean {
@@ -62,10 +69,10 @@ export function makeRecordUri(
 export function toNiceDomain(url: string): string {
   try {
     const urlp = new URL(url)
-    if (
-      `https://${urlp.host}` === BSKY_SERVICE ||
-      `https://${urlp.host}` === 'https://bsky.social'
-    ) {
+    if (TORAH_ISOLATED_NETWORK && `https://${urlp.host}` === BSKY_SERVICE) {
+      return 'Torah Social'
+    }
+    if (urlp.host === 'bsky.social') {
       return 'Bluesky Social'
     }
     return urlp.host ? urlp.host : url
@@ -93,7 +100,7 @@ export function toShortUrl(url: string): string {
 
 export function toShareUrl(url: string): string {
   if (!url.startsWith('https')) {
-    const urlp = new URL('https://bsky.app')
+    const urlp = new URL(BSKY_APP_HOST)
     urlp.pathname = url
     url = urlp.toString()
   }
@@ -134,7 +141,7 @@ export function isBlueskyHostedUrl(url: string): boolean {
 }
 
 export function isBskyAppUrl(url: string): boolean {
-  return url.startsWith('https://bsky.app/')
+  return url.startsWith(BSKY_APP_HOST.replace(/\/$/, '') + '/')
 }
 
 export function isRelativeUrl(url: string): boolean {
@@ -142,10 +149,7 @@ export function isRelativeUrl(url: string): boolean {
 }
 
 export function isBskyRSSUrl(url: string): boolean {
-  return (
-    (url.startsWith('https://bsky.app/') || isRelativeUrl(url)) &&
-    /\/rss\/?$/.test(url)
-  )
+  return (isBskyAppUrl(url) || isRelativeUrl(url)) && /\/rss\/?$/.test(url)
 }
 
 export function isExternalUrl(url: string): boolean {
@@ -409,7 +413,7 @@ export function shortLinkToHref(url: string): string {
   try {
     const urlp = new URL(url)
 
-    // For now we only support starter packs, but in the future we should add additional paths to this check
+    // For now we only support Starter Packs, but in the future we should add additional paths to this check
     const parts = urlp.pathname.split('/').filter(Boolean)
     if (parts.length === 1) {
       return `/starter-pack-short/${parts[0]}`

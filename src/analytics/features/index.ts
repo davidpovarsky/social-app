@@ -1,10 +1,11 @@
 import {MMKV} from 'react-native-mmkv'
 import {setPolyfills} from '@growthbook/growthbook'
-import {GrowthBook} from '@growthbook/growthbook-react'
 import {type I18n} from '@lingui/core'
 import {msg} from '@lingui/core/macro'
 
 import {Logger} from '#/logger'
+import {readFeatureBootstrap} from '#/analytics/features/bootstrap'
+import {createGrowthBook, refreshGrowthBook} from '#/analytics/features/client'
 import {Features} from '#/analytics/features/types'
 import {getNavigationMetadata, type Metadata} from '#/analytics/metadata'
 import * as env from '#/env'
@@ -37,38 +38,71 @@ const TIMEOUT_INIT = 2000 // TODO should base on p99 or something
 const TIMEOUT_PREFER_LOW_LATENCY = 250
 const TIMEOUT_PREFER_FRESH_GATES = 1500
 
-export const features = new GrowthBook({
+const sdkOptions = {
   apiHost: env.GROWTHBOOK_API_HOST,
   clientKey: env.GROWTHBOOK_CLIENT_KEY,
   enableDevMode: env.IS_INTERNAL,
-})
+}
+const bootstrap = env.TORAH_ISOLATED_NETWORK
+  ? undefined
+  : readFeatureBootstrap(sdkOptions)
+
+// These services are not enabled by a public-network rollout in an independent
+// deployment. Positive experimental flags otherwise retain the SDK's off default.
+const isolatedFeatures = {
+  [Features.ImportContactsOnboardingDisable]: {defaultValue: true},
+  [Features.ImportContactsSettingsDisable]: {defaultValue: true},
+  [Features.LiveNowBetaDisable]: {defaultValue: true},
+  [Features.GroupChatsDisable]: {defaultValue: true},
+  [Features.FollowingV2Enable]: {defaultValue: false},
+}
+
+/**
+ * Shared SDK instance. Assumes a single active account context, with attributes
+ * supplied by AnalyticsFeaturesContext before its children evaluate features.
+ */
+export const features = createGrowthBook(
+  env.TORAH_ISOLATED_NETWORK
+    ? {features: isolatedFeatures, enableDevMode: env.IS_INTERNAL}
+    : sdkOptions,
+  bootstrap,
+)
 
 /**
  * Initializer promise that must be awaited before using the GrowthBook
- * instance or rendering the `AnalyticsFeaturesContext`. Note: this may not be
- * fully initialized if it takes longer than `TIMEOUT_INIT` to initialize. In
- * that case, we may see a flash of uncustomized content until the
- * initialization completes.
+ * instance or rendering the `AnalyticsFeaturesContext`. A valid HTML bootstrap
+ * is available synchronously while this revalidates it. Without one, a slow
+ * initialization may cause a flash of uncustomized content.
  */
-export const init = features.init({timeout: TIMEOUT_INIT}).then(res => {
-  if (!res.success) {
-    logger.warn('GrowthBook initialization failed or timed out', {
-      source: res.source,
-      safeMessage: res.error?.toString(),
-    })
-  }
-})
+// An empty apiHost is not a disable switch: the SDK falls back to its public
+// CDN. Keep independent local configuration out of remote initialization/cache.
+export const init = env.TORAH_ISOLATED_NETWORK
+  ? Promise.resolve()
+  : bootstrap
+    ? refreshGrowthBook(features, {timeout: TIMEOUT_INIT})
+    : features.init({timeout: TIMEOUT_INIT}).then(res => {
+        if (!res.success) {
+          logger.warn('GrowthBook initialization failed or timed out', {
+            source: res.source,
+            safeMessage: res.error?.toString(),
+          })
+        }
+      })
 
 /**
  * Refresh feature gates from GrowthBook.
  */
 export async function refresh({strategy}: {strategy: FeatureFetchStrategy}) {
-  await features.refreshFeatures({
+  if (env.TORAH_ISOLATED_NETWORK) return
+  const options = {
     timeout:
       strategy === 'prefer-low-latency'
         ? TIMEOUT_PREFER_LOW_LATENCY
         : TIMEOUT_PREFER_FRESH_GATES,
-  })
+  }
+  await (bootstrap
+    ? refreshGrowthBook(features, options)
+    : features.refreshFeatures(options))
 }
 
 export function getFeatures() {
@@ -90,6 +124,62 @@ export function getFeatureDescription(feature: Features, i18n: I18n) {
           msg({
             message: 'Spot posts your friends and follows have liked.',
             comment: 'Description of a feature flag (Social proofing on posts)',
+          }),
+        ),
+      }
+    case Features.FollowingV2Enable:
+      // Following v2 behaviour is native-only, see `isFollowingV2Eligible`
+      if (env.IS_WEB) return null
+      return {
+        key: feature,
+        name: i18n._(
+          msg({
+            message: 'Keep your place in the Following feed',
+            comment: 'Name for a feature flag',
+          }),
+        ),
+        description: i18n._(
+          msg({
+            message:
+              'Save your position in the Following feed between sessions. New posts wait above you until you’re ready to view them.',
+            comment:
+              'Description of a feature flag (Keep your place in the Following feed)',
+          }),
+        ),
+      }
+    case Features.PostViewCountsEnable:
+      return {
+        key: feature,
+        name: i18n._(
+          msg({
+            message: 'Post view counts',
+            comment: 'Name for a feature flag',
+          }),
+        ),
+        description: i18n._(
+          msg({
+            message: 'See how often your posts were seen.',
+            comment: 'Description of a feature flag (Post view counts)',
+          }),
+        ),
+      }
+    case Features.WebListVirtualizationEnable:
+      // Only the web List is affected; native lists are already virtualized
+      if (!env.IS_WEB) return null
+      return {
+        key: feature,
+        name: i18n._(
+          msg({
+            message: 'Feed rendering improvements',
+            comment: 'Name for a feature flag',
+          }),
+        ),
+        description: i18n._(
+          msg({
+            message:
+              'Feeds and lists keep only nearby posts in the page, so performance stays steady however far you scroll.',
+            comment:
+              'Description of a feature flag (Feed rendering improvements)',
           }),
         ),
       }
@@ -155,10 +245,27 @@ export function getTargetedFeatures(i18n: I18n) {
 }
 
 /**
+ * Whether `feature` is on for the current user because they opted in to beta
+ * features, i.e. the rule GrowthBook matched for them targets the beta user
+ * attribute, as the features listed on the Beta features screen do.
+ */
+export function isOnForBetaUser(feature: Features): boolean {
+  const result = features.evalFeature(feature)
+  if (!result.on || !result.ruleId) return false
+  const rules = features.getFeatures()[feature]?.rules
+  const rule = rules?.find(({id}) => id === result.ruleId)
+  return conditionTargetsAttribute(rule?.condition, BETA_USER_ATTRIBUTE)
+}
+
+/**
  * Converts our metadata into GrowthBook attributes and sets them. GrowthBook
  * attributes are manually configured in the GrowthBook dashboard. So these
  * values need to match exactly. Therefore, let's add them here manually to and
  * not spread them to avoid mistakes.
+ *
+ * Analytics session IDs are event metadata only, not feature targeting or
+ * experiment bucketing inputs. They are intentionally excluded from GrowthBook
+ * attributes, so session rotation does not require feature reevaluation.
  */
 export function setAttributes({
   base,
@@ -168,7 +275,6 @@ export function setAttributes({
 }: Metadata) {
   void features.setAttributes({
     deviceId: base.deviceId,
-    sessionId: base.sessionId,
     platform: base.platform,
     appVersion: base.appVersion,
     countryCode: geolocation.countryCode,

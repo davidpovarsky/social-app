@@ -1,6 +1,7 @@
 import {AtUri} from '@atproto/syntax'
 
 import {isInvalidHandle} from '#/lib/strings/handles'
+import {BSKY_APP_HOST} from '#/lib/strings/url-helpers'
 import {type app} from '#/lexicons'
 
 export function makeProfileLink(
@@ -51,9 +52,9 @@ export function makeStarterPackLink(
   rkey?: string,
 ) {
   if (typeof starterPackOrName === 'string') {
-    return `https://bsky.app/start/${starterPackOrName}/${rkey}`
+    return `${BSKY_APP_HOST}/start/${starterPackOrName}/${rkey}`
   } else {
     const uriRkey = new AtUri(starterPackOrName.uri).rkey
-    return `https://bsky.app/start/${starterPackOrName.creator.handle}/${uriRkey}`
+    return `${BSKY_APP_HOST}/start/${starterPackOrName.creator.handle}/${uriRkey}`
   }
 }

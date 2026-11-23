@@ -6,10 +6,9 @@ import {
   useMemo,
   useState,
 } from 'react'
-import {AppState, I18nManager, Platform} from 'react-native'
+import {AppState, Platform} from 'react-native'
 
 import {getPreferredDeviceAppLanguage} from '#/locale/deviceLocales'
-import {isRtl} from '#/locale/helpers'
 import {type AppLanguage} from '#/locale/languages'
 import * as persisted from '#/state/persisted'
 import {AnalyticsContext, utils} from '#/analytics'
@@ -22,7 +21,7 @@ type ApiContext = {
   setPrimaryLanguage: (code2: string) => void
   setPostLanguage: (commaSeparatedLangCodes: string) => void
   setContentLanguages: (code2s: string[]) => void
-  savePostLanguageToHistory: () => void
+  savePostLanguageToHistory: (postLanguage: string) => void
   setAppLanguage: (code2: AppLanguage) => void
 }
 
@@ -51,11 +50,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
     const hasChanged = prevSystem !== currentDeviceLang
 
     if (hasChanged) {
-      const nextLang = currentDeviceLang as AppLanguage
-      const nextIsRTL = isRtl(nextLang)
-      I18nManager.allowRTL(nextIsRTL)
-      I18nManager.forceRTL(nextIsRTL)
-
       const updated = {
         ...persistedPrefs,
         appLanguage: currentDeviceLang,
@@ -70,11 +64,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
       !persistedPrefs.customAppLanguage &&
       persistedPrefs.appLanguage !== currentDeviceLang
     ) {
-      const nextLang = currentDeviceLang as AppLanguage
-      const nextIsRTL = isRtl(nextLang)
-      I18nManager.allowRTL(nextIsRTL)
-      I18nManager.forceRTL(nextIsRTL)
-
       const updated = {
         ...persistedPrefs,
         appLanguage: currentDeviceLang,
@@ -107,11 +96,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
 
       if (hasChanged) {
         // System / Per-app language changed in iOS Settings
-        const nextLang = currentDeviceLang as AppLanguage
-        const nextIsRTL = isRtl(nextLang)
-        I18nManager.allowRTL(nextIsRTL)
-        I18nManager.forceRTL(nextIsRTL)
-
         return {
           ...current,
           appLanguage: currentDeviceLang,
@@ -125,11 +109,6 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
         !current.customAppLanguage &&
         current.appLanguage !== currentDeviceLang
       ) {
-        const nextLang = currentDeviceLang as AppLanguage
-        const nextIsRTL = isRtl(nextLang)
-        I18nManager.allowRTL(nextIsRTL)
-        I18nManager.forceRTL(nextIsRTL)
-
         return {
           ...current,
           appLanguage: currentDeviceLang,
@@ -177,19 +156,17 @@ export function Provider({children}: React.PropsWithChildren<{}>) {
         setStateWrapped(s => ({...s, contentLanguages: code2s}))
       },
       /**
-       * Saves whatever language codes are currently selected into a history array,
+       * Saves the submitted post language codes into a history array,
        * which is then used to populate the language selector menu.
        */
-      savePostLanguageToHistory() {
-        // filter out duplicate `this.postLanguage` if exists, and prepend
-        // value to start of array
+      savePostLanguageToHistory(postLanguage: string) {
         setStateWrapped(s => ({
           ...s,
-          postLanguageHistory: [s.postLanguage]
+          postLanguageHistory: [postLanguage]
             .concat(
               s.postLanguageHistory.filter(
                 commaSeparatedLangCodes =>
-                  commaSeparatedLangCodes !== s.postLanguage,
+                  commaSeparatedLangCodes !== postLanguage,
               ),
             )
             .slice(0, 6),

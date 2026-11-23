@@ -15,16 +15,25 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated'
 import {scheduleOnRN, scheduleOnUI} from 'react-native-worklets'
+import {useLingui} from '@lingui/react/macro'
 
+import {
+  type AppLayoutDirection,
+  useAppLayoutDirection,
+} from '#/locale/layoutDirection'
+import {getTabBarItemScrollOffset} from '#/view/com/pager/layout'
 import {PressableWithHover} from '#/view/com/util/PressableWithHover'
 import {BlockDrawerGesture} from '#/view/shell/BlockDrawerGesture'
 import {atoms as a, useTheme} from '#/alf'
+import {Center} from '#/components/Layout'
 import {Text} from '#/components/Typography'
 
 export interface TabBarProps {
   testID?: string
   selectedPage: number
   items: string[]
+  /** Unread status by tab index. */
+  unread?: boolean[]
   align?: 'center' | 'left'
   onSelect?: (index: number) => void
   onPressSelected?: (index: number) => void
@@ -39,17 +48,24 @@ const CONTENT_PADDING = 6
 // when deciding whether to scroll into view on tap.
 const OFFSCREEN_ITEM_WIDTH = 20
 
-export function TabBar({
+export function TabBar(props: TabBarProps) {
+  const direction = useAppLayoutDirection()
+  return <TabBarInner key={direction} {...props} direction={direction} />
+}
+
+function TabBarInner({
   testID,
   selectedPage,
   items,
+  unread,
   align = 'center',
   onSelect,
   onPressSelected,
   dragProgress,
   dragState,
   transparent,
-}: TabBarProps) {
+  direction,
+}: TabBarProps & {direction: AppLayoutDirection}) {
   const t = useTheme()
   const scrollElRef = useAnimatedRef<ScrollView>()
   const syncScrollState = useSharedValue<'synced' | 'unsynced' | 'needs-sync'>(
@@ -77,28 +93,17 @@ export function TabBar({
   const indexToOffset = useCallback(
     (index: number) => {
       'worklet'
-      const layout = layouts.get()[index]
-      const availableSize = containerSize.get() - 2 * CONTENT_PADDING
-      const maxOffset = Math.max(0, contentSize.get() - availableSize)
-      if (!layout) {
-        // Should not happen, but fall back to equal sizes.
-        return itemsLength > 1 ? (index / (itemsLength - 1)) * maxOffset : 0
-      }
-      if (maxOffset === 0) {
-        return 0
-      }
-      const freeSpace = availableSize - layout.width
-      const accumulatingOffset = interpolate(
+      return getTabBarItemScrollOffset({
         index,
-        // Gradually shift every next item to the left so that the first item
-        // is positioned like "left: 0" but the last item is like "right: 0".
-        [0, itemsLength - 1],
-        [0, freeSpace],
-        'clamp',
-      )
-      return Math.min(Math.max(layout.x - accumulatingOffset, 0), maxOffset)
+        itemCount: itemsLength,
+        layout: layouts.get()[index],
+        contentWidth: contentSize.get(),
+        containerWidth: containerSize.get(),
+        contentPadding: CONTENT_PADDING,
+        rtl: direction === 'rtl',
+      })
     },
-    [itemsLength, contentSize, containerSize, layouts],
+    [itemsLength, contentSize, containerSize, layouts, direction],
   )
 
   const progressToOffset = useCallback(
@@ -317,7 +322,7 @@ export function TabBar({
   )
 
   return (
-    <View
+    <Center
       testID={testID}
       style={[!transparent && t.atoms.bg, a.flex_row]}
       accessibilityRole="tablist">
@@ -325,9 +330,10 @@ export function TabBar({
         <ScrollView
           testID={`${testID}-selector`}
           horizontal={true}
+          style={{direction: 'ltr'}}
           showsHorizontalScrollIndicator={false}
           ref={scrollElRef}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[styles.contentContainer, {direction: 'ltr'}]}
           onLayout={e => {
             containerSize.set(e.nativeEvent.layout.width)
           }}
@@ -343,7 +349,14 @@ export function TabBar({
             onLayout={e => {
               contentSize.set(e.nativeEvent.layout.width)
             }}
-            style={[styles.items, align === 'center' && styles.itemsCentered]}>
+            style={[
+              styles.items,
+              {
+                direction: 'ltr',
+                flexDirection: direction === 'rtl' ? 'row-reverse' : 'row',
+              },
+              align === 'center' && styles.itemsCentered,
+            ]}>
             {items.map((item, i) => {
               return (
                 <TabBarItem
@@ -352,6 +365,7 @@ export function TabBar({
                   testID={testID}
                   dragProgress={dragProgress}
                   item={item}
+                  unread={unread?.[i]}
                   onPressItem={onPressItem}
                   onItemLayout={onItemLayout}
                   onTextLayout={onTextLayout}
@@ -376,7 +390,7 @@ export function TabBar({
         </ScrollView>
       </BlockDrawerGesture>
       <View style={[t.atoms.bg_contrast_100, styles.outerBottomBorder]} />
-    </View>
+    </Center>
   )
 }
 
@@ -385,6 +399,7 @@ function TabBarItem({
   testID,
   dragProgress,
   item,
+  unread,
   onPressItem,
   onItemLayout,
   onTextLayout,
@@ -394,12 +409,14 @@ function TabBarItem({
   testID: string | undefined
   dragProgress: SharedValue<number>
   item: string
+  unread?: boolean
   onPressItem: (index: number) => void
   onItemLayout: (index: number, layout: {x: number; width: number}) => void
   onTextLayout: (index: number, layout: {width: number}) => void
   align: 'center' | 'left'
 }) {
   const t = useTheme()
+  const {t: l} = useLingui()
   const style = useAnimatedStyle(() => {
     if (!_WORKLET) {
       return {opacity: 0.7}
@@ -440,15 +457,39 @@ function TabBarItem({
         style={[styles.item, align === 'center' && styles.itemCentered]}
         hoverStyle={t.atoms.bg_contrast_25}
         onPress={() => onPressItem(index)}
+        accessibilityLabel={unread ? l`${item}, unread` : undefined}
+        accessibilityHint=""
         accessibilityRole="tab">
         <Animated.View style={[style, styles.itemInner]}>
-          <Text
-            emoji
-            testID={testID ? `${testID}-${item}` : undefined}
-            style={[styles.itemText, t.atoms.text, a.text_md, a.font_semi_bold]}
-            onLayout={handleTextLayout}>
-            {item}
-          </Text>
+          <View style={unread !== undefined && {paddingHorizontal: 12}}>
+            <Text
+              emoji
+              testID={testID ? `${testID}-${item}` : undefined}
+              style={[
+                styles.itemText,
+                t.atoms.text,
+                a.text_md,
+                a.font_semi_bold,
+              ]}
+              onLayout={handleTextLayout}>
+              {item}
+            </Text>
+            {unread && (
+              <View
+                aria-hidden
+                testID={testID ? `${testID}-unread-${index}` : undefined}
+                style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 0,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: t.palette.primary_500,
+                }}
+              />
+            )}
+          </View>
         </Animated.View>
       </PressableWithHover>
     </View>

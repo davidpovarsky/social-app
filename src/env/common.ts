@@ -21,11 +21,17 @@ export const ENV: string = process.env.EXPO_PUBLIC_ENV as
  * lets the same client build target an experimental VM today and a permanent
  * Torah Social domain later without changing application code.
  */
-export const TORAH_PDS_HOST: string =
-  process.env.EXPO_PUBLIC_TORAH_PDS_HOST || 'https://bsky.social'
-
 export const TORAH_ISOLATED_NETWORK: boolean =
   process.env.EXPO_PUBLIC_TORAH_ISOLATED_NETWORK === 'true'
+
+export const TORAH_PDS_HOST: string =
+  process.env.EXPO_PUBLIC_TORAH_PDS_HOST ||
+  (TORAH_ISOLATED_NETWORK ? '' : 'https://bsky.social')
+
+/** Public website origin for share links, separate from AppView/PDS. */
+export const TORAH_WEB_HOST: string =
+  process.env.EXPO_PUBLIC_TORAH_WEB_HOST ||
+  'https://torah-130-110-238-163.nip.io'
 
 /**
  * Indicates whether the app is running in TestFlight
@@ -93,6 +99,20 @@ export const CHAT_PROXY_DID: DidString =
     : 'did:web:api.bsky.chat')
 
 /**
+ * Independent deployments can explicitly disable chat when the configured
+ * service is unavailable. Keep existing chat enabled unless opted out.
+ */
+export const CHAT_ENABLED: boolean =
+  !TORAH_ISOLATED_NETWORK ||
+  process.env.EXPO_PUBLIC_TORAH_CHAT_ENABLED !== 'false'
+
+/**
+ * The DID of the moderation service to proxy requests to.
+ */
+export const MOD_PROXY_DID: DidString | undefined =
+  process.env.EXPO_PUBLIC_MOD_PROXY_DID
+
+/**
  * Metrics API host
  */
 export const METRICS_API_HOST: string =
@@ -110,12 +130,23 @@ export const GROWTHBOOK_API_HOST: string =
  * Growthbook client key
  */
 export const GROWTHBOOK_CLIENT_KEY: string =
-  process.env.EXPO_PUBLIC_GROWTHBOOK_CLIENT_KEY || 'sdk-7gkUkGy9wguUjyFe'
+  process.env.EXPO_PUBLIC_GROWTHBOOK_CLIENT_KEY ||
+  (TORAH_ISOLATED_NETWORK ? '' : 'sdk-7gkUkGy9wguUjyFe')
 
 /**
  * Sentry DSN for telemetry
  */
 export const SENTRY_DSN: string | undefined = process.env.EXPO_PUBLIC_SENTRY_DSN
+
+/**
+ * Sentry release name. Sentry only compares releases by version when they're
+ * named `package@version` - a bare version gets ordered by when its release
+ * record was created, which makes "resolved in release" regress on events
+ * from older builds. The package matches the native SDK's default release
+ * name. Source map uploads must use the same name, see `SENTRY_RELEASE` in
+ * the CI workflows, `Dockerfile` and `scripts/post-web-build.js`.
+ */
+export const SENTRY_RELEASE = `com.davidpovarsky.torahsocial@${RELEASE_VERSION}`
 
 /**
  * Bitdrift API key. If undefined, Bitdrift should be disabled.

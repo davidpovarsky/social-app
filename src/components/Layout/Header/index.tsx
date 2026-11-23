@@ -1,15 +1,14 @@
 import {createContext, useCallback, useContext} from 'react'
-import {
-  type GestureResponderEvent,
-  I18nManager,
-  Keyboard,
-  View,
-} from 'react-native'
+import {type GestureResponderEvent, Keyboard, View} from 'react-native'
+import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {msg} from '@lingui/core/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
 
+import {getHomeNavigationAction} from '#/lib/routes/navigation'
 import {type NavigationProp} from '#/lib/routes/types'
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
+import {useAppLayoutDirection, useIsRTL} from '#/locale/layoutDirection'
 import {useSetDrawerOpen} from '#/state/shell'
 import {useIsWithinSplitView} from '#/screens/Messages/components/splitView/context'
 import {
@@ -30,12 +29,11 @@ import {
 import {Menu_Stroke2_Corner0_Rounded as Menu} from '#/components/icons/Menu'
 import {
   BUTTON_VISUAL_ALIGNMENT_OFFSET,
-  CENTER_COLUMN_OFFSET,
   CENTER_COLUMN_WIDTH,
   HEADER_SLOT_SIZE,
-  SCROLLBAR_OFFSET,
 } from '#/components/Layout/const'
 import {ScrollbarOffsetContext} from '#/components/Layout/context'
+import {getShellLayout} from '#/components/Layout/direction'
 import {Text} from '#/components/Typography'
 import {useAnalytics} from '#/analytics'
 import {IS_IOS} from '#/env'
@@ -58,7 +56,14 @@ export function Outer({
   const {gtMobile} = useBreakpoints()
   const {isWithinOffsetView} = useContext(ScrollbarOffsetContext)
   const {centerColumnOffset} = useLayoutBreakpoints()
+  const layout = getShellLayout(useAppLayoutDirection(), centerColumnOffset)
   const {isWithinSplitView, isWithinLeftPanel} = useIsWithinSplitView()
+  /*
+   * Native headers sit 4px lower in their box to balance the status bar above
+   * them. Without a top inset (e.g. iPhone Duo, landscape) there's nothing to
+   * balance, so pad the top too
+   */
+  const hasTopInset = useSafeAreaInsets().top > 0
 
   return (
     <View
@@ -72,7 +77,9 @@ export function Outer({
         sticky && web([a.sticky, {top: 0}, a.z_10, t.atoms.bg]),
         isWithinLeftPanel ? a.px_lg : gutters,
         platform({
-          native: [a.pb_xs, {minHeight: 48}],
+          native: hasTopInset
+            ? [a.pb_xs, {minHeight: 48}]
+            : [a.py_xs, {minHeight: 52}],
           web: [a.py_xs, {minHeight: 52}],
         }),
         t.atoms.border_contrast_low,
@@ -80,8 +87,8 @@ export function Outer({
         !isWithinOffsetView &&
           !isWithinSplitView && {
             transform: [
-              {translateX: centerColumnOffset ? CENTER_COLUMN_OFFSET : 0},
-              {translateX: web(SCROLLBAR_OFFSET) ?? 0},
+              {translateX: layout.columnOffset},
+              {translateX: web(layout.scrollbarOffset) ?? 0},
             ],
           },
       ]}>
@@ -130,13 +137,15 @@ export function BackButton({onPress, style, ...props}: Partial<ButtonProps>) {
       if (navigation.canGoBack()) {
         navigation.goBack()
       } else {
-        navigation.navigate('Home')
+        navigation.dispatch(
+          getHomeNavigationAction(navigation.getState(), 'navigate'),
+        )
       }
     },
     [onPress, navigation],
   )
 
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
 
   return (
     <Slot>
@@ -200,7 +209,7 @@ export function TitleText({
   const {gtMobile} = useBreakpoints()
   const {isWithinLeftPanel} = useIsWithinSplitView()
   const align = useContext(AlignmentContext)
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   return (
     <Text
       style={[
@@ -209,7 +218,7 @@ export function TitleText({
           : [a.text_lg, a.font_semi_bold],
         a.leading_tight,
         IS_IOS && align === 'platform' && a.text_center,
-        align === 'left' && {textAlign: isRTL ? 'right' : 'left'},
+        align === 'left' && getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
         gtMobile && a.text_xl,
         style,
       ]}
@@ -224,14 +233,14 @@ export function TitleText({
 export function SubtitleText({children}: {children: React.ReactNode}) {
   const t = useTheme()
   const align = useContext(AlignmentContext)
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   return (
     <Text
       style={[
         a.text_sm,
         a.leading_snug,
         IS_IOS && align === 'platform' && a.text_center,
-        align === 'left' && {textAlign: isRTL ? 'right' : 'left'},
+        align === 'left' && getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
         t.atoms.text_contrast_medium,
       ]}
       numberOfLines={1}>

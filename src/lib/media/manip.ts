@@ -1,23 +1,14 @@
 import {Image as RNImage} from 'react-native'
 import uuid from 'react-native-uuid'
-import {
-  cacheDirectory,
-  copyAsync,
-  createDownloadResumable,
-  deleteAsync,
-  EncodingType,
-  getInfoAsync,
-  makeDirectoryAsync,
-  moveAsync,
-  StorageAccessFramework,
-  writeAsStringAsync,
-} from 'expo-file-system/legacy'
-import {manipulateAsync, SaveFormat} from 'expo-image-manipulator'
-import * as MediaLibrary from 'expo-media-library/legacy'
+import {Directory, EncodingType, File, Paths} from 'expo-file-system'
+import {SaveFormat} from 'expo-image-manipulator'
 import * as Sharing from 'expo-sharing'
 
+import {isCancelledError} from '#/lib/strings/errors'
 import {logger} from '#/logger'
 import {IS_ANDROID, IS_IOS} from '#/env'
+import {renderImage} from './image-manipulator'
+import {Album, Asset} from './media-library'
 import {type PickerImage} from './picker.shared'
 import {type Dimensions} from './types'
 import {convertCdnPreset, getResizedDimensions} from './util'
@@ -67,7 +58,7 @@ export async function downloadAndResize(opts: DownloadAndResizeOpts) {
       maxSize: opts.maxSize,
     })
   } finally {
-    void safeDeleteAsync(path)
+    safeDelete(path)
   }
 }
 
@@ -77,17 +68,29 @@ export async function shareImageModal({uri}: {uri: string}) {
     return
   }
 
+  const shareDirectory = prepareShareDirectory()
   const downloadedPath = await downloadImage(uri, String(uuid.v4()), 15e3)
-  const {uri: jpegUri} = await manipulateAsync(downloadedPath, [], {
-    format: SaveFormat.JPEG,
-    compress: 1.0,
-  })
-  void safeDeleteAsync(downloadedPath)
-  const imagePath = await moveToPermanentPath(jpegUri, '.jpg')
-  await Sharing.shareAsync(imagePath, {
-    mimeType: 'image/jpeg',
-    UTI: 'image/jpeg',
-  })
+  let jpegUri: string | undefined
+  let imagePath: string | undefined
+  let didShare = false
+
+  try {
+    const jpeg = await renderImage(downloadedPath, undefined, {
+      format: SaveFormat.JPEG,
+      compress: 1.0,
+    })
+    jpegUri = jpeg.uri
+    imagePath = await moveToPermanentPath(jpegUri, '.jpg', shareDirectory)
+    await Sharing.shareAsync(imagePath, {
+      mimeType: 'image/jpeg',
+      UTI: 'image/jpeg',
+    })
+    didShare = true
+  } finally {
+    safeDelete(downloadedPath)
+    if (jpegUri) safeDelete(jpegUri)
+    if (imagePath && !didShare) safeDelete(imagePath)
+  }
 }
 
 const ALBUM_NAME = 'Bluesky'
@@ -113,52 +116,31 @@ export async function saveImageToMediaLibrary({uri}: {uri: string}) {
       // android triggers an annoying permission prompt if you try and move an image
       // between albums. therefore, we need to either create the album with the image
       // as the starting image, or put it directly into the album
-      const album = await MediaLibrary.getAlbumAsync(ALBUM_NAME)
+      const album = await Album.get(ALBUM_NAME)
       if (album) {
-        // try and migrate if needed
-        try {
-          if (await MediaLibrary.albumNeedsMigrationAsync(album)) {
-            await MediaLibrary.migrateAlbumIfNeededAsync(album)
-          }
-        } catch (err) {
-          logger.info('Attempted and failed to migrate album', {
-            safeMessage: err,
-          })
-        }
-
         try {
           // if album exists, put the image straight in there
-          await MediaLibrary.createAssetAsync(imagePath, album)
+          await Asset.create(imagePath, album)
         } catch (err) {
           logger.info('Failed to create asset', {safeMessage: err})
           // however, it's possible that we don't have write permission to the album
           // try making a new one!
           try {
-            await MediaLibrary.createAlbumAsync(
-              ALBUM_NAME,
-              undefined,
-              undefined,
-              imagePath,
-            )
+            await Album.create(ALBUM_NAME, [imagePath])
           } catch (err2) {
             logger.info('Failed to create asset in a fresh album', {
               safeMessage: err2,
             })
             // ... and if all else fails, just put it in DCIM
-            await MediaLibrary.createAssetAsync(imagePath)
+            await Asset.create(imagePath)
           }
         }
       } else {
         // otherwise, create album with asset (albums must always have at least one asset)
-        await MediaLibrary.createAlbumAsync(
-          ALBUM_NAME,
-          undefined,
-          undefined,
-          imagePath,
-        )
+        await Album.create(ALBUM_NAME, [imagePath])
       }
     } else {
-      await MediaLibrary.saveToLibraryAsync(imagePath)
+      await Asset.create(imagePath)
     }
   } catch (err) {
     logger.error(err instanceof Error ? err : String(err), {
@@ -166,7 +148,7 @@ export async function saveImageToMediaLibrary({uri}: {uri: string}) {
     })
     throw err
   } finally {
-    safeDeleteAsync(imagePath)
+    safeDelete(imagePath)
   }
 }
 
@@ -199,7 +181,7 @@ async function doResize(
   // Now instead, we have to supply the final dimensions to the manipulation function instead.
   // Performing an "empty" manipulation lets us get the dimensions of the original image. React Native's Image.getSize()
   // does not work for local files...
-  const imageRes = await manipulateAsync(localUri, [], {})
+  const imageRes = await renderImage(localUri)
   const newDimensions = getResizedDimensions(
     {
       width: imageRes.width,
@@ -210,62 +192,71 @@ async function doResize(
 
   let minQualityPercentage = 0
   let maxQualityPercentage = 101 // exclusive
-  let newDataUri
+  let newDataUri: PickerImage | undefined
   const intermediateUris = []
 
-  while (maxQualityPercentage - minQualityPercentage > 1) {
-    const qualityPercentage = Math.round(
-      (maxQualityPercentage + minQualityPercentage) / 2,
-    )
-    const resizeRes = await manipulateAsync(
-      localUri,
-      [{resize: newDimensions}],
-      {
-        format: SaveFormat.JPEG,
-        compress: qualityPercentage / 100,
-      },
-    )
-
-    intermediateUris.push(resizeRes.uri)
-
-    const fileInfo = await getInfoAsync(resizeRes.uri)
-    if (!fileInfo.exists) {
-      throw new Error(
-        'The image manipulation library failed to create a new image.',
+  try {
+    while (maxQualityPercentage - minQualityPercentage > 1) {
+      const qualityPercentage = Math.round(
+        (maxQualityPercentage + minQualityPercentage) / 2,
       )
-    }
+      const resizeRes = await renderImage(
+        localUri,
+        context => context.resize(newDimensions),
+        {
+          format: SaveFormat.JPEG,
+          compress: qualityPercentage / 100,
+        },
+      )
 
-    if (fileInfo.size < opts.maxSize) {
-      minQualityPercentage = qualityPercentage
-      newDataUri = {
-        path: normalizePath(resizeRes.uri),
-        mime: 'image/jpeg',
-        size: fileInfo.size,
-        width: resizeRes.width,
-        height: resizeRes.height,
+      intermediateUris.push(resizeRes.uri)
+
+      const file = new File(resizeRes.uri)
+      if (!file.exists) {
+        throw new Error(
+          'The image manipulation library failed to create a new image.',
+        )
       }
-    } else {
-      maxQualityPercentage = qualityPercentage
+
+      if (file.size < opts.maxSize) {
+        minQualityPercentage = qualityPercentage
+        newDataUri = {
+          path: normalizePath(resizeRes.uri),
+          mime: 'image/jpeg',
+          size: file.size,
+          width: resizeRes.width,
+          height: resizeRes.height,
+        }
+      } else {
+        maxQualityPercentage = qualityPercentage
+      }
+    }
+
+    if (newDataUri) {
+      return newDataUri
+    }
+
+    throw new Error(
+      `This image is too big! We couldn't compress it down to ${opts.maxSize} bytes`,
+    )
+  } catch (err) {
+    newDataUri = undefined
+    throw err
+  } finally {
+    safeDelete(imageRes.uri)
+    for (const intermediateUri of intermediateUris) {
+      if (newDataUri?.path !== normalizePath(intermediateUri)) {
+        safeDelete(intermediateUri)
+      }
     }
   }
-
-  for (const intermediateUri of intermediateUris) {
-    if (newDataUri?.path !== normalizePath(intermediateUri)) {
-      safeDeleteAsync(intermediateUri)
-    }
-  }
-
-  if (newDataUri) {
-    safeDeleteAsync(imageRes.uri)
-    return newDataUri
-  }
-
-  throw new Error(
-    `This image is too big! We couldn't compress it down to ${opts.maxSize} bytes`,
-  )
 }
 
-async function moveToPermanentPath(path: string, ext: string): Promise<string> {
+async function moveToPermanentPath(
+  path: string,
+  ext: string,
+  destinationDirectory = Paths.cache,
+): Promise<string> {
   /*
   Since this package stores images in a temp directory, we need to move the file to a permanent location.
   Relevant: IOS bug when trying to open a second time:
@@ -273,44 +264,47 @@ async function moveToPermanentPath(path: string, ext: string): Promise<string> {
   */
   const filename = uuid.v4()
 
-  // cacheDirectory will not ever be null on native, but it could be on web. This function only ever gets called on
-  // native so we assert as a string.
-  const destinationPath = joinPath(cacheDirectory as string, filename + ext)
-  await copyAsync({
-    from: normalizePath(path),
-    to: normalizePath(destinationPath),
-  })
-  safeDeleteAsync(path)
-  return normalizePath(destinationPath)
+  const destination = new File(destinationDirectory, filename + ext)
+  await new File(normalizePath(path)).copy(destination)
+  safeDelete(path)
+  return normalizePath(destination.uri)
 }
 
-export async function safeDeleteAsync(path: string) {
-  // Normalize is necessary for Android, otherwise it doesn't delete.
+function prepareShareDirectory(): Directory {
+  const directory = new Directory(Paths.cache, 'bsky-share')
+
+  /*
+   * Keep the current file alive after the share sheet closes because Android
+   * targets may consume its content URI lazily. Remove the previous share the
+   * next time a share starts so the cache remains bounded.
+   */
+  if (directory.exists) {
+    for (const entry of directory.list()) {
+      safeDelete(entry.uri)
+    }
+  } else {
+    directory.create({intermediates: true})
+  }
+  return directory
+}
+
+export function safeDelete(path: string) {
   const normalizedPath = normalizePath(path)
   try {
-    await deleteAsync(normalizedPath, {idempotent: true})
+    const info = Paths.info(normalizedPath)
+    if (info.isDirectory) {
+      new Directory(normalizedPath).delete()
+    } else if (info.exists) {
+      new File(normalizedPath).delete()
+    }
   } catch (e) {
     console.error('Failed to delete file', e)
   }
 }
 
-function joinPath(a: string, b: string) {
-  if (a.endsWith('/')) {
-    if (b.startsWith('/')) {
-      return a.slice(0, -1) + b
-    }
-    return a + b
-  } else if (b.startsWith('/')) {
-    return a + b
-  }
-  return a + '/' + b
-}
-
-function normalizePath(str: string, allPlatforms = false): string {
-  if (IS_ANDROID || allPlatforms) {
-    if (!str.startsWith('file://')) {
-      return `file://${str}`
-    }
+function normalizePath(str: string): string {
+  if (str.startsWith('/')) {
+    return `file://${str}`
   }
   return str
 }
@@ -341,25 +335,17 @@ export async function saveToDevice(
       })
       return true
     } else {
-      const permissions =
-        await StorageAccessFramework.requestDirectoryPermissionsAsync()
-
-      if (!permissions.granted) {
-        return false
-      }
-
-      const fileUrl = await StorageAccessFramework.createFileAsync(
-        permissions.directoryUri,
-        filename,
-        type,
-      )
-
-      await writeAsStringAsync(fileUrl, encoded, {
+      const directory = await Directory.pickDirectoryAsync()
+      const file = directory.createFile(filename, type)
+      await file.write(encoded, {
         encoding: EncodingType.Base64,
       })
       return true
     }
   } catch (e) {
+    if (isCancelledError(e)) {
+      return false
+    }
     logger.error('Error occurred while saving file', {message: e})
     return false
   }
@@ -370,50 +356,61 @@ async function withTempFile<T>(
   encoded: string,
   cb: (url: string) => T | Promise<T>,
 ): Promise<T> {
-  // cacheDirectory will not ever be null so we assert as a string.
   // Using a directory so that the file name is not a random string
-  const tmpDirUri = joinPath(cacheDirectory as string, String(uuid.v4()))
-  await makeDirectoryAsync(tmpDirUri, {intermediates: true})
+  const tmpDir = new Directory(Paths.cache, String(uuid.v4()))
+  tmpDir.create({intermediates: true})
 
   try {
-    const tmpFileUrl = joinPath(tmpDirUri, filename)
-    await writeAsStringAsync(tmpFileUrl, encoded, {
+    const tmpFile = new File(tmpDir, filename)
+    await tmpFile.write(encoded, {
       encoding: EncodingType.Base64,
     })
 
-    return await cb(tmpFileUrl)
+    return await cb(tmpFile.uri)
   } finally {
-    safeDeleteAsync(tmpDirUri)
+    safeDelete(tmpDir.uri)
   }
 }
 
 async function downloadImage(uri: string, destName: string, timeout: number) {
-  // Download to a temp path first, then rename with the correct extension
-  // based on the response's mimeType.
-  const tempPath = `${cacheDirectory ?? ''}/${destName}.bin`
-  const dlResumable = createDownloadResumable(uri, tempPath, {cache: true})
+  /*
+   * Download into a temporary directory so Expo can derive a filename from
+   * the response headers. We then use that file's MIME type to choose the
+   * permanent extension.
+   */
+  const tempDir = new Directory(Paths.cache, `${destName}-download`)
+  tempDir.create({intermediates: true})
+
+  const controller = new AbortController()
   let timedOut = false
-  const to1 = setTimeout(() => {
+  const timeoutId = setTimeout(() => {
     timedOut = true
-    void dlResumable.cancelAsync()
+    controller.abort()
   }, timeout)
 
-  const dlRes = await dlResumable.downloadAsync()
-  clearTimeout(to1)
+  try {
+    const downloaded = await File.downloadFileAsync(uri, tempDir, {
+      idempotent: true,
+      signal: controller.signal,
+    })
+    const ext = extFromMime(downloaded.type)
+    const destination = new File(
+      Paths.cache,
+      ext ? `${destName}.${ext}` : `${destName}.bin`,
+    )
+    await downloaded.move(destination)
 
-  if (!dlRes?.uri) {
+    return normalizePath(destination.uri)
+  } catch (err) {
     if (timedOut) {
       throw new Error('Failed to download image - timed out')
-    } else {
-      throw new Error('Failed to download image - dlRes is undefined')
     }
+
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+    safeDelete(tempDir.uri)
   }
-
-  const ext = extFromMime(dlRes.mimeType)
-  const finalPath = `${cacheDirectory ?? ''}/${destName}.${ext}`
-  await moveAsync({from: dlRes.uri, to: finalPath})
-
-  return normalizePath(finalPath)
 }
 
 const MIME_TO_EXT: Record<string, string> = {
@@ -423,6 +420,6 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/gif': 'gif',
 }
 
-function extFromMime(mimeType?: string | null): string {
-  return (mimeType && MIME_TO_EXT[mimeType]) || 'jpg'
+function extFromMime(mimeType?: string | null): string | undefined {
+  return mimeType ? MIME_TO_EXT[mimeType] : undefined
 }

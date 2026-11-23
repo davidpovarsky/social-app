@@ -12,7 +12,6 @@ import {type CommonNavigatorParams} from '#/lib/routes/types'
 import {cleanError} from '#/lib/strings/errors'
 import {makeRecordUri} from '#/lib/strings/url-helpers'
 import {listenSoftReset} from '#/state/events'
-import {FeedFeedbackProvider, useFeedFeedback} from '#/state/feed-feedback'
 import {
   type FeedSourceFeedInfo,
   useFeedSourceInfoQuery,
@@ -32,12 +31,13 @@ import {ErrorScreen} from '#/view/com/util/error/ErrorScreen'
 import {FAB} from '#/view/com/util/fab/FAB'
 import {type ListRef} from '#/view/com/util/List'
 import {LoadLatestBtn} from '#/view/com/util/load-latest/LoadLatestBtn'
-import {PostFeedLoadingPlaceholder} from '#/view/com/util/LoadingPlaceholder'
 import {useTheme} from '#/alf'
 import {EditBig_Stroke2_Corner2_Rounded as EditBigIcon} from '#/components/icons/EditBig'
 import {HashtagWide_Stroke1_Corner0_Rounded as HashtagWideIcon} from '#/components/icons/Hashtag'
 import * as Layout from '#/components/Layout'
+import {PostFeedSkeleton} from '#/components/PostFeedSkeleton'
 import {IS_NATIVE} from '#/env'
+import {FeedFeedbackProvider, useFeedFeedback} from '#/features/feedFeedback'
 import {app} from '#/lexicons'
 import {
   CustomFeedHeader,
@@ -88,7 +88,7 @@ export function CustomFeedScreen(props: Props) {
     <Layout.Screen testID="customFeedScreen">
       <CustomFeedHeaderSkeleton />
       <Layout.Content>
-        <PostFeedLoadingPlaceholder />
+        <PostFeedSkeleton />
       </Layout.Content>
     </Layout.Screen>
   )
@@ -108,7 +108,7 @@ function CustomFeedScreenIntermediate({
     return (
       <Layout.Content>
         <CustomFeedHeaderSkeleton />
-        <PostFeedLoadingPlaceholder />
+        <PostFeedSkeleton />
       </Layout.Content>
     )
   }
@@ -143,7 +143,7 @@ export function CustomFeedScreenInner({
   const [hasNew, setHasNew] = useState(false)
   const [isScrolledDown, setIsScrolledDown] = useState(false)
   const queryClient = useQueryClient()
-  const feedFeedback = useFeedFeedback(feedInfo, hasSession)
+  const feedFeedback = useFeedFeedback(feedInfo, hasSession, 'feed')
   const scrollElRef = useAnimatedRef() as ListRef
 
   const onScrollToTop = useCallback(() => {

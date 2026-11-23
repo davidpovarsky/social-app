@@ -29,6 +29,9 @@ export const DEFAULT_APP_CONFIG_RESPONSE: AppConfigResponse = {
 let fetchAppConfigPromise: Promise<AppConfigResponse> | undefined
 
 async function fetchAppConfig(): Promise<AppConfigResponse | null> {
+  // An absent optional worker must not become a request to the app's /config.
+  if (!APP_CONFIG_URL) return DEFAULT_APP_CONFIG_RESPONSE
+
   try {
     if (!fetchAppConfigPromise) {
       fetchAppConfigPromise = (async () => {

@@ -15369,3 +15369,11 @@ msgstr "שם המשתמש והסיסמה שלך ישותפו עם <0>{host}</0>.
 msgid "Your verifications"
 msgstr "האימותים שלך"
 
+
+#: src/components/dms/ChatUnavailable.tsx
+msgid "Chats are not available on this network"
+msgstr "הצ׳אטים אינם זמינים ברשת הזו"
+
+#: src/components/dms/ChatUnavailable.tsx
+msgid "You can still read posts, reply, and share links."
+msgstr "אפשר להמשיך לקרוא פוסטים, להגיב ולשתף קישורים."

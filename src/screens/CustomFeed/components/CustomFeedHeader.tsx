@@ -47,6 +47,10 @@ import {
   useReportDialogControl,
 } from '#/components/moderation/ReportDialog'
 import {RichText} from '#/components/RichText'
+import {
+  ShareSheet,
+  useShareSheetEnabled,
+} from '#/components/ShareDialog/ShareSheet'
 import * as Toast from '#/components/Toast'
 import {Text} from '#/components/Typography'
 import {useAnalytics} from '#/analytics'
@@ -95,7 +99,9 @@ export function CustomFeedHeader({
   const {hasSession} = useSession()
   const {gtMobile} = useBreakpoints()
   const infoControl = Dialog.useDialogControl()
-  const playHaptic = useHaptics()
+  const shareSheetControl = Dialog.useDialogControl()
+  const shareSheetEnabled = useShareSheetEnabled()
+  const haptics = useHaptics()
 
   const {data: preferences} = usePreferencesQuery()
 
@@ -121,7 +127,7 @@ export function CustomFeedHeader({
 
   const onToggleSaved = async () => {
     try {
-      playHaptic()
+      haptics.confirm()
 
       if (savedFeedConfig) {
         await removeFeed(savedFeedConfig)
@@ -151,7 +157,7 @@ export function CustomFeedHeader({
 
   const onTogglePinned = async () => {
     try {
-      playHaptic()
+      haptics.confirm()
 
       if (savedFeedConfig) {
         const pinned = !savedFeedConfig.pinned
@@ -217,7 +223,7 @@ export function CustomFeedHeader({
                   color="secondary"
                   variant="ghost"
                   onPress={() => {
-                    playHaptic()
+                    haptics.tap()
                     infoControl.open()
                   }}>
                   <ButtonIcon icon={EllipsisIcon} />
@@ -234,7 +240,7 @@ export function CustomFeedHeader({
                   },
                 ]}
                 onPress={() => {
-                  playHaptic()
+                  haptics.tap()
                   infoControl.open()
                 }}>
                 {({hovered, pressed}) => (
@@ -411,9 +417,28 @@ export function CustomFeedHeader({
             isTrending={isTrending}
             onTogglePinned={() => void onTogglePinned()}
             isFeedStateChangePending={isFeedStateChangePending}
+            onOpenShareSheet={
+              shareSheetEnabled ? () => shareSheetControl.open() : undefined
+            }
           />
         </Dialog.ScrollableInner>
       </Dialog.Outer>
+      {shareSheetEnabled && (
+        <ShareSheet
+          control={shareSheetControl}
+          subject={{
+            type: 'feed',
+            uri: info.uri,
+            authorDid: info.creatorDid,
+            url: toShareUrl(info.route.href),
+            title: l({
+              message: `“${info.displayName}” feed by @${info.creatorHandle} on Bluesky`,
+              comment:
+                'Prefilled subject line when sharing a feed to email or Reddit',
+            }),
+          }}
+        />
+      )}
     </>
   )
 }
@@ -427,6 +452,7 @@ function DialogInner({
   isTrending,
   onTogglePinned,
   isFeedStateChangePending,
+  onOpenShareSheet,
 }: {
   info: FeedSourceFeedInfo
   likeUri: string
@@ -436,12 +462,17 @@ function DialogInner({
   isTrending: boolean
   onTogglePinned: () => void
   isFeedStateChangePending: boolean
+  /**
+   * Opens the share sheet, once this dialog has closed. Unset where the sheet
+   * is off, to share with the system share sheet instead.
+   */
+  onOpenShareSheet?: () => void
 }) {
   const t = useTheme()
   const {t: l} = useLingui()
   const ax = useAnalytics()
   const {hasSession} = useSession()
-  const playHaptic = useHaptics()
+  const haptics = useHaptics()
   const control = Dialog.useDialogContext()
   const reportDialogControl = useReportDialogControl()
   const {mutateAsync: likeFeed, isPending: isLikePending} = useLikeMutation()
@@ -459,7 +490,7 @@ function DialogInner({
      */
     const shouldUnlike = isLiked && likeUri
     try {
-      playHaptic()
+      haptics.tap()
 
       if (shouldUnlike) {
         await unlikeFeed({uri: likeUri})
@@ -482,11 +513,15 @@ function DialogInner({
   }
 
   const onPressShare = useCallback(() => {
-    playHaptic()
+    haptics.tap()
+    ax.metric('feed:share', {feedUrl: info.uri})
+    if (onOpenShareSheet) {
+      control.close(onOpenShareSheet)
+      return
+    }
     const url = toShareUrl(info.route.href)
     void shareUrl(url)
-    ax.metric('feed:share', {feedUrl: info.uri})
-  }, [ax, info, playHaptic])
+  }, [ax, info, haptics, control, onOpenShareSheet])
 
   const onPressReport = useCallback(() => {
     reportDialogControl.open()

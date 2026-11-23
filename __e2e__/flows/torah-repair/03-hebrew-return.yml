@@ -1,0 +1,67 @@
+appId: ${APP_ID}
+name: Change English to Hebrew in the app without restarting
+---
+- hideKeyboard
+- tapOn: "Go back"
+- extendedWaitUntil:
+    visible:
+      id: createAccountButton
+    timeout: 30000
+- tapOn:
+    id: createAccountButton
+- extendedWaitUntil:
+    visible:
+      id: emailInput
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: "Change app language"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 100
+- tapOn: "Change app language"
+- assertVisible: "Select language"
+- takeScreenshot: 09-english-language-picker
+- tapOn: "עברית – Hebrew"
+- extendedWaitUntil:
+    visible: "שנה את שפת האפליקציה"
+    timeout: 15000
+- takeScreenshot: 10-hebrew-signup-footer
+- scrollUntilVisible:
+    element:
+      text: "החשבון שלך"
+    direction: UP
+    timeout: 15000
+    visibilityPercentage: 100
+- assertVisible: "החשבון שלך"
+- assertVisible:
+    id: emailInput
+- assertVisible:
+    id: passwordInput
+- assertNotVisible: "לא ניתן ליצור קשר עם השירות שלך. אנא בדוק את חיבור האינטרנט שלך."
+- takeScreenshot: 11-hebrew-signup-after-switch
+- scrollUntilVisible:
+    element:
+      text: "חזרה לשלב הקודם"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 100
+- tapOn: "חזרה לשלב הקודם"
+- extendedWaitUntil:
+    visible:
+      id: signInButton
+    timeout: 15000
+- assertVisible: "התחבר"
+- takeScreenshot: 12-hebrew-landing-after-switch
+- tapOn:
+    id: signInButton
+- extendedWaitUntil:
+    visible:
+      id: loginUsernameInput
+    timeout: 15000
+- assertVisible:
+    id: loginPasswordInput
+- assertVisible:
+    id: selectServiceButton
+- assertVisible: "חזור"
+- takeScreenshot: 13-hebrew-login-after-switch

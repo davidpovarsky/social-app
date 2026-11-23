@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {ActivityIndicator, Pressable, View} from 'react-native'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useTheme, web} from '#/alf'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
@@ -50,6 +51,7 @@ export function SourcePickerDialog({
       setIsSearching(true)
       void searchTorahSources(value, abort.signal)
         .then(items => {
+          if (abort.signal.aborted) return
           setSuggestions(items)
           setError(undefined)
         })
@@ -169,7 +171,7 @@ export function SourcePickerDialog({
                   placeholder="לדוגמה: ברכות ב ע״א, בראשית א:א..."
                   style={[
                     {
-                      textAlign: 'right',
+                      ...getPhysicalTextAlignStyle('right'),
                       writingDirection: 'rtl',
                       width: '100%',
                       minWidth: 0,
@@ -195,7 +197,10 @@ export function SourcePickerDialog({
                 <Text
                   style={[
                     a.text_sm,
-                    {color: t.palette.negative_400, textAlign: 'right'},
+                    {
+                      color: t.palette.negative_400,
+                      ...getPhysicalTextAlignStyle('right'),
+                    },
                   ]}>
                   {error}
                 </Text>
@@ -213,7 +218,7 @@ export function SourcePickerDialog({
                     style={[
                       a.text_xs,
                       t.atoms.text_contrast_medium,
-                      {textAlign: 'right'},
+                      getPhysicalTextAlignStyle('right'),
                     ]}>
                     הצעות התאמה מ־Sefaria:
                   </Text>
@@ -276,7 +281,10 @@ export function SourcePickerDialog({
                             a.text_md,
                             a.font_semi_bold,
                             a.flex_1,
-                            {textAlign: 'right', writingDirection: 'rtl'},
+                            {
+                              ...getPhysicalTextAlignStyle('right'),
+                              writingDirection: 'rtl',
+                            },
                           ]}>
                           {item.title}
                         </Text>
@@ -286,7 +294,7 @@ export function SourcePickerDialog({
                           style={[
                             a.text_sm,
                             t.atoms.text_contrast_medium,
-                            {textAlign: 'right'},
+                            getPhysicalTextAlignStyle('right'),
                           ]}>
                           {item.key}
                         </Text>
@@ -318,7 +326,10 @@ export function SourcePickerDialog({
                     style={[
                       a.text_md,
                       a.font_semi_bold,
-                      {textAlign: 'right', writingDirection: 'rtl'},
+                      {
+                        ...getPhysicalTextAlignStyle('right'),
+                        writingDirection: 'rtl',
+                      },
                     ]}>
                     {formatCanonicalHebrewRef(
                       resolvedSource.ref,
@@ -333,7 +344,10 @@ export function SourcePickerDialog({
                       a.text_sm,
                       a.leading_snug,
                       t.atoms.text_contrast_high,
-                      {textAlign: 'right', writingDirection: 'rtl'},
+                      {
+                        ...getPhysicalTextAlignStyle('right'),
+                        writingDirection: 'rtl',
+                      },
                     ]}>
                     {resolvedSource.preview}
                   </Text>
@@ -357,14 +371,18 @@ export function SourcePickerDialog({
                 ]}>
                 <View style={[a.gap_2xs, a.flex_1, {alignItems: 'flex-end'}]}>
                   <Text
-                    style={[a.text_sm, a.font_semi_bold, {textAlign: 'right'}]}>
+                    style={[
+                      a.text_sm,
+                      a.font_semi_bold,
+                      getPhysicalTextAlignStyle('right'),
+                    ]}>
                     כלול תמונת מקור מעוצבת
                   </Text>
                   <Text
                     style={[
                       a.text_xs,
                       t.atoms.text_contrast_medium,
-                      {textAlign: 'right'},
+                      getPhysicalTextAlignStyle('right'),
                     ]}>
                     {includeImage
                       ? 'תוצג כרטיסייה גרפית עם תמונת הציטוט מ־Sefaria'

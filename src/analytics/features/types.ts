@@ -18,14 +18,18 @@ export enum Features {
   PostGalleryEmbedEnable = 'post_gallery_embed:enable',
   PostFeedKnownLikersEnable = 'post_feed:known_likers:enable',
   PostThreadKnownLikersEnable = 'post_thread:known_likers:enable',
-  CustomLogoJapanEnable = 'custom_logo:japan:enable',
-  SearchStarterPacksV2Enable = 'search_starter_packs_v2:enable',
   FollowSortEnable = 'follow_sort:enable',
+  FollowingV2Enable = 'following_v2:enable',
   OnboardingInterestsRequiredEnable = 'onboarding:interests:required:enable',
-  ContentVisibilitySettingsEnable = 'content_visibility_settings:enable',
-  ModerationInboxEnable = 'moderation_inbox:enable',
+  AtmosphereScreenEnable = 'atmosphere_screen:enable',
+  ShareDestinationsEnable = 'share_destinations:enable',
+  ImageUploadsNativeCompressionEnable = 'image_uploads:native_compression:enable',
+  ImageUploadsWebCompressionEnable = 'image_uploads:web_compression:enable',
+  PostViewCountsEnable = 'post_view_counts:enable',
+  WebListVirtualizationEnable = 'web_list:virtualization:enable',
 
   // values
+  StarterPacksConfig = 'starter_packs:config',
   TrendingDiscoverValues = 'trending_discover:values',
   TrendingExploreTopicsCountValue = 'trending_explore_topics_count:value',
 

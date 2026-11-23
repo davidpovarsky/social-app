@@ -1,0 +1,227 @@
+name: Torah Social Repair Native QA
+
+on:
+  push:
+    branches:
+      - codex/torah-social-repair-20261122
+  workflow_dispatch:
+    inputs:
+      simulator_build_run_id:
+        description: 'Optional completed Native run containing a compiled simulator build'
+        required: false
+        type: string
+        default: ''
+      simulator_build_artifact_id:
+        description: 'Exact compiled-build artifact ID from that run; both IDs are required'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: torah-repair-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    name: Hebrew and English on iPhone and iPad
+    runs-on: macos-26
+    # Aggregate hard ceiling: 91m compile + 210m UI + 29m setup/archive/cleanup.
+    # Individual subprocess maxima are not an additive runtime guarantee.
+    timeout-minutes: 330
+    env:
+      CI: '1'
+      USE_CCACHE: '1'
+      TORAH_IOS_CCACHE: 'true'
+      CCACHE_DIR: ${{ github.workspace }}/.torah-simulator-ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
+      CCACHE_COMPRESS: '1'
+      CCACHE_MAXSIZE: 3G
+      EXPO_PUBLIC_TORAH_WEB_HOST: https://torah-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_APPVIEW_HOST: https://appview-130-110-238-163.nip.io
+      EXPO_PUBLIC_BLUESKY_PROXY_DID: did:key:zQ3shmuFmJgBGwJugBx4QhgKV5uBW3Qd7RTWMMQto6r8Gug8H
+      EXPO_PUBLIC_CHAT_PROXY_DID: did:web:appview-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_PDS_DID: did:web:pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_PDS_HOST: https://pds-130-110-238-163.nip.io
+      EXPO_PUBLIC_TORAH_ISOLATED_NETWORK: 'true'
+      EXPO_PUBLIC_ENV: production
+      EXPO_PUBLIC_BUNDLE_IDENTIFIER: ${{ github.sha }}
+      # Official cli-2.12.1 release, published 2026-11-02. No older fallback.
+      MAESTRO_VERSION: 2.12.1
+      MAESTRO_SHA256: 54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '180000'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+      MAESTRO_DISABLE_UPDATE_CHECK: '1'
+      QA_ARTIFACTS: ${{ github.workspace }}/artifacts/torah-repair-native
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Select Xcode 26.6
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: '26.6'
+      - name: Record source and verify simulator SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$QA_ARTIFACTS"
+          git rev-parse HEAD > "$QA_ARTIFACTS/source-sha.txt"
+          xcodebuild -version | tee "$QA_ARTIFACTS/xcode-version.txt"
+          xcrun simctl list -j > "$QA_ARTIFACTS/simulator-inventory.json"
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          python3 - "$SDK" <<'PY'
+          import sys
+          version = tuple(int(part) for part in sys.argv[1].split('.')[:2])
+          if version < (26, 4):
+              raise SystemExit(f"Expo SDK 58 requires iOS SDK >= 26.4; got {sys.argv[1]}")
+          print(f"Simulator SDK: {sys.argv[1]}")
+          PY
+      - name: Verify simulator artifact refusal checks
+        run: python3 .github/scripts/test-torah-native-artifact.py
+      - name: Verify explicitly requested simulator build reuse
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIMULATOR_BUILD_RUN_ID: ${{ inputs.simulator_build_run_id }}
+          SIMULATOR_BUILD_ARTIFACT_ID: ${{ inputs.simulator_build_artifact_id }}
+        run: python3 .github/scripts/torah-native-artifact.py reuse
+      - name: Set up pnpm
+        if: steps.reuse.outputs.reused != 'true'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 12.16.1
+          run_install: false
+      - name: Set up Node and dependency cache
+        if: steps.reuse.outputs.reused != 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Set up Java for Maestro
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Restore simulator compiler cache
+        if: steps.reuse.outputs.reused != 'true'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ github.workspace }}/.torah-simulator-ccache
+          key: torah-simulator-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-${{ github.run_id }}
+          restore-keys: |
+            torah-simulator-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-
+            torah-simulator-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-
+      - name: Configure compiler cache and install pinned Maestro
+        shell: bash
+        env:
+          REUSED_SIMULATOR_BUILD: ${{ steps.reuse.outputs.reused }}
+        run: |
+          set -euo pipefail
+          if [ "$REUSED_SIMULATOR_BUILD" != true ]; then
+            if ! command -v ccache >/dev/null 2>&1; then brew install ccache; fi
+            ccache --set-config=max_size=3G
+            ccache --set-config=compiler_check=content
+            ccache --set-config=base_dir="$GITHUB_WORKSPACE"
+          fi
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/maestro.zip" \
+            "https://github.com/mobile-dev-inc/Maestro/releases/download/cli-${MAESTRO_VERSION}/maestro.zip"
+          echo "$MAESTRO_SHA256  $RUNNER_TEMP/maestro.zip" | shasum -a 256 --check
+          unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP/torah-maestro"
+          echo "$RUNNER_TEMP/torah-maestro/maestro/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/torah-maestro/maestro/bin/maestro" --version | tee "$QA_ARTIFACTS/maestro-version.txt"
+      - name: Install pinned dependencies and compile translations
+        if: steps.reuse.outputs.reused != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm intl:compile
+      - name: Apply isolated network and Expo JSI compatibility patches
+        if: steps.reuse.outputs.reused != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/torah-isolate-client.mjs
+          node scripts/patch-expo-jsi-concurrency.mjs
+      - name: Generate iOS project and install CocoaPods
+        if: steps.reuse.outputs.reused != 'true'
+        run: pnpm prebuild --platform ios
+      - name: Build Release simulator app once
+        if: steps.reuse.outputs.reused != 'true'
+        timeout-minutes: 91
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          test -n "$WORKSPACE" || { echo 'Missing Xcode workspace' >&2; exit 1; }
+          APP_SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          xcodebuild -workspace "$WORKSPACE" -list -json > "$QA_ARTIFACTS/schemes.json"
+          SCHEME="$(python3 -c 'import json,sys; names=json.load(open(sys.argv[1]))["workspace"]["schemes"]; print(sys.argv[2] if sys.argv[2] in names else "")' "$QA_ARTIFACTS/schemes.json" "$APP_SCHEME")"
+          test -n "$SCHEME" || { echo "Missing app scheme $APP_SCHEME" >&2; exit 1; }
+          TORAH_CCACHE_BINARY="$(command -v ccache)"
+          xcodebuild -quiet \
+            -workspace "$WORKSPACE" -scheme "$SCHEME" \
+            -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/TorahSimulatorDerivedData" \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO COMPILER_INDEX_STORE_ENABLE=NO \
+            CCACHE_DIR="$CCACHE_DIR" CCACHE_BINARY="$TORAH_CCACHE_BINARY" \
+            build 2>&1 | tee "$QA_ARTIFACTS/xcodebuild.log"
+          APP="$RUNNER_TEMP/TorahSimulatorDerivedData/Build/Products/Release-iphonesimulator/$SCHEME.app"
+          test -d "$APP" || { echo "Missing simulator app: $APP" >&2; exit 1; }
+          echo "TORAH_SIMULATOR_APP=$APP" >> "$GITHUB_ENV"
+      - name: Archive compiled Release simulator app with provenance
+        if: steps.reuse.outputs.reused != 'true'
+        run: python3 .github/scripts/torah-native-artifact.py pack
+      - name: Upload compiled Release simulator app
+        if: steps.reuse.outputs.reused != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: torah-social-native-build-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/torah-native-build
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Run language, real login, feed and unsaved composer flows on both devices
+        # 24 flow budgets total 128m; four current cold starts add at most 20m.
+        # The remaining 62m covers auxiliary work; all UI assertions stay fixed.
+        # This is a hard suite ceiling, not a target or an automatic retry budget.
+        timeout-minutes: 210
+        run: python3 .github/scripts/torah-repair-native.py
+      - name: Sanitize test credentials and tokens before artifact upload
+        id: sanitize
+        if: always()
+        run: python3 .github/scripts/torah-repair-native.py --sanitize-artifacts
+      - name: Log compiler cache statistics and directories
+        if: always() && steps.reuse.outcome == 'success' && steps.reuse.outputs.reused != 'true'
+        shell: bash
+        run: |
+          if command -v ccache >/dev/null 2>&1; then
+            echo "Selected cache_dir: $(ccache --get-config cache_dir)"
+            ccache --show-stats --verbose
+            echo "Default cache_dir: $(env -u CCACHE_DIR ccache --get-config cache_dir)"
+            env -u CCACHE_DIR ccache --show-stats --verbose
+          fi
+      - name: Save compiler cache
+        if: always() && steps.reuse.outcome == 'success' && steps.reuse.outputs.reused != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ github.workspace }}/.torah-simulator-ccache
+          key: torah-simulator-ccache-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.6-${{ hashFiles('pnpm-lock.yaml', 'patches/react-native@0.88.1.patch') }}-${{ github.run_id }}
+      - name: Upload screenshots, hierarchy bounds, JUnit and simulator logs
+        if: always() && steps.sanitize.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: torah-social-native-qa-${{ github.sha }}
+          path: artifacts/torah-repair-native
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

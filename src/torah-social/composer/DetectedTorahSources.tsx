@@ -1,6 +1,8 @@
 import {useEffect, useRef, useState} from 'react'
-import {I18nManager, Pressable, View} from 'react-native'
+import {Pressable, View} from 'react-native'
 
+import {getPhysicalTextAlignStyle} from '#/lib/strings/text-direction'
+import {useIsRTL} from '#/locale/layoutDirection'
 import {textInputWebEmitter} from '#/view/com/composer/text-input/textInputWebEmitter'
 import {atoms as a, useTheme} from '#/alf'
 import {Text} from '#/components/Typography'
@@ -24,7 +26,7 @@ export function DetectedTorahSources({
   onSelectUri: (uri: string) => void
 }) {
   const t = useTheme()
-  const isRTL = I18nManager.isRTL
+  const isRTL = useIsRTL()
   const [items, setItems] = useState<DetectedTorahSource[]>([])
   const [expanded, setExpanded] = useState(false)
   const pendingInserts = useRef(new Set<string>())
@@ -122,7 +124,7 @@ export function DetectedTorahSources({
                     a.text_sm,
                     a.font_semi_bold,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}>
@@ -134,7 +136,7 @@ export function DetectedTorahSources({
                     a.text_xs,
                     t.atoms.text_contrast_medium,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}>
@@ -217,7 +219,7 @@ export function DetectedTorahSources({
                     a.text_2xs,
                     t.atoms.text_contrast_medium,
                     {
-                      textAlign: isRTL ? 'right' : 'left',
+                      ...getPhysicalTextAlignStyle(isRTL ? 'right' : 'left'),
                       writingDirection: isRTL ? 'rtl' : 'ltr',
                     },
                   ]}>
@@ -260,7 +262,9 @@ export function DetectedTorahSources({
                           a.text_xs,
                           a.font_semi_bold,
                           {
-                            textAlign: isRTL ? 'right' : 'left',
+                            ...getPhysicalTextAlignStyle(
+                              isRTL ? 'right' : 'left',
+                            ),
                             writingDirection: isRTL ? 'rtl' : 'ltr',
                           },
                         ]}>

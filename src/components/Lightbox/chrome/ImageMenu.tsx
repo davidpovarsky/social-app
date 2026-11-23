@@ -1,5 +1,11 @@
-import {useRef, useState} from 'react'
-import {Modal, Pressable, StyleSheet, View} from 'react-native'
+import {useEffect, useRef, useState} from 'react'
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -16,6 +22,7 @@ import {type Props as IconProps} from '#/components/icons/common'
 import {DotGrid3x1_Stroke2_Corner0_Rounded as DotsIcon} from '#/components/icons/DotGrid'
 import {Download_Stroke2_Corner0_Rounded as DownloadIcon} from '#/components/icons/Download'
 import {Text} from '#/components/Typography'
+import {IS_IOS, IS_IPAD} from '#/env'
 import {CircleChromeButton} from './CircleChromeButton'
 
 type Props = {
@@ -38,7 +45,15 @@ export function ImageMenu({onPressShare, onPressSave}: Props) {
   const triggerRef = useRef<React.ComponentRef<typeof View>>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [anchor, setAnchor] = useState<Anchor | null>(null)
+  const {width: windowWidth, height: windowHeight} = useWindowDimensions()
   const progress = useSharedValue(0)
+
+  useEffect(() => {
+    if (!isMounted) return
+    triggerRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchor({x, y, width, height})
+    })
+  }, [isMounted, windowWidth, windowHeight])
 
   const open = () => {
     triggerRef.current?.measureInWindow((x, y, width, height) => {
@@ -58,9 +73,27 @@ export function ImageMenu({onPressShare, onPressSave}: Props) {
     )
   }
 
+  const pendingActionRef = useRef<(() => void) | null>(null)
+
   const runAction = (action: () => void) => {
-    close()
-    action()
+    if (IS_IOS) {
+      /*
+       * Anything presented while this Modal is still up (e.g. the share
+       * sheet) is presented on top of it and gets dismissed along with it,
+       * so wait until the Modal is gone. onDismiss is iOS-only.
+       */
+      pendingActionRef.current = action
+      close()
+    } else {
+      close()
+      action()
+    }
+  }
+
+  const onModalDismiss = () => {
+    const action = pendingActionRef.current
+    pendingActionRef.current = null
+    action?.()
   }
 
   return (
@@ -78,7 +111,17 @@ export function ImageMenu({onPressShare, onPressSave}: Props) {
         visible={isMounted}
         animationType="none"
         onRequestClose={close}
-        supportedOrientations={['portrait', 'landscape']}
+        onDismiss={onModalDismiss}
+        supportedOrientations={
+          IS_IPAD
+            ? [
+                'portrait',
+                'portrait-upside-down',
+                'landscape-left',
+                'landscape-right',
+              ]
+            : ['portrait', 'landscape']
+        }
         statusBarTranslucent>
         <Pressable
           accessibilityRole="button"

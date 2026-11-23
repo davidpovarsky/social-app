@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native'
+import {StyleSheet, useWindowDimensions} from 'react-native'
 import Animated from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {useMediaQuery} from 'react-responsive'
@@ -14,6 +14,7 @@ import {useInteractionState} from '#/components/hooks/useInteractionState'
 import {ArrowTop_Stroke2_Corner0_Rounded as ArrowIcon} from '#/components/icons/Arrow'
 import {CENTER_COLUMN_OFFSET} from '#/components/Layout'
 import {SubtleHover} from '#/components/SubtleHover'
+import {IS_NATIVE} from '#/env'
 
 export function LoadLatestBtn({
   onPress,
@@ -27,6 +28,7 @@ export function LoadLatestBtn({
   const {hasSession} = useSession()
   const {isDesktop, isTablet, isMobile, isTabletOrMobile} = useWebMediaQueries()
   const {centerColumnOffset} = useLayoutBreakpoints()
+  const {width: windowWidth} = useWindowDimensions()
   const fabMinimalShellTransform = useMinimalShellFabTransform()
   const insets = useSafeAreaInsets()
   const t = useTheme()
@@ -53,7 +55,7 @@ export function LoadLatestBtn({
       style={[
         a.fixed,
         a.z_20,
-        {left: 18},
+        {start: 18},
         isDesktop &&
           (isTallViewport
             ? styles.loadLatestOutOfLine
@@ -62,6 +64,11 @@ export function LoadLatestBtn({
           (centerColumnOffset
             ? styles.loadLatestInlineOffset
             : styles.loadLatestInline),
+        /*
+         * Always inline on native: the native left nav is a scroll view drawn
+         * above the screen, so it would swallow taps on the out-of-line spot.
+         */
+        IS_NATIVE && (isTablet || isDesktop) && {start: windowWidth / 2 - 282},
         bottomPosition,
         showBottomBar && fabMinimalShellTransform,
       ]}>
@@ -102,12 +109,12 @@ export function LoadLatestBtn({
 
 const styles = StyleSheet.create({
   loadLatestInline: {
-    left: web('calc(50vw - 282px)'),
+    start: web('calc(50vw - 282px)'),
   },
   loadLatestInlineOffset: {
-    left: web(`calc(50vw - 282px + ${CENTER_COLUMN_OFFSET}px)`),
+    start: web(`calc(50vw - 282px + ${CENTER_COLUMN_OFFSET}px)`),
   },
   loadLatestOutOfLine: {
-    left: web('calc(50vw - 382px)'),
+    start: web('calc(50vw - 382px)'),
   },
 })

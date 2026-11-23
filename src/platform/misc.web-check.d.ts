@@ -80,6 +80,11 @@ declare module 'expo-file-system' {
     slice(start?: number, end?: number, contentType?: string): Blob
     upload(url: string, options?: UploadOptions): Promise<UploadResult>
     createUploadTask(url: string, options?: UploadOptions): UploadTask
+    static downloadFileAsync(
+      url: string,
+      destination: File | Directory,
+      options?: DownloadOptions,
+    ): Promise<File>
     static createDownloadTask(
       url: string,
       destination: File | Directory,
@@ -92,6 +97,7 @@ declare module 'expo-file-system' {
   }
 
   export class Directory extends ExpoFileSystemDirectory {
+    static pickDirectoryAsync(initialUri?: string): Promise<Directory>
     constructor(...uris: (string | File | Directory)[])
     get parentDirectory(): Directory
     list(): (Directory | File)[]
@@ -113,17 +119,8 @@ declare module 'expo-file-system' {
 declare module 'expo-image-manipulator' {
   import {type ImageManipulator as ImageManipulatorModule} from 'expo-image-manipulator/build/ImageManipulator.types'
   export const ImageManipulator: ImageManipulatorModule
+  export {useImageManipulator} from 'expo-image-manipulator/build/ImageManipulator'
   export {
-    manipulateAsync,
-    useImageManipulator,
-  } from 'expo-image-manipulator/build/ImageManipulator'
-  export {
-    type Action,
-    type ActionCrop,
-    type ActionExtent,
-    type ActionFlip,
-    type ActionResize,
-    type ActionRotate,
     FlipType,
     type ImageResult,
     SaveFormat,
